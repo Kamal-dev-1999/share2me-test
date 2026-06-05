@@ -38,6 +38,19 @@ export type TransferPhase =
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
+// ─── ICE server config ───────────────────────────────────────────────────────
+// Google's free public STUN servers let WebRTC discover each peer's public IP
+// so transfers work across different networks (different WiFi, mobile data, etc.).
+// STUN covers ~85% of NAT types. TURN (relay) would cover the remaining ~15%
+// (symmetric NAT / strict firewalls) but requires a paid relay server.
+const ICE_SERVERS: RTCConfiguration = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+  ],
+};
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useTransfer(socket: Socket) {
@@ -401,7 +414,7 @@ export function useTransfer(socket: Socket) {
   // ─────────────────────────────────────────────────────────────────────────
 
   const setupReceiverPeer = useCallback(() => {
-    rcv.current.pc = new RTCPeerConnection();
+    rcv.current.pc = new RTCPeerConnection(ICE_SERVERS);
     rcv.current.pc.ondatachannel = (event) => {
       const dc = event.channel;
       dc.binaryType = "arraybuffer";
@@ -517,7 +530,7 @@ export function useTransfer(socket: Socket) {
     setSenderPhase("connecting");
     setSenderStatus("Starting WebRTC connection…");
 
-    s.pc = new RTCPeerConnection();
+    s.pc = new RTCPeerConnection(ICE_SERVERS);
     s.dc = s.pc.createDataChannel("file");
     s.dc.binaryType = "arraybuffer";
 
