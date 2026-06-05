@@ -10,7 +10,7 @@
     <h2>ShareIt POC — Sender</h2>
     <label>Choose file: <input id="file" type="file" /></label>
     <div>
-      <button id="create">Create OTC & Prepare</button>
+      <button id="create">Create OTC & Prepare (with E2EE)</button>
       <span id="otc"></span>
     </div>
     <div>
@@ -43,12 +43,37 @@
           currentOTC = res.otc;
           otcSpan.textContent = 'OTC: ' + currentOTC;
           const file = fileInput.files[0];
-          const metadata = { f: file.name, s: file.size, m: file.size >= 5*1024*1024 ? 'webrtc' : 'optical', otc: currentOTC };
           qrcodeDiv.innerHTML = '';
-          QRCode.toCanvas(metadata.otc + '|' + JSON.stringify(metadata), { width: 256 }, (err, canvas) => {
-            if(err) console.error(err); else qrcodeDiv.appendChild(canvas);
+          setStatus('Preparing encrypted metadata...');
+          // use worker to compute key/hash and chunks
+          file.arrayBuffer().then(buffer => {
+            window._worker = new Worker('worker.js');
+            _worker.postMessage({ type: 'encrypt', fileName: file.name, fileBuffer: buffer, chunkSize: file.size >= 5*1024*1024 ? 64*1024 : 1024 });
+            _worker.addEventListener('message', (ev) => {
+              const m = ev.data;
+              if (m.type === 'metadata') {
+                const meta = m.metadata;
+                // show metadata JSON for receiver (copy/paste) and QR
+                const metaStr = JSON.stringify(meta);
+                const ta = document.createElement('textarea');
+                ta.rows = 6; ta.cols = 60; ta.value = metaStr;
+                qrcodeDiv.appendChild(ta);
+                QRCode.toCanvas(metaStr, { width: 256 }, (err, canvas) => { if (!err) qrcodeDiv.appendChild(canvas); });
+                otcSpan.textContent = 'OTC: ' + currentOTC;
+                setStatus('Room created — metadata ready. Share QR or metadata JSON.');
+              } else if (m.type === 'chunk') {
+                // buffer encrypted chunks until DataChannel open
+                if (!window._pendingChunks) window._pendingChunks = [];
+                window._pendingChunks.push(m);
+                if (dc && dc.readyState === 'open') {
+                  sendPendingChunks();
+                }
+              } else if (m.type === 'done') {
+                console.log('worker done producing chunks');
+              }
+            });
           });
-          setStatus('Room created — show QR to receiver or share OTC');
+        });
         });
       });
 
@@ -62,8 +87,8 @@
         dc.binaryType = 'arraybuffer';
 
         dc.onopen = () => {
-          setStatus('DataChannel open, streaming file');
-          streamFileOverDataChannel(file, dc);
+          setStatus('DataChannel open, streaming encrypted file');
+          sendPendingChunks();
         };
 
         dc.onclose = () => setStatus('DataChannel closed');
@@ -89,29 +114,16 @@
         });
       });
 
-      function streamFileOverDataChannel(file, channel){
-        const chunkSize = 64 * 1024; // 64KB
-        const reader = new FileReader();
-        let offset = 0;
-        const total = Math.ceil(file.size / chunkSize);
-        let seq = 0;
-
-        reader.addEventListener('error', err => console.error('Read error', err));
-        reader.addEventListener('load', e => {
-          channel.send(JSON.stringify({ seq, total, data: arrayBufferToBase64(e.target.result) }));
-          seq++;
-          offset += e.target.result.byteLength;
-          setStatus(`Sent chunk ${seq}/${total}`);
-          if (offset < file.size) readSlice(offset);
-          else channel.send(JSON.stringify({ done: true }));
-        });
-
-        function readSlice(o){
-          const slice = file.slice(o, o + chunkSize);
-          reader.readAsArrayBuffer(slice);
+      function sendPendingChunks() {
+        if (!window._pendingChunks || !window._pendingChunks.length) return;
+        while (window._pendingChunks.length) {
+          const ch = window._pendingChunks.shift();
+          // send as JSON with base64 data and iv
+          dc.send(JSON.stringify({ seq: ch.seq, total: ch.total, data: ch.data, iv: ch.iv }));
+          setStatus(`Sent chunk ${ch.seq+1}/${ch.total}`);
         }
-
-        readSlice(0);
+        // signal done
+        dc.send(JSON.stringify({ done: true }));
       }
 
       function arrayBufferToBase64(buffer){

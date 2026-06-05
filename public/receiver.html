@@ -10,6 +10,11 @@
     <h2>ShareIt POC — Receiver</h2>
     <label>Enter OTC: <input id="otc" /></label>
     <button id="join">Join</button>
+    <div>
+      <p>Paste metadata JSON (from sender QR or copy):</p>
+      <textarea id="metadata" rows="6" cols="60"></textarea>
+      <button id="import-meta">Import Metadata</button>
+    </div>
     <div id="status"></div>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -31,9 +36,30 @@
         socket.emit('join_room', { otc }, (res) => {
           if (res && res.error) return setStatus('Join error: ' + res.error);
           setStatus('Joined room, waiting for offer...');
-          setupHandlers(otc);
+            setupHandlers(otc);
         });
       });
+
+        document.getElementById('import-meta').addEventListener('click', () => {
+          const txt = document.getElementById('metadata').value.trim();
+          if (!txt) return alert('Paste metadata JSON');
+          try {
+            const meta = JSON.parse(txt);
+            window._expectedTotal = meta.total || Math.ceil(meta.s / (meta.c || 1024));
+            // import key to worker
+            window._worker = new Worker('worker.js');
+            _worker.postMessage({ type: 'importKey', keyB64: meta.key });
+            _worker.addEventListener('message', (ev) => {
+              if (ev.data && ev.data.type === 'keyImported') setStatus('Metadata imported, ready to receive');
+              if (ev.data && ev.data.type === 'decrypted') {
+                // store decrypted chunk
+                if (!window._received) window._received = [];
+                window._received[ev.data.seq] = new Uint8Array(ev.data.data);
+                setStatus(`Decrypted chunk ${ev.data.seq+1}/${window._expectedTotal}`);
+              }
+            });
+          } catch (err) { alert('Invalid JSON'); }
+        });
 
       function setupHandlers(otc){
         pc = new RTCPeerConnection();
@@ -71,16 +97,19 @@
             setStatus('File received');
             return;
           }
-          const bytes = base64ToArrayBuffer(obj.data);
-          fileBuffer[obj.seq] = bytes;
-          expectedTotal = obj.total;
-          setStatus(`Received chunk ${obj.seq+1}/${obj.total}`);
+          // forward encrypted data to worker to decrypt
+          if (window._worker) {
+            window._worker.postMessage({ type: 'decryptChunk', seq: obj.seq, dataB64: obj.data, ivB64: obj.iv });
+            expectedTotal = obj.total;
+          } else {
+            console.warn('No worker/key imported to decrypt chunk');
+          }
         }catch(e){console.error(e)}
       }
 
       function assembleAndDownload(){
         const parts = [];
-        for (let i=0;i<expectedTotal;i++) parts.push(new Uint8Array(fileBuffer[i]));
+        for (let i=0;i<expectedTotal;i++) parts.push(new Uint8Array(window._received[i]));
         const size = parts.reduce((s,p)=>s+p.byteLength,0);
         const tmp = new Uint8Array(size);
         let offset = 0;
