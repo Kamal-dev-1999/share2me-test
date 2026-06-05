@@ -111,40 +111,46 @@ Device A ──── WebRTC DataChannel ────► Device B
 
 ```
 ShareIt/
-├── server.js                    # Express + Socket.io signaling server
-│                                  also proxies HTTP → Next.js (port 3001)
-├── package.json                 # Server dependencies
-├── public/                      # Plain-HTML POC (accessible at /poc)
-│   ├── index.html               # Unified sender + receiver on one page
-│   ├── app.js                   # POC browser logic
-│   ├── worker.js                # AES-GCM + ECDH Web Worker
-│   └── storage.js               # OPFS / IndexedDB persistence
-├── frontend/                    # Next.js application
+├── backend/                     # Express + Socket.io signaling server
+│   ├── server.js                #   Entry point — signal relay + Next.js proxy
+│   ├── package.json             #   { "name": "shareit-backend" }
+│   └── public/                  #   Plain-HTML POC (accessible at /poc)
+│       ├── index.html           #   Unified sender + receiver on one page
+│       ├── app.js               #   POC browser logic
+│       ├── worker.js            #   AES-GCM + ECDH Web Worker
+│       └── storage.js           #   OPFS / IndexedDB persistence
+│
+├── frontend/                    # Next.js 14 application
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── layout.tsx       # Root layout + SEO metadata
-│   │   │   ├── page.tsx         # Main page — composes all sections
-│   │   │   └── globals.css      # Inter + JetBrains Mono, dark defaults
+│   │   │   ├── layout.tsx       #   Root layout + SEO metadata
+│   │   │   ├── page.tsx         #   Main page — composes all sections
+│   │   │   └── globals.css      #   Inter + JetBrains Mono, dark defaults
 │   │   ├── components/
-│   │   │   ├── TopNav.tsx       # 64px dark navigation bar
-│   │   │   ├── HeroSection.tsx  # Display headline + stat callouts
-│   │   │   ├── ModeSelector.tsx # Send ↔ Receive pill toggle
-│   │   │   ├── SendFlow.tsx     # Drag-drop, OTC badge, QR, progress
-│   │   │   └── ReceiveFlow.tsx  # OTC input, key status, receive progress
+│   │   │   ├── TopNav.tsx       #   64px dark navigation bar
+│   │   │   ├── HeroSection.tsx  #   Display headline + stat callouts
+│   │   │   ├── ModeSelector.tsx #   Send ↔ Receive pill toggle
+│   │   │   ├── SendFlow.tsx     #   Drag-drop, OTC badge, QR, progress
+│   │   │   └── ReceiveFlow.tsx  #   OTC input, key status, receive progress
 │   │   └── hooks/
-│   │       ├── useSocket.ts     # Singleton socket.io-client hook
-│   │       └── useTransfer.ts   # Full sender + receiver state machine
+│   │       ├── useSocket.ts     #   Singleton socket.io-client hook
+│   │       └── useTransfer.ts   #   Full sender + receiver state machine
 │   ├── public/
-│   │   ├── worker.js            # Copied from POC — crypto worker
-│   │   └── storage.js           # Copied from POC — chunk storage
-│   ├── tailwind.config.ts       # Full Binance design token palette
-│   └── .env.local               # NEXT_PUBLIC_SIGNAL_URL
-└── knowledge/                   # Project handoff docs
-    ├── knowledge-base.md        # ← Start here when resuming work
-    ├── trd.md                   # Technical Requirements
-    ├── prd.md                   # Product Requirements
-    ├── cbd.md                   # Component Breakdown
-    └── flow.md                  # Data flow diagrams
+│   │   ├── worker.js            #   Crypto worker (served to browser)
+│   │   └── storage.js           #   Chunk storage (served to browser)
+│   ├── tailwind.config.ts       #   Full Binance design token palette
+│   └── .env.local               #   NEXT_PUBLIC_SIGNAL_URL
+│
+├── knowledge/                   # Project docs + design specs
+│   ├── knowledge-base.md        #   ← Start here when resuming work
+│   ├── trd.md                   #   Technical Requirements
+│   ├── prd.md                   #   Product Requirements
+│   ├── cbd.md                   #   Component Breakdown
+│   ├── flow.md                  #   Data flow diagrams
+│   └── DESIGN.md                #   Binance design system reference
+│
+├── package.json                 # Root — orchestration scripts only
+└── README.md
 ```
 
 ---
@@ -155,25 +161,33 @@ ShareIt/
 - Node.js 18+
 - npm 9+
 
-### 1. Install dependencies
+### 1. Install all dependencies
 
 ```bash
-# Signaling server
-npm install
+npm run install:all
+```
 
-# Next.js frontend
-cd frontend && npm install && cd ..
+Or manually:
+```bash
+cd backend  && npm install
+cd ../frontend && npm install
 ```
 
 ### 2. Start both servers
 
+**Option A — Two terminals (recommended):**
+
 ```bash
 # Terminal 1 — Next.js frontend (port 3001)
-cd frontend
-npm run dev -- --port 3001
+cd frontend && npm run dev -- --port 3001
 
 # Terminal 2 — Signaling server + proxy (port 3000)
-npm start
+cd backend && npm start
+```
+
+**Option B — One command (Windows, opens two CMD windows):**
+```bash
+npm run dev
 ```
 
 ### 3. Open the app
