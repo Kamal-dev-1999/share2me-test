@@ -24,8 +24,13 @@ app.use(
     ws: true,  // also proxy Next.js HMR websocket
     on: {
       error: (err, req, res) => {
-        res.writeHead(502, { 'Content-Type': 'text/plain' });
-        res.end(`Next.js not reachable at ${NEXT_URL} — is it running?`);
+        // res may be a raw Socket (for WS upgrades) which has no writeHead
+        if (res && typeof res.writeHead === 'function') {
+          res.writeHead(502, { 'Content-Type': 'text/plain' });
+          res.end(`Next.js not reachable at ${NEXT_URL} — is it running?`);
+        } else if (res && typeof res.destroy === 'function') {
+          res.destroy(); // cleanly close the socket
+        }
       },
     },
   })
