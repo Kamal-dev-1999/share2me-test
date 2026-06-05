@@ -46,6 +46,22 @@ io.on('connection', (socket) => {
     socket.to(msg.otc).emit('signal', msg);
   });
 
+  socket.on('receiver_pub', (msg) => {
+    if (!msg || !msg.otc) return;
+    socket.to(msg.otc).emit('receiver_pub', msg);
+  });
+
+  socket.on('wrapped_key', (msg) => {
+    if (!msg || !msg.otc) return;
+    socket.to(msg.otc).emit('wrapped_key', msg);
+  });
+
+  socket.on('key_exchange', (msg) => {
+    // msg: { otc, type, data, transferId }
+    if (!msg || !msg.otc) return;
+    socket.to(msg.otc).emit('key_exchange', msg);
+  });
+
   socket.on('nack', (msg) => {
     // msg: { otc, missingSeqs, total, transferId }
     if (!msg || !msg.otc) return;

@@ -16,16 +16,15 @@ npm install
 npm start
 ```
 
-3. Open the sender page:
-- http://localhost:3000/sender.html
+3. Open the unified app:
+- http://localhost:3000/index.html
 
-4. Open the receiver page in another device or tab:
-- http://localhost:3000/receiver.html
+4. Use the Sender and Receiver panels on the same page, or open the same URL in two tabs/devices and use one as sender and the other as receiver.
 
 Flow
 
-- Sender: pick a file, click `Create OTC & Prepare` to generate a 6-digit code and a QR. Share that with the receiver.
-- Receiver: enter the OTC and `Join` to connect and receive the file via WebRTC DataChannel.
+- Sender: pick a file, click `Create OTC & Prepare` to generate a 6-digit code and a QR-safe metadata payload. Share that with the receiver.
+- Receiver: enter the OTC, join the room, paste/import metadata, and complete the secure key exchange before receiving the file.
 
 Notes
-- This is a minimal POC focusing on signaling and chunked DataChannel transfer. It omits AES encryption and full optical streaming/FEC; those are next steps.
+- This POC now includes AES-GCM chunk encryption, ECDH-based key wrapping over Socket.io, OPFS/IndexedDB chunk persistence, and a NACK-based resume flow. Optical streaming/FEC remains next.
