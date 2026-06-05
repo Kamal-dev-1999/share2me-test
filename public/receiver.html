@@ -31,7 +31,10 @@
 
       let pc = null;
       let fileBuffer = [];
+      let receivedSeqs = new Set();
       let expectedTotal = 0;
+      let transferMeta = null;
+      let nackTimer = null;
 
       function setStatus(s){ status.textContent = s }
 
@@ -50,6 +53,8 @@
           if (!txt) return alert('Paste metadata JSON');
           try {
             const meta = JSON.parse(txt);
+            transferMeta = meta;
+            window._transferId = meta.otc || otcInput.value.trim();
             window._expectedTotal = meta.total || Math.ceil(meta.s / (meta.c || 1024));
             // import key to worker
             window._worker = new Worker('worker.js');
@@ -57,13 +62,15 @@
               if (ev.data && ev.data.type === 'keyImported') setStatus('Metadata imported, ready to receive');
               if (ev.data && ev.data.type === 'decrypted') {
                 // store decrypted chunk to IndexedDB for persistence
-                const transferId = window._transferId || otc;
+                const transferId = window._transferId || otcInput.value.trim();
                 const seq = ev.data.seq;
                 const ab = ev.data.data; // ArrayBuffer
                 ShareItStorage.saveChunk(transferId, 'receiver', seq, ab).catch(console.error);
                 if (!window._received) window._received = [];
                 window._received[seq] = new Uint8Array(ab);
+                receivedSeqs.add(seq);
                 setStatus(`Decrypted chunk ${seq+1}/${window._expectedTotal}`);
+                scheduleNackCheck();
               }
             });
             // post after listener attached
@@ -85,6 +92,11 @@
           if (e.candidate) socket.emit('signal', { otc, type: 'ice', data: e.candidate });
         };
 
+        socket.on('ack', (msg) => {
+          if (!msg || msg.otc !== otc) return;
+          // receipt of ack from sender isn't required for UI, but can be used later.
+        });
+
         socket.on('signal', async (msg) => {
           if (!msg || msg.otc !== otc) return;
           if (msg.type === 'offer') {
@@ -103,17 +115,8 @@
         try{
           const obj = JSON.parse(raw);
           if (obj.done){
-            // Wait for worker to finish decrypting all chunks before assembling
-            const checkInterval = setInterval(() => {
-              const got = window._received || [];
-              if (got.length && got.length === expectedTotal && got.every(x => x !== undefined)) {
-                clearInterval(checkInterval);
-                assembleAndDownload();
-                setStatus('File received');
-              }
-            }, 200);
-            // fallback timeout
-            setTimeout(() => { if (window._received && window._received.length === expectedTotal) { assembleAndDownload(); setStatus('File received'); } }, 5000);
+            expectedTotal = obj.total || expectedTotal || (transferMeta ? transferMeta.total : 0);
+            scheduleNackCheck(true);
             return;
           }
           // forward encrypted data to worker to decrypt
@@ -126,7 +129,33 @@
         }catch(e){console.error(e)}
       }
 
-      function assembleAndDownload(){
+      function scheduleNackCheck(finalCheck = false){
+        if (nackTimer) clearTimeout(nackTimer);
+        nackTimer = setTimeout(async () => {
+          const total = expectedTotal || (transferMeta ? transferMeta.total : 0);
+          if (!total) return;
+          const missing = [];
+          for (let i = 0; i < total; i++) {
+            if (!receivedSeqs.has(i)) missing.push(i);
+          }
+          if (missing.length) {
+            socket.emit('nack', {
+              otc: document.getElementById('otc').value.trim(),
+              transferId: window._transferId || document.getElementById('otc').value.trim(),
+              total,
+              missingSeqs: missing
+            });
+            setStatus(`Requested ${missing.length} missing chunk(s)`);
+            return;
+          }
+          if (finalCheck) {
+            await assembleAndDownload();
+            setStatus('File received');
+          }
+        }, 400);
+      }
+
+      async function assembleAndDownload(){
         // assemble from persistent storage (prefer) or in-memory
         const transferId = window._transferId || document.getElementById('otc').value.trim();
         const chunks = await ShareItStorage.getChunks(transferId, 'receiver').catch(() => []);

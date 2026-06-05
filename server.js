@@ -46,6 +46,17 @@ io.on('connection', (socket) => {
     socket.to(msg.otc).emit('signal', msg);
   });
 
+  socket.on('nack', (msg) => {
+    // msg: { otc, missingSeqs, total, transferId }
+    if (!msg || !msg.otc) return;
+    socket.to(msg.otc).emit('nack', msg);
+  });
+
+  socket.on('ack', (msg) => {
+    if (!msg || !msg.otc) return;
+    socket.to(msg.otc).emit('ack', msg);
+  });
+
   socket.on('disconnect', () => {
     // cleanup if this socket created a room
     const otc = socket.roomOTC;

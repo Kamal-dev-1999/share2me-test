@@ -34,8 +34,10 @@
       const qrcodeDiv = document.getElementById('qrcode');
 
       let currentOTC = null;
+      let currentTransferId = null;
       let pc = null;
       let dc = null;
+      let pendingSendSeqs = new Set();
 
       function setStatus(s){ status.textContent = s }
 
@@ -43,6 +45,7 @@
         if (!fileInput.files.length) return alert('Pick a file first');
         socket.emit('create_room', (res) => {
           currentOTC = res.otc;
+          currentTransferId = currentOTC;
           otcSpan.textContent = 'OTC: ' + currentOTC;
           const file = fileInput.files[0];
           qrcodeDiv.innerHTML = '';
@@ -54,6 +57,7 @@
               const m = ev.data;
               if (m.type === 'metadata') {
                 const meta = m.metadata;
+                currentTransferId = currentOTC;
                 // show metadata JSON for receiver (copy/paste) and QR
                 const metaStr = JSON.stringify(meta);
                 const ta = document.createElement('textarea');
@@ -64,11 +68,10 @@
                 setStatus('Room created — metadata ready. Share QR or metadata JSON.');
                 } else if (m.type === 'chunk') {
                   // persist chunk to IndexedDB and buffer
-                  const transferId = currentOTC;
+                  const transferId = currentTransferId;
                   // store encrypted data (base64) and iv
                   ShareItStorage.saveChunk(transferId, 'sender', m.seq, m.data, m.iv).catch(console.error);
-                  if (!window._pendingChunks) window._pendingChunks = [];
-                  window._pendingChunks.push(m);
+                  pendingSendSeqs.add(m.seq);
                   if (dc && dc.readyState === 'open') {
                     sendPendingChunks();
                   }
@@ -117,18 +120,56 @@
             try { await pc.addIceCandidate(msg.data); } catch(e){}
           }
         });
+
+        socket.on('nack', async (msg) => {
+          if (!msg || msg.otc !== currentOTC) return;
+          const missingSeqs = Array.isArray(msg.missingSeqs) ? msg.missingSeqs : [];
+          if (!missingSeqs.length) return;
+          await resendMissingChunks(missingSeqs);
+        });
       });
 
-      function sendPendingChunks() {
+      async function sendPendingChunks() {
         // prefer reading from persistent storage for resume support
-        const transferId = currentOTC;
+        const transferId = currentTransferId || currentOTC;
         const chunks = await ShareItStorage.getChunks(transferId, 'sender').catch(() => []);
         if (!chunks || !chunks.length) return;
         for (const ch of chunks.sort((a,b)=>a.seq-b.seq)){
-          dc.send(JSON.stringify({ seq: ch.seq, total: ch.total || chunks.length, data: ch.data, iv: ch.iv }));
+          dc.send(JSON.stringify({ seq: ch.seq, total: ch.total || chunks.length, data: chunkDataToBase64(ch.data), iv: chunkDataToBase64(ch.iv) }));
           setStatus(`Sent chunk ${ch.seq+1}/${ch.total || chunks.length}`);
         }
-        dc.send(JSON.stringify({ done: true }));
+        dc.send(JSON.stringify({ done: true, transferId }));
+      }
+
+      async function resendMissingChunks(missingSeqs) {
+        if (!dc || dc.readyState !== 'open') return;
+        const transferId = currentTransferId || currentOTC;
+        const uniqueMissing = [...new Set(missingSeqs)].sort((a, b) => a - b);
+        for (const seq of uniqueMissing) {
+          const chunk = await ShareItStorage.getChunk(transferId, 'sender', seq).catch(() => null);
+          if (!chunk) continue;
+          dc.send(JSON.stringify({ seq: chunk.seq, total: uniqueMissing.length, data: chunkDataToBase64(chunk.data), iv: chunkDataToBase64(chunk.iv), resend: true }));
+          setStatus(`Resent missing chunk ${chunk.seq + 1}`);
+        }
+        dc.send(JSON.stringify({ done: true, transferId, resend: true }));
+      }
+
+      function chunkDataToBase64(data) {
+        if (!data) return null;
+        if (typeof data === 'string') return data;
+        if (data instanceof ArrayBuffer) {
+          const bytes = new Uint8Array(data);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+          return btoa(binary);
+        }
+        if (ArrayBuffer.isView(data)) {
+          const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+          return btoa(binary);
+        }
+        return String(data);
       }
 
       function arrayBufferToBase64(buffer){
