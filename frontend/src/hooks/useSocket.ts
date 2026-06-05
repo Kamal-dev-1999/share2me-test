@@ -19,10 +19,8 @@ function getSocket(): Socket {
 export function useSocket() {
   const socketRef = useRef<Socket>(getSocket());
   useEffect(() => {
-    const s = socketRef.current;
-    return () => {
-      // Don't disconnect on unmount — the socket is shared across the app.
-    };
+    // Don't disconnect on unmount — the socket is shared across the app.
+    return () => {};
   }, []);
   return socketRef.current;
 }

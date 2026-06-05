@@ -4,6 +4,7 @@ import {
   Upload, FileText, CheckCircle2, Loader2, Wifi,
   ClipboardPaste, Type, FileUp,
 } from "lucide-react";
+import Image from "next/image";
 import QRCode from "qrcode";
 import { TransferPhase, SenderMeta } from "@/hooks/useTransfer";
 
@@ -236,7 +237,7 @@ export function SendFlow({
           <div className="sm:order-2 bg-surface-cardDark rounded-xl border border-hairline-dark p-4
                           flex flex-col items-center justify-center gap-3">
             {qrDataUrl
-              ? <img src={qrDataUrl} alt="Transfer QR" className="w-48 h-48 sm:w-[160px] sm:h-[160px] rounded-lg" />
+              ? <Image src={qrDataUrl} alt="Transfer QR" width={192} height={192} className="sm:w-[160px] sm:h-[160px] rounded-lg" />
               : <div className="w-48 h-48 sm:w-[160px] sm:h-[160px] bg-surface-elevatedDark rounded-lg animate-pulse" />
             }
             <p className="text-muted text-xs">Scan with receiver device</p>

@@ -37,21 +37,6 @@ export type TransferPhase =
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function toBase64(input: ArrayBuffer | Uint8Array | string): string {
-  if (typeof input === "string") return input;
-  const bytes =
-    input instanceof ArrayBuffer ? new Uint8Array(input) : new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-function fromBase64(b64: string): ArrayBuffer {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
@@ -135,7 +120,7 @@ export function useTransfer(socket: Socket) {
         setSenderStatus("WebRTC handshake complete. Sending…");
         setSenderPhase("transferring");
       } else if (msg.type === "ice" && snd.current.pc) {
-        try { await snd.current.pc.addIceCandidate(msg.data as RTCIceCandidateInit); } catch (_) {}
+        try { await snd.current.pc.addIceCandidate(msg.data as RTCIceCandidateInit); } catch { }
       }
     }
     // Receiver side: receives offer + ICE from sender
