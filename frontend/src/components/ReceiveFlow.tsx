@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, Key, Loader2, CheckCircle2, Camera, CameraOff, ClipboardPaste } from "lucide-react";
+import { Download, Key, Loader2, CheckCircle2, Camera, CameraOff, ClipboardPaste, Copy, Check } from "lucide-react";
 import jsQR from "jsqr";
 import { TransferPhase } from "@/hooks/useTransfer";
 
@@ -9,6 +9,7 @@ interface Props {
   status: string;
   keyStatus: "pending" | "generated" | "ready";
   progress: number;
+  receivedText: string | null;
   onJoin: (otc: string) => Promise<void>;
   onImport: (json: string) => void;
 }
@@ -27,11 +28,12 @@ const KEY_STATUS_LABELS = {
 
 type MetaInputMode = "scan" | "paste";
 
-export function ReceiveFlow({ phase, status, keyStatus, progress, onJoin, onImport }: Props) {
+export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin, onImport }: Props) {
   const [otc, setOtc]           = useState("");
   const [metaJson, setMetaJson] = useState("");
   const [joining, setJoining]   = useState(false);
   const [metaMode, setMetaMode] = useState<MetaInputMode>("scan");
+  const [copied, setCopied]     = useState(false);
 
   // QR scanner state
   const videoRef    = useRef<HTMLVideoElement>(null);
@@ -311,7 +313,9 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, onJoin, onImpo
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Download className="w-4 h-4 text-primary" />
-              <span className="text-white text-sm font-semibold">Receiving File</span>
+              <span className="text-white text-sm font-semibold">
+                {receivedText !== null ? "Receiving Text" : "Receiving File"}
+              </span>
             </div>
             <span className="text-primary font-mono text-sm font-bold">{progress}%</span>
           </div>
@@ -321,12 +325,64 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, onJoin, onImpo
               style={{ width: `${progress}%` }}
             />
           </div>
-          {isDone && (
+          {isDone && !receivedText && (
             <div className="flex items-center gap-2 mt-3">
               <CheckCircle2 className="w-4 h-4 text-trading-up" />
               <span className="text-trading-up text-sm font-semibold">File received — download started</span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Received text result */}
+      {receivedText !== null && isDone && (
+        <div className="bg-surface-cardDark rounded-xl border border-trading-up/30 p-5 animate-fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-trading-up" />
+              <span className="text-trading-up text-sm font-semibold">Text received</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-muted text-xs">
+                {receivedText.length.toLocaleString()} chars
+              </span>
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(receivedText);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2500);
+                }}
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg
+                            border transition-all duration-200
+                            ${
+                              copied
+                                ? "text-trading-up border-trading-up/40 bg-trading-up/10"
+                                : "text-primary border-primary/30 bg-primary/10 hover:bg-primary/20"
+                            }`}
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? "Copied!" : "Copy All"}
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable text display */}
+          <div className="relative">
+            <textarea
+              readOnly
+              value={receivedText}
+              rows={10}
+              className="w-full bg-surface-elevatedDark border border-hairline-dark rounded-xl
+                         px-4 py-3 text-white text-sm font-mono resize-y leading-relaxed
+                         focus:outline-none focus:border-primary/30 transition-colors
+                         scrollbar-hide"
+            />
+          </div>
+
+          <p className="text-muted text-xs mt-2">
+            Text decoded from UTF-8 · formatting preserved · AES-GCM-256 decrypted
+          </p>
         </div>
       )}
 

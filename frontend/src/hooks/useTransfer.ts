@@ -22,6 +22,7 @@ export interface SenderMeta {
   otc: string;
   senderPubKey: JsonWebKey;
   transport: string;
+  textMode?: boolean; // true when transferring plain text instead of a file
 }
 
 export type TransferPhase =
@@ -67,6 +68,7 @@ export function useTransfer(socket: Socket) {
   const [receiverStatus, setReceiverStatus] = useState("Enter OTC to join a transfer.");
   const [receiverKeyStatus, setReceiverKeyStatus] = useState<"pending"|"generated"|"ready">("pending");
   const [receiverProgress, setReceiverProgress] = useState(0);
+  const [receivedText, setReceivedText] = useState<string | null>(null);
 
   // ── Internal refs (not exposed to UI) ─────────────────────────────────────
   const snd = useRef({
@@ -78,6 +80,7 @@ export function useTransfer(socket: Socket) {
     chunks: [] as { seq: number; total: number; data: string; iv: string }[],
     chunksReady: false,
     pendingReceiverPubKey: null as JsonWebKey | null,
+    isTextMode: false, // true when sending text instead of a file
   });
 
   const rcv = useRef({
@@ -168,16 +171,27 @@ export function useTransfer(socket: Socket) {
     const buf = new Uint8Array(size);
     let offset = 0;
     for (const p of parts) { buf.set(p, offset); offset += p.byteLength; }
-    const blob = new Blob([buf]);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = r.metadata?.f ?? "received.bin";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-    setReceiverPhase("done");
-    setReceiverStatus("File received. Download started.");
-    setReceiverProgress(100);
+
+    if (r.metadata?.textMode) {
+      // ── Text mode: decode UTF-8 bytes → string, show in UI ──
+      const text = new TextDecoder("utf-8").decode(buf);
+      setReceivedText(text);
+      setReceiverPhase("done");
+      setReceiverStatus("Text received.");
+      setReceiverProgress(100);
+    } else {
+      // ── File mode: trigger browser download ──
+      const blob = new Blob([buf]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = r.metadata?.f ?? "received.bin";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setReceiverPhase("done");
+      setReceiverStatus("File received. Download started.");
+      setReceiverProgress(100);
+    }
   }, []);
 
   const scheduleNackCheck = useCallback((finalCheck = false) => {
@@ -311,7 +325,8 @@ export function useTransfer(socket: Socket) {
     if (!msg?.type) return;
 
     if (msg.type === "senderMetadata") {
-      const meta: SenderMeta = msg.metadata;
+      // Merge isTextMode flag into metadata so the receiver knows how to assemble
+      const meta: SenderMeta = { ...msg.metadata, textMode: snd.current.isTextMode };
       snd.current.metadata = meta;
       setSenderMeta(meta);
       setSenderStatus("Metadata ready. Waiting for receiver key…");
@@ -454,6 +469,7 @@ export function useTransfer(socket: Socket) {
     snd.current.chunks = [];
     snd.current.chunksReady = false;
     snd.current.metadata = null;
+    snd.current.isTextMode = false;
 
     socket.emit("create_room", (res: { otc: string }) => {
       snd.current.otc = res.otc;
@@ -473,6 +489,40 @@ export function useTransfer(socket: Socket) {
           transferId: res.otc,
         });
       });
+    });
+  }, [socket, handleSenderWorkerMessage]);
+
+  // Text transfer — same pipeline as file, but encodes text to UTF-8 bytes
+  const createTextRoom = useCallback(async (text: string) => {
+    setSenderPhase("preparing");
+    setSenderStatus("Creating room…");
+    snd.current.chunks = [];
+    snd.current.chunksReady = false;
+    snd.current.metadata = null;
+    snd.current.isTextMode = true; // flag so metadata carries textMode: true
+
+    socket.emit("create_room", (res: { otc: string }) => {
+      snd.current.otc = res.otc;
+      setSenderOtc(res.otc);
+      setSenderStatus("Room created. Encrypting text…");
+
+      const worker = new Worker("/worker.js");
+      worker.addEventListener("message", handleSenderWorkerMessage);
+      snd.current.worker = worker;
+
+      // UTF-8 encode the text to bytes, then treat it like a file buffer
+      const bytes   = new TextEncoder().encode(text);
+      const buffer  = bytes.buffer;
+      // Use 16 KB chunks for text (good balance of overhead vs chunk count)
+      const chunkSz = 16 * 1024;
+
+      worker.postMessage({
+        type: "prepareSenderTransfer",
+        fileName: "text_transfer",
+        fileBuffer: buffer,
+        chunkSize: chunkSz,
+        transferId: res.otc,
+      }, [buffer]); // transfer ownership for zero-copy
     });
   }, [socket, handleSenderWorkerMessage]);
 
@@ -555,9 +605,9 @@ export function useTransfer(socket: Socket) {
   return {
     // Sender
     senderPhase, senderStatus, senderOtc, senderMeta, senderProgress,
-    createRoom, startWebRtcSend,
+    createRoom, createTextRoom, startWebRtcSend,
     // Receiver
-    receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress,
+    receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress, receivedText,
     joinRoom, importMetadata,
   };
 }

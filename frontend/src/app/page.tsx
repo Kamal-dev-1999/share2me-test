@@ -37,8 +37,8 @@ export default function Home() {
   const socket = useSocket();
   const {
     senderPhase, senderStatus, senderOtc, senderMeta, senderProgress,
-    createRoom, startWebRtcSend,
-    receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress,
+    createRoom, createTextRoom, startWebRtcSend,
+    receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress, receivedText,
     joinRoom, importMetadata,
   } = useTransfer(socket);
 
@@ -99,6 +99,7 @@ export default function Home() {
                 meta={senderMeta}
                 progress={senderProgress}
                 onCreateRoom={createRoom}
+                onCreateTextRoom={createTextRoom}
                 onStartSend={startWebRtcSend}
               />
             ) : (
@@ -107,6 +108,7 @@ export default function Home() {
                 status={receiverStatus}
                 keyStatus={receiverKeyStatus}
                 progress={receiverProgress}
+                receivedText={receivedText}
                 onJoin={joinRoom}
                 onImport={importMetadata}
               />
