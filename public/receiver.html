@@ -48,7 +48,6 @@
             window._expectedTotal = meta.total || Math.ceil(meta.s / (meta.c || 1024));
             // import key to worker
             window._worker = new Worker('worker.js');
-            _worker.postMessage({ type: 'importKey', keyB64: meta.key });
             _worker.addEventListener('message', (ev) => {
               if (ev.data && ev.data.type === 'keyImported') setStatus('Metadata imported, ready to receive');
               if (ev.data && ev.data.type === 'decrypted') {
@@ -58,6 +57,8 @@
                 setStatus(`Decrypted chunk ${ev.data.seq+1}/${window._expectedTotal}`);
               }
             });
+            // post after listener attached
+            _worker.postMessage({ type: 'importKey', keyB64: meta.key });
           } catch (err) { alert('Invalid JSON'); }
         });
 
@@ -93,8 +94,17 @@
         try{
           const obj = JSON.parse(raw);
           if (obj.done){
-            assembleAndDownload();
-            setStatus('File received');
+            // Wait for worker to finish decrypting all chunks before assembling
+            const checkInterval = setInterval(() => {
+              const got = window._received || [];
+              if (got.length && got.length === expectedTotal && got.every(x => x !== undefined)) {
+                clearInterval(checkInterval);
+                assembleAndDownload();
+                setStatus('File received');
+              }
+            }, 200);
+            // fallback timeout
+            setTimeout(() => { if (window._received && window._received.length === expectedTotal) { assembleAndDownload(); setStatus('File received'); } }, 5000);
             return;
           }
           // forward encrypted data to worker to decrypt

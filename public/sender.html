@@ -48,7 +48,6 @@
           // use worker to compute key/hash and chunks
           file.arrayBuffer().then(buffer => {
             window._worker = new Worker('worker.js');
-            _worker.postMessage({ type: 'encrypt', fileName: file.name, fileBuffer: buffer, chunkSize: file.size >= 5*1024*1024 ? 64*1024 : 1024 });
             _worker.addEventListener('message', (ev) => {
               const m = ev.data;
               if (m.type === 'metadata') {
@@ -72,8 +71,9 @@
                 console.log('worker done producing chunks');
               }
             });
+            // post after listener attached to avoid race
+            _worker.postMessage({ type: 'encrypt', fileName: file.name, fileBuffer: buffer, chunkSize: file.size >= 5*1024*1024 ? 64*1024 : 1024 });
           });
-        });
         });
       });
 
