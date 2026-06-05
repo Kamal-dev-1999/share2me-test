@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ShareIt POC - Receiver</title>
+    <style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:20px}</style>
+  </head>
+  <body>
+    <h2>ShareIt POC — Receiver</h2>
+    <label>Enter OTC: <input id="otc" /></label>
+    <button id="join">Join</button>
+    <div id="status"></div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      const socket = io();
+      const joinBtn = document.getElementById('join');
+      const otcInput = document.getElementById('otc');
+      const status = document.getElementById('status');
+
+      let pc = null;
+      let fileBuffer = [];
+      let expectedTotal = 0;
+
+      function setStatus(s){ status.textContent = s }
+
+      joinBtn.addEventListener('click', () => {
+        const otc = otcInput.value.trim();
+        if (!otc) return alert('Enter OTC');
+        socket.emit('join_room', { otc }, (res) => {
+          if (res && res.error) return setStatus('Join error: ' + res.error);
+          setStatus('Joined room, waiting for offer...');
+          setupHandlers(otc);
+        });
+      });
+
+      function setupHandlers(otc){
+        pc = new RTCPeerConnection();
+
+        pc.ondatachannel = (e) => {
+          const dc = e.channel;
+          dc.binaryType = 'arraybuffer';
+          dc.onmessage = (ev) => handleMessage(ev.data);
+          dc.onopen = () => setStatus('DataChannel open');
+        };
+
+        pc.onicecandidate = (e) => {
+          if (e.candidate) socket.emit('signal', { otc, type: 'ice', data: e.candidate });
+        };
+
+        socket.on('signal', async (msg) => {
+          if (!msg || msg.otc !== otc) return;
+          if (msg.type === 'offer') {
+            await pc.setRemoteDescription(msg.data);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit('signal', { otc, type: 'answer', data: answer });
+            setStatus('Sent answer');
+          } else if (msg.type === 'ice') {
+            try { await pc.addIceCandidate(msg.data); } catch(e){}
+          }
+        });
+      }
+
+      function handleMessage(raw){
+        try{
+          const obj = JSON.parse(raw);
+          if (obj.done){
+            assembleAndDownload();
+            setStatus('File received');
+            return;
+          }
+          const bytes = base64ToArrayBuffer(obj.data);
+          fileBuffer[obj.seq] = bytes;
+          expectedTotal = obj.total;
+          setStatus(`Received chunk ${obj.seq+1}/${obj.total}`);
+        }catch(e){console.error(e)}
+      }
+
+      function assembleAndDownload(){
+        const parts = [];
+        for (let i=0;i<expectedTotal;i++) parts.push(new Uint8Array(fileBuffer[i]));
+        const size = parts.reduce((s,p)=>s+p.byteLength,0);
+        const tmp = new Uint8Array(size);
+        let offset = 0;
+        for (const p of parts){ tmp.set(p, offset); offset += p.byteLength }
+        const blob = new Blob([tmp]);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'received.bin';
+        a.click();
+      }
+
+      function base64ToArrayBuffer(base64){
+        const binary = atob(base64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i=0;i<len;i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+      }
+    </script>
+  </body>
+</html>

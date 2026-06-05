@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ShareIt POC - Sender</title>
+    <style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:20px}</style>
+  </head>
+  <body>
+    <h2>ShareIt POC — Sender</h2>
+    <label>Choose file: <input id="file" type="file" /></label>
+    <div>
+      <button id="create">Create OTC & Prepare</button>
+      <span id="otc"></span>
+    </div>
+    <div>
+      <button id="start-rtc">Start WebRTC Send</button>
+    </div>
+    <div id="status"></div>
+
+    <div id="qrcode"></div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script>
+      const socket = io();
+      const fileInput = document.getElementById('file');
+      const createBtn = document.getElementById('create');
+      const otcSpan = document.getElementById('otc');
+      const status = document.getElementById('status');
+      const startRtcBtn = document.getElementById('start-rtc');
+      const qrcodeDiv = document.getElementById('qrcode');
+
+      let currentOTC = null;
+      let pc = null;
+      let dc = null;
+
+      function setStatus(s){ status.textContent = s }
+
+      createBtn.addEventListener('click', () => {
+        if (!fileInput.files.length) return alert('Pick a file first');
+        socket.emit('create_room', (res) => {
+          currentOTC = res.otc;
+          otcSpan.textContent = 'OTC: ' + currentOTC;
+          const file = fileInput.files[0];
+          const metadata = { f: file.name, s: file.size, m: file.size >= 5*1024*1024 ? 'webrtc' : 'optical', otc: currentOTC };
+          qrcodeDiv.innerHTML = '';
+          QRCode.toCanvas(metadata.otc + '|' + JSON.stringify(metadata), { width: 256 }, (err, canvas) => {
+            if(err) console.error(err); else qrcodeDiv.appendChild(canvas);
+          });
+          setStatus('Room created — show QR to receiver or share OTC');
+        });
+      });
+
+      startRtcBtn.addEventListener('click', async () => {
+        if (!currentOTC) return alert('Create a room first');
+        const file = fileInput.files[0];
+        if (!file) return alert('Pick a file');
+        setStatus('Preparing WebRTC...');
+        pc = new RTCPeerConnection();
+        dc = pc.createDataChannel('file');
+        dc.binaryType = 'arraybuffer';
+
+        dc.onopen = () => {
+          setStatus('DataChannel open, streaming file');
+          streamFileOverDataChannel(file, dc);
+        };
+
+        dc.onclose = () => setStatus('DataChannel closed');
+
+        pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            socket.emit('signal', { otc: currentOTC, type: 'ice', data: e.candidate });
+          }
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('signal', { otc: currentOTC, type: 'offer', data: offer });
+
+        socket.on('signal', async (msg) => {
+          if (!msg || msg.otc !== currentOTC) return;
+          if (msg.type === 'answer') {
+            await pc.setRemoteDescription(msg.data);
+            setStatus('Received answer');
+          } else if (msg.type === 'ice') {
+            try { await pc.addIceCandidate(msg.data); } catch(e){}
+          }
+        });
+      });
+
+      function streamFileOverDataChannel(file, channel){
+        const chunkSize = 64 * 1024; // 64KB
+        const reader = new FileReader();
+        let offset = 0;
+        const total = Math.ceil(file.size / chunkSize);
+        let seq = 0;
+
+        reader.addEventListener('error', err => console.error('Read error', err));
+        reader.addEventListener('load', e => {
+          channel.send(JSON.stringify({ seq, total, data: arrayBufferToBase64(e.target.result) }));
+          seq++;
+          offset += e.target.result.byteLength;
+          setStatus(`Sent chunk ${seq}/${total}`);
+          if (offset < file.size) readSlice(offset);
+          else channel.send(JSON.stringify({ done: true }));
+        });
+
+        function readSlice(o){
+          const slice = file.slice(o, o + chunkSize);
+          reader.readAsArrayBuffer(slice);
+        }
+
+        readSlice(0);
+      }
+
+      function arrayBufferToBase64(buffer){
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      }
+    </script>
+  </body>
+</html>
