@@ -117,36 +117,27 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-surface-softLight border-t border-hairline-light">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
-            <div>
-              <div className="text-sm font-semibold text-body-light mb-4">Product</div>
-              {["How it Works", "Security", "Roadmap"].map(l => (
-                <a key={l} href="#" className="block text-sm text-muted hover:text-body-light mb-2 transition-colors">{l}</a>
-              ))}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span className="text-xs text-muted">© 2026 ShareIt. No data stored. No servers involved.</span>
+            <div className="flex items-center gap-6">
+              <a
+                href="https://github.com/Kamal-dev-1999/shareit"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-muted hover:text-body-light transition-colors font-medium"
+              >
+                GitHub ↗
+              </a>
+              <a
+                href="https://github.com/Kamal-dev-1999/shareit/contribute"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-muted hover:text-body-light transition-colors font-medium"
+              >
+                Contribute ↗
+              </a>
             </div>
-            <div>
-              <div className="text-sm font-semibold text-body-light mb-4">Security</div>
-              {["AES-GCM-256", "ECDH Key Exchange", "Zero Knowledge"].map(l => (
-                <div key={l} className="text-sm text-muted mb-2">{l}</div>
-              ))}
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-body-light mb-4">Transfer</div>
-              {["WebRTC P2P", "QR Scan", "Chunk Resume"].map(l => (
-                <div key={l} className="text-sm text-muted mb-2">{l}</div>
-              ))}
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-body-light mb-4">Open Source</div>
-              {["GitHub", "Contribute", "License"].map(l => (
-                <a key={l} href="#" className="block text-sm text-muted hover:text-body-light mb-2 transition-colors">{l}</a>
-              ))}
-            </div>
-          </div>
-          <div className="mt-8 sm:mt-12 pt-6 border-t border-hairline-light flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span className="text-xs text-muted text-center">© 2026 ShareIt. No data stored. No servers involved.</span>
-            <span className="text-xs text-muted text-center">E2E encrypted · WebRTC P2P · AES-GCM-256</span>
           </div>
         </div>
       </footer>
