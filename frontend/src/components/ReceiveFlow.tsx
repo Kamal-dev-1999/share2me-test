@@ -85,9 +85,17 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, canvas.width, canvas.height);
         if (code?.data) {
+          const scanned = code.data.trim();
           stopCamera();
           setScanSuccess(true);
-          onImport(code.data);
+          if (/^\d{6}$/.test(scanned)) {
+            // New format: QR encodes only the 6-digit OTC — auto-join the room
+            setOtc(scanned);
+            onJoin(scanned).catch(console.error);
+          } else {
+            // Legacy format: QR encoded full metadata JSON — still handle gracefully
+            onImport(scanned);
+          }
           return;
         }
 
@@ -100,11 +108,11 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
       setCameraError(
         msg.includes("Permission") || msg.includes("denied") || msg.includes("NotAllowed")
           ? "Camera permission denied. Please allow camera access and try again."
-          : "Could not start camera. Try pasting the metadata manually."
+          : "Could not start camera. Enter the 6-digit code manually."
       );
       setScanning(false);
     }
-  }, [onImport, stopCamera]);
+  }, [onImport, onJoin, stopCamera]);
 
   const handleJoin = async () => {
     if (!otc.trim()) return;
@@ -113,12 +121,13 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
   };
 
   const isIdle     = phase === "idle";
-  const isReady    = phase === "ready";
+  const isReady    = phase === "ready";      // joined, waiting for sender metadata
   const isExchange = phase === "key_exchange";
   const isTransfer = phase === "transferring";
   const isDone     = phase === "done";
 
-  const showMeta = isReady || isExchange || isTransfer || isDone;
+  // Show metadata panel only as a fallback when NOT auto-imported
+  const showMetaFallback = isExchange || isTransfer || isDone;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -165,8 +174,22 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         </div>
       )}
 
-      {/* Metadata input — QR scan or manual paste */}
-      {showMeta && (
+      {/* After joining — waiting for sender metadata to auto-arrive via socket */}
+      {isReady && (
+        <div className="bg-surface-cardDark border border-primary/20 rounded-xl p-5 animate-fade-in">
+          <div className="flex items-center gap-3 mb-3">
+            <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
+            <span className="text-white font-semibold text-sm">Waiting for sender…</span>
+          </div>
+          <p className="text-muted text-xs leading-relaxed">
+            Connected to room. Encryption keys will sync automatically once the sender is ready.
+            No manual steps needed.
+          </p>
+        </div>
+      )}
+
+      {/* Metadata input — shown only as fallback (normally auto-imported) */}
+      {showMetaFallback && (
         <div className="animate-fade-in">
           {/* Label + toggle — stack on mobile */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">

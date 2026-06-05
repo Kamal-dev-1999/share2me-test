@@ -327,8 +327,13 @@ export function useTransfer(socket: Socket) {
       const meta: SenderMeta = { ...msg.metadata, textMode: snd.current.isTextMode };
       snd.current.metadata = meta;
       setSenderMeta(meta);
-      setSenderStatus("Metadata ready. Waiting for receiver key…");
+      setSenderStatus("Metadata ready. Waiting for receiver…");
       setSenderPhase("ready");
+      // Relay metadata via signaling server — receiver auto-imports it
+      // This means the QR only needs to carry the 6-digit OTC, not the full JSON
+      if (snd.current.otc) {
+        socket.emit("sender_ready", { otc: snd.current.otc, metadata: meta });
+      }
       // Process any pending receiver pub key
       if (snd.current.pendingReceiverPubKey && snd.current.worker) {
         snd.current.worker.postMessage({ type: "wrapFileKey", receiverPubKey: snd.current.pendingReceiverPubKey });
@@ -436,6 +441,10 @@ export function useTransfer(socket: Socket) {
   // Socket event wiring
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Use a ref so the socket useEffect can call importMetadata without it
+  // being a dependency (importMetadata is declared later in the file).
+  const importMetadataRef = useRef<(json: string) => void>(() => {});
+
   useEffect(() => {
     socket.on("signal", (msg) => handleSignal(msg).catch(console.error));
     socket.on("receiver_pub", handleReceiverPub);
@@ -446,6 +455,12 @@ export function useTransfer(socket: Socket) {
         await resendMissingChunks(msg.missingSeqs);
       }
     });
+    // Auto-import metadata relayed by the server — no manual JSON paste needed
+    socket.on("metadata_relay", ({ metadata }) => {
+      if (metadata && rcv.current.otc) {
+        importMetadataRef.current(JSON.stringify(metadata));
+      }
+    });
 
     setupReceiverPeer();
 
@@ -454,6 +469,7 @@ export function useTransfer(socket: Socket) {
       socket.off("receiver_pub");
       socket.off("wrapped_key");
       socket.off("nack");
+      socket.off("metadata_relay");
     };
   }, [socket, handleSignal, handleReceiverPub, handleWrappedKey, resendMissingChunks, setupReceiverPeer]);
 
@@ -570,7 +586,7 @@ export function useTransfer(socket: Socket) {
           reject(new Error(res.error));
           return;
         }
-        setReceiverStatus("Joined room. Paste sender metadata to continue.");
+        setReceiverStatus("Joined room. Waiting for sender…");
         setReceiverPhase("ready");
         resolve();
       });
@@ -599,6 +615,8 @@ export function useTransfer(socket: Socket) {
       setReceiverPhase("error");
     }
   }, [handleReceiverWorkerMessage]);
+  // Keep ref in sync so the socket useEffect (mounted once) always calls the latest version
+  importMetadataRef.current = importMetadata;
 
   return {
     // Sender

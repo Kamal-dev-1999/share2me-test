@@ -45,12 +45,15 @@ export function SendFlow({
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!meta) { setQrDataUrl(null); return; }
-    QRCode.toDataURL(JSON.stringify(meta), {
-      width: 220, margin: 1,
+    if (!otc) { setQrDataUrl(null); return; }
+    // Encode ONLY the 6-digit OTC — keeps the QR tiny (version 1) and scannable
+    // by any phone camera. Metadata is relayed automatically via the signaling server.
+    QRCode.toDataURL(otc, {
+      width: 220, margin: 2,
+      errorCorrectionLevel: "H",   // highest redundancy — scannable even if partially obscured
       color: { dark: "#0b0e11", light: "#fcd535" },
     }).then(setQrDataUrl).catch(() => {});
-  }, [meta]);
+  }, [otc]);  // regenerate only when OTC changes, not on every metadata update
 
   const handleFile = useCallback((f: File) => setFile(f), []);
   const onDrop = (e: React.DragEvent) => {
@@ -233,14 +236,16 @@ export function SendFlow({
       {/* ── QR + Metadata ── */}
       {meta && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-          {/* QR first on mobile */}
+          {/* QR — shows as soon as OTC is known, encodes only 6-digit OTC */}
           <div className="sm:order-2 bg-surface-cardDark rounded-xl border border-hairline-dark p-4
                           flex flex-col items-center justify-center gap-3">
             {qrDataUrl
               ? <Image src={qrDataUrl} alt="Transfer QR" width={192} height={192} className="sm:w-[160px] sm:h-[160px] rounded-lg" />
               : <div className="w-48 h-48 sm:w-[160px] sm:h-[160px] bg-surface-elevatedDark rounded-lg animate-pulse" />
             }
-            <p className="text-muted text-xs">Scan with receiver device</p>
+            <p className="text-muted text-xs text-center">
+              Scan to connect · OTC only · auto-syncs keys
+            </p>
           </div>
           <div className="sm:order-1 bg-surface-cardDark rounded-xl border border-hairline-dark p-4">
             <p className="text-muted text-xs font-semibold uppercase tracking-wider mb-3">

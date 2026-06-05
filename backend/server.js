@@ -64,10 +64,20 @@ function genOTC() {
 io.on('connection', (socket) => {
   socket.on('create_room', (cb) => {
     const otc = genOTC();
-    otcToRoom.set(otc, { createdAt: Date.now() });
+    otcToRoom.set(otc, { createdAt: Date.now(), metadata: null });
     socket.join(otc);
     socket.roomOTC = otc;
     if (cb) cb({ otc });
+  });
+
+  // Sender emits this once encryption metadata is ready.
+  // We store it and immediately relay to any receiver already in the room.
+  socket.on('sender_ready', ({ otc, metadata }) => {
+    const room = otcToRoom.get(otc);
+    if (!room) return;
+    room.metadata = metadata;
+    // relay to receiver if they joined before sender was ready
+    socket.to(otc).emit('metadata_relay', { metadata });
   });
 
   socket.on('join_room', ({ otc }, cb) => {
@@ -81,6 +91,12 @@ io.on('connection', (socket) => {
     socket.join(otc);
     socket.roomOTC = otc;
     cb && cb({ ok: true });
+
+    // If sender already emitted sender_ready, relay metadata immediately
+    const room = otcToRoom.get(otc);
+    if (room?.metadata) {
+      socket.emit('metadata_relay', { metadata: room.metadata });
+    }
   });
 
   socket.on('signal', (msg) => {
