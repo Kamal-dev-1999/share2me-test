@@ -2,12 +2,34 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const { randomInt } = require('crypto');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: { origin: '*' },
+});
 
-app.use(express.static('public'));
+// Serve plain-HTML POC from public/
+app.use('/poc', express.static('public'));
+
+// Proxy everything else to the Next.js dev server.
+// When NEXT_URL is not set (production build), remove this proxy and serve Next.js build directly.
+const NEXT_URL = process.env.NEXT_URL || 'http://localhost:3001';
+app.use(
+  '/',
+  createProxyMiddleware({
+    target: NEXT_URL,
+    changeOrigin: true,
+    ws: true,  // also proxy Next.js HMR websocket
+    on: {
+      error: (err, req, res) => {
+        res.writeHead(502, { 'Content-Type': 'text/plain' });
+        res.end(`Next.js not reachable at ${NEXT_URL} — is it running?`);
+      },
+    },
+  })
+);
 
 // Simple in-memory maps for rooms and rate-limiting
 const otcToRoom = new Map();
