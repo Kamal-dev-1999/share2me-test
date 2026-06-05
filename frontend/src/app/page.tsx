@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { TopNav }       from "@/components/TopNav";
 import { HeroSection }  from "@/components/HeroSection";
 import { ModeSelector } from "@/components/ModeSelector";
@@ -9,7 +10,19 @@ import { useSocket }    from "@/hooks/useSocket";
 import { useTransfer }  from "@/hooks/useTransfer";
 
 export default function Home() {
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<"send" | "receive">("send");
+
+  // Auto-select receive mode + scroll if ?mode=receive
+  useEffect(() => {
+    const m = searchParams.get("mode");
+    if (m === "receive") {
+      setMode("receive");
+      setTimeout(() => {
+        document.getElementById("transfer")?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  }, [searchParams]);
 
   const socket = useSocket();
   const {
@@ -24,9 +37,8 @@ export default function Home() {
       <TopNav />
       <HeroSection />
 
-      {/* Transfer workspace */}
-      <section className="px-4 sm:px-6 pb-16 sm:pb-section max-w-3xl mx-auto">
-        {/* Mode selector — stacks on mobile */}
+      {/* Transfer workspace — id used for scroll-to from nav */}
+      <section id="transfer" className="px-4 sm:px-6 pb-16 sm:pb-section max-w-3xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <h2 className="text-xl sm:text-title-lg font-display font-semibold text-white">
             Start a Transfer
@@ -34,7 +46,6 @@ export default function Home() {
           <ModeSelector mode={mode} onChange={setMode} />
         </div>
 
-        {/* Card shell */}
         <div className="bg-surface-cardDark rounded-xl border border-hairline-dark overflow-hidden">
           {/* Card header */}
           <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-hairline-dark bg-surface-elevatedDark/40">
