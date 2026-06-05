@@ -22,8 +22,10 @@
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script src="/storage.js"></script>
     <script>
       const socket = io();
+      window.socket = socket;
       const fileInput = document.getElementById('file');
       const createBtn = document.getElementById('create');
       const otcSpan = document.getElementById('otc');
@@ -60,13 +62,16 @@
                 QRCode.toCanvas(metaStr, { width: 256 }, (err, canvas) => { if (!err) qrcodeDiv.appendChild(canvas); });
                 otcSpan.textContent = 'OTC: ' + currentOTC;
                 setStatus('Room created — metadata ready. Share QR or metadata JSON.');
-              } else if (m.type === 'chunk') {
-                // buffer encrypted chunks until DataChannel open
-                if (!window._pendingChunks) window._pendingChunks = [];
-                window._pendingChunks.push(m);
-                if (dc && dc.readyState === 'open') {
-                  sendPendingChunks();
-                }
+                } else if (m.type === 'chunk') {
+                  // persist chunk to IndexedDB and buffer
+                  const transferId = currentOTC;
+                  // store encrypted data (base64) and iv
+                  ShareItStorage.saveChunk(transferId, 'sender', m.seq, m.data, m.iv).catch(console.error);
+                  if (!window._pendingChunks) window._pendingChunks = [];
+                  window._pendingChunks.push(m);
+                  if (dc && dc.readyState === 'open') {
+                    sendPendingChunks();
+                  }
               } else if (m.type === 'done') {
                 console.log('worker done producing chunks');
               }
@@ -115,14 +120,14 @@
       });
 
       function sendPendingChunks() {
-        if (!window._pendingChunks || !window._pendingChunks.length) return;
-        while (window._pendingChunks.length) {
-          const ch = window._pendingChunks.shift();
-          // send as JSON with base64 data and iv
-          dc.send(JSON.stringify({ seq: ch.seq, total: ch.total, data: ch.data, iv: ch.iv }));
-          setStatus(`Sent chunk ${ch.seq+1}/${ch.total}`);
+        // prefer reading from persistent storage for resume support
+        const transferId = currentOTC;
+        const chunks = await ShareItStorage.getChunks(transferId, 'sender').catch(() => []);
+        if (!chunks || !chunks.length) return;
+        for (const ch of chunks.sort((a,b)=>a.seq-b.seq)){
+          dc.send(JSON.stringify({ seq: ch.seq, total: ch.total || chunks.length, data: ch.data, iv: ch.iv }));
+          setStatus(`Sent chunk ${ch.seq+1}/${ch.total || chunks.length}`);
         }
-        // signal done
         dc.send(JSON.stringify({ done: true }));
       }
 

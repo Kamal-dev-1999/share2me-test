@@ -19,7 +19,12 @@
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
+      // storage.js is loaded from sender page; if not, attempt dynamic import
+    </script>
+    <script src="/storage.js"></script>
+    <script>
       const socket = io();
+      window.socket = socket;
       const joinBtn = document.getElementById('join');
       const otcInput = document.getElementById('otc');
       const status = document.getElementById('status');
@@ -51,10 +56,14 @@
             _worker.addEventListener('message', (ev) => {
               if (ev.data && ev.data.type === 'keyImported') setStatus('Metadata imported, ready to receive');
               if (ev.data && ev.data.type === 'decrypted') {
-                // store decrypted chunk
+                // store decrypted chunk to IndexedDB for persistence
+                const transferId = window._transferId || otc;
+                const seq = ev.data.seq;
+                const ab = ev.data.data; // ArrayBuffer
+                ShareItStorage.saveChunk(transferId, 'receiver', seq, ab).catch(console.error);
                 if (!window._received) window._received = [];
-                window._received[ev.data.seq] = new Uint8Array(ev.data.data);
-                setStatus(`Decrypted chunk ${ev.data.seq+1}/${window._expectedTotal}`);
+                window._received[seq] = new Uint8Array(ab);
+                setStatus(`Decrypted chunk ${seq+1}/${window._expectedTotal}`);
               }
             });
             // post after listener attached
@@ -118,8 +127,26 @@
       }
 
       function assembleAndDownload(){
+        // assemble from persistent storage (prefer) or in-memory
+        const transferId = window._transferId || document.getElementById('otc').value.trim();
+        const chunks = await ShareItStorage.getChunks(transferId, 'receiver').catch(() => []);
         const parts = [];
-        for (let i=0;i<expectedTotal;i++) parts.push(new Uint8Array(window._received[i]));
+        if (chunks && chunks.length) {
+          // chunks.data may be ArrayBuffer or base64
+          for (const c of chunks.sort((a,b)=>a.seq-b.seq)){
+            const d = c.data;
+            if (d instanceof ArrayBuffer) parts.push(new Uint8Array(d));
+            else if (typeof d === 'string') {
+              // base64 -> ArrayBuffer
+              const bin = atob(d);
+              const arr = new Uint8Array(bin.length);
+              for (let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+              parts.push(arr);
+            }
+          }
+        } else {
+          for (let i=0;i<expectedTotal;i++) parts.push(new Uint8Array(window._received[i]));
+        }
         const size = parts.reduce((s,p)=>s+p.byteLength,0);
         const tmp = new Uint8Array(size);
         let offset = 0;
