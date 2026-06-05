@@ -1,22 +1,22 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Shield, Zap, Wifi } from "lucide-react";
 
 export function TopNav() {
   const pathname = usePathname();
+  const router   = useRouter();
 
-  const navLinks = [
-    { label: "Send",         href: "/send" },
-    { label: "Receive",      href: "/#transfer", scroll: true },
-    { label: "How it Works", href: "/how-it-works" },
-  ];
-
-  const handleReceive = (e: React.MouseEvent) => {
-    // If already on home page, just smooth-scroll to #transfer
+  // Scroll to #transfer on the home page, pre-selecting the given mode
+  const goToTransfer = (mode: "send" | "receive") => (e: React.MouseEvent) => {
+    e.preventDefault();
     if (pathname === "/") {
-      e.preventDefault();
+      // Already home — just scroll and set mode via custom event
+      window.dispatchEvent(new CustomEvent("set-transfer-mode", { detail: mode }));
       document.getElementById("transfer")?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      // Navigate home then scroll
+      router.push(`/?mode=${mode}#transfer`);
     }
   };
 
@@ -34,24 +34,30 @@ export function TopNav() {
 
       {/* Nav links */}
       <div className="hidden md:flex items-center gap-1 ml-10">
-        {navLinks.map(({ label, href }) => {
-          const isActive = pathname === href || (href !== "/" && pathname.startsWith(href.split("#")[0]));
-          const isReceive = label === "Receive";
-          return (
-            <Link
-              key={label}
-              href={href}
-              onClick={isReceive ? handleReceive : undefined}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                isActive && !isReceive
-                  ? "text-white bg-surface-elevatedDark"
-                  : "text-muted hover:text-white hover:bg-surface-cardDark"
-              }`}
-            >
-              {label}
-            </Link>
-          );
-        })}
+        <a
+          href="#transfer"
+          onClick={goToTransfer("send")}
+          className="px-3 py-1.5 rounded-md text-sm font-medium text-muted hover:text-white hover:bg-surface-cardDark transition-colors cursor-pointer"
+        >
+          Send
+        </a>
+        <a
+          href="#transfer"
+          onClick={goToTransfer("receive")}
+          className="px-3 py-1.5 rounded-md text-sm font-medium text-muted hover:text-white hover:bg-surface-cardDark transition-colors cursor-pointer"
+        >
+          Receive
+        </a>
+        <Link
+          href="/how-it-works"
+          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            pathname === "/how-it-works"
+              ? "text-white bg-surface-elevatedDark"
+              : "text-muted hover:text-white hover:bg-surface-cardDark"
+          }`}
+        >
+          How it Works
+        </Link>
       </div>
 
       {/* Right cluster */}
@@ -63,15 +69,6 @@ export function TopNav() {
         <div className="flex items-center gap-1.5 text-xs text-muted">
           <Wifi className="w-3.5 h-3.5 text-primary" />
           <span>P2P Only</span>
-        </div>
-        {/* Mobile: quick action buttons */}
-        <div className="flex md:hidden items-center gap-2 ml-2">
-          <Link
-            href="/send"
-            className="bg-primary text-ink text-xs font-bold px-3 py-1.5 rounded-md hover:bg-primary-active transition-colors"
-          >
-            Send
-          </Link>
         </div>
       </div>
     </nav>

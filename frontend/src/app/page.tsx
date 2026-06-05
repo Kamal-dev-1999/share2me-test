@@ -13,11 +13,21 @@ export default function Home() {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"send" | "receive">("send");
 
-  // Auto-select receive mode + scroll if ?mode=receive
+  // Listen for nav-dispatched mode switches (same-page scroll)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const mode = (e as CustomEvent<"send" | "receive">).detail;
+      setMode(mode);
+    };
+    window.addEventListener("set-transfer-mode", handler);
+    return () => window.removeEventListener("set-transfer-mode", handler);
+  }, []);
+
+  // Auto-select receive mode + scroll if ?mode=receive (cross-page nav)
   useEffect(() => {
     const m = searchParams.get("mode");
-    if (m === "receive") {
-      setMode("receive");
+    if (m === "receive" || m === "send") {
+      setMode(m);
       setTimeout(() => {
         document.getElementById("transfer")?.scrollIntoView({ behavior: "smooth" });
       }, 100);
