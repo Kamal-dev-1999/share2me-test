@@ -13,28 +13,45 @@ const io = new Server(server, {
 // Serve plain-HTML POC from public/
 app.use('/poc', express.static('public'));
 
-// Proxy everything else to the Next.js dev server.
-// When NEXT_URL is not set (production build), remove this proxy and serve Next.js build directly.
-const NEXT_URL = process.env.NEXT_URL || 'http://localhost:3001';
-app.use(
-  '/',
-  createProxyMiddleware({
-    target: NEXT_URL,
-    changeOrigin: true,
-    ws: true,  // also proxy Next.js HMR websocket
-    on: {
-      error: (err, req, res) => {
-        // res may be a raw Socket (for WS upgrades) which has no writeHead
-        if (res && typeof res.writeHead === 'function') {
-          res.writeHead(502, { 'Content-Type': 'text/plain' });
-          res.end(`Next.js not reachable at ${NEXT_URL} — is it running?`);
-        } else if (res && typeof res.destroy === 'function') {
-          res.destroy(); // cleanly close the socket
-        }
+// Health check endpoint (used by Render and uptime monitors)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'shareit-signaling', ts: Date.now() });
+});
+
+// Only proxy to Next.js dev server in local development.
+// In production (Render), NEXT_URL is not set, so we skip the proxy
+// and serve a simple status page — the frontend is deployed separately.
+const NEXT_URL = process.env.NEXT_URL;
+if (NEXT_URL) {
+  app.use(
+    '/',
+    createProxyMiddleware({
+      target: NEXT_URL,
+      changeOrigin: true,
+      ws: true,  // also proxy Next.js HMR websocket
+      on: {
+        error: (err, req, res) => {
+          // res may be a raw Socket (for WS upgrades) which has no writeHead
+          if (res && typeof res.writeHead === 'function') {
+            res.writeHead(502, { 'Content-Type': 'text/plain' });
+            res.end(`Next.js not reachable at ${NEXT_URL} — is it running?`);
+          } else if (res && typeof res.destroy === 'function') {
+            res.destroy(); // cleanly close the socket
+          }
+        },
       },
-    },
-  })
-);
+    })
+  );
+} else {
+  // Production fallback — signal server is running, frontend is hosted elsewhere
+  app.get('/', (req, res) => {
+    res.json({
+      service: 'ShareIt Signaling Server',
+      status: 'running',
+      note: 'Connect your frontend by setting NEXT_PUBLIC_SIGNAL_URL to this server URL.',
+    });
+  });
+}
 
 // Simple in-memory maps for rooms and rate-limiting
 const otcToRoom = new Map();
