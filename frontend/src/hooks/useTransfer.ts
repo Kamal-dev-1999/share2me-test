@@ -241,12 +241,32 @@ export function useTransfer(socket: Socket) {
     const chunks = s.chunks;
     if (!chunks.length) { setSenderStatus("No chunks to send."); return; }
     const sorted = [...chunks].sort((a, b) => a.seq - b.seq);
+
+    const HIGH_WATER = 256 * 1024; // pause above 256 KB buffered
+    const LOW_WATER  =  64 * 1024; // resume below 64 KB buffered
+
     for (const chunk of sorted) {
+      if (!s.dc || s.dc.readyState !== "open") break;
+
+      // Backpressure: wait for the send buffer to drain before continuing
+      while (s.dc.bufferedAmount > HIGH_WATER) {
+        await new Promise<void>((res) => {
+          const check = () => {
+            if (!s.dc || s.dc.bufferedAmount <= LOW_WATER) res();
+            else setTimeout(check, 10);
+          };
+          check();
+        });
+      }
+
       s.dc.send(JSON.stringify({ seq: chunk.seq, total: sorted.length, data: chunk.data, iv: chunk.iv }));
-      setSenderProgress(Math.round(((chunk.seq + 1) / sorted.length) * 100));
+      setSenderProgress(Math.min(100, Math.round(((chunk.seq + 1) / sorted.length) * 100)));
       setSenderStatus(`Sent chunk ${chunk.seq + 1}/${sorted.length}`);
     }
-    s.dc.send(JSON.stringify({ done: true, transferId: s.otc, total: sorted.length }));
+
+    if (s.dc?.readyState === "open") {
+      s.dc.send(JSON.stringify({ done: true, transferId: s.otc, total: sorted.length }));
+    }
     setSenderPhase("done");
     setSenderStatus("All chunks sent.");
   }, []);
@@ -256,11 +276,30 @@ export function useTransfer(socket: Socket) {
     if (!s.dc || s.dc.readyState !== "open") return;
     const seqSet = new Set(missingSeqs);
     const toSend = s.chunks.filter((c) => seqSet.has(c.seq));
+    const fullTotal = s.chunks.length; // always use the original total, not missing count
+
+    const HIGH_WATER = 256 * 1024;
+    const LOW_WATER  =  64 * 1024;
+
     for (const chunk of toSend.sort((a, b) => a.seq - b.seq)) {
-      s.dc.send(JSON.stringify({ seq: chunk.seq, total: toSend.length, data: chunk.data, iv: chunk.iv, resend: true }));
+      if (!s.dc || s.dc.readyState !== "open") break;
+
+      while (s.dc.bufferedAmount > HIGH_WATER) {
+        await new Promise<void>((res) => {
+          const check = () => {
+            if (!s.dc || s.dc.bufferedAmount <= LOW_WATER) res();
+            else setTimeout(check, 10);
+          };
+          check();
+        });
+      }
+
+      s.dc.send(JSON.stringify({ seq: chunk.seq, total: fullTotal, data: chunk.data, iv: chunk.iv, resend: true }));
       setSenderStatus(`Resent chunk ${chunk.seq + 1}`);
     }
-    s.dc.send(JSON.stringify({ done: true, transferId: s.otc, resend: true }));
+    if (s.dc?.readyState === "open") {
+      s.dc.send(JSON.stringify({ done: true, transferId: s.otc, resend: true, total: fullTotal }));
+    }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -344,7 +383,8 @@ export function useTransfer(socket: Socket) {
       if (!w._received) w._received = [];
       w._received[msg.seq] = new Uint8Array(msg.data);
       rcv.current.receivedSeqs.add(msg.seq);
-      const pct = Math.round(((rcv.current.receivedSeqs.size) / (rcv.current.expectedTotal || 1)) * 100);
+      const total = rcv.current.expectedTotal || 1;
+      const pct = Math.min(100, Math.round((rcv.current.receivedSeqs.size / total) * 100));
       setReceiverProgress(pct);
       setReceiverStatus(`Decrypted chunk ${msg.seq + 1}/${rcv.current.expectedTotal || "?"}`);
       setReceiverPhase("transferring");

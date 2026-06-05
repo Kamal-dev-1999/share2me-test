@@ -25,10 +25,10 @@ export default function Home() {
       <HeroSection />
 
       {/* Transfer workspace */}
-      <section className="px-6 pb-section max-w-7xl mx-auto">
-        {/* Mode selector */}
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-title-lg font-display font-semibold text-white">
+      <section className="px-4 sm:px-6 pb-16 sm:pb-section max-w-3xl mx-auto">
+        {/* Mode selector — stacks on mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+          <h2 className="text-xl sm:text-title-lg font-display font-semibold text-white">
             Start a Transfer
           </h2>
           <ModeSelector mode={mode} onChange={setMode} />
@@ -37,9 +37,9 @@ export default function Home() {
         {/* Card shell */}
         <div className="bg-surface-cardDark rounded-xl border border-hairline-dark overflow-hidden">
           {/* Card header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-hairline-dark bg-surface-elevatedDark/40">
-            <div className="flex items-center gap-3">
-              <div className={`w-2 h-2 rounded-full ${
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-hairline-dark bg-surface-elevatedDark/40">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                 mode === "send"
                   ? (senderPhase === "done" ? "bg-trading-up" : senderPhase !== "idle" ? "bg-primary animate-pulse-ring" : "bg-muted")
                   : (receiverPhase === "done" ? "bg-trading-up" : receiverPhase !== "idle" ? "bg-trading-up animate-pulse-ring" : "bg-muted")
@@ -69,7 +69,7 @@ export default function Home() {
           </div>
 
           {/* Card body */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {mode === "send" ? (
               <SendFlow
                 phase={senderPhase}
@@ -96,8 +96,8 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-surface-softLight border-t border-hairline-light">
-        <div className="max-w-7xl mx-auto px-6 py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             <div>
               <div className="text-sm font-semibold text-body-light mb-4">Product</div>
               {["How it Works", "Security", "Roadmap"].map(l => (
@@ -112,7 +112,7 @@ export default function Home() {
             </div>
             <div>
               <div className="text-sm font-semibold text-body-light mb-4">Transfer</div>
-              {["WebRTC P2P", "Optical QR (soon)", "Chunk Resume"].map(l => (
+              {["WebRTC P2P", "QR Scan", "Chunk Resume"].map(l => (
                 <div key={l} className="text-sm text-muted mb-2">{l}</div>
               ))}
             </div>
@@ -123,9 +123,9 @@ export default function Home() {
               ))}
             </div>
           </div>
-          <div className="mt-12 pt-6 border-t border-hairline-light flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span className="text-xs text-muted">© 2026 ShareIt. No data stored. No servers involved.</span>
-            <span className="text-xs text-muted">E2E encrypted · WebRTC P2P · AES-GCM-256</span>
+          <div className="mt-8 sm:mt-12 pt-6 border-t border-hairline-light flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="text-xs text-muted text-center">© 2026 ShareIt. No data stored. No servers involved.</span>
+            <span className="text-xs text-muted text-center">E2E encrypted · WebRTC P2P · AES-GCM-256</span>
           </div>
         </div>
       </footer>

@@ -96,8 +96,8 @@ export function SendFlow({ phase, status, otc, meta, progress, onCreateRoom, onS
         )}
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-3">
+      {/* Action buttons — stack on mobile */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <button
           disabled={!file || !isIdle}
           onClick={() => file && onCreateRoom(file)}
@@ -135,25 +135,26 @@ export function SendFlow({ phase, status, otc, meta, progress, onCreateRoom, onS
         </div>
       )}
 
-      {/* QR + Metadata */}
+      {/* QR + Metadata — 1 col on mobile, 2 col on sm+ */}
       {meta && (
-        <div className="grid grid-cols-2 gap-4 animate-fade-in">
-          <div className="bg-surface-cardDark rounded-xl border border-hairline-dark p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+          {/* QR code first on mobile so receiver can scan immediately */}
+          <div className="sm:order-2 bg-surface-cardDark rounded-xl border border-hairline-dark p-4 flex flex-col items-center justify-center gap-3">
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="Transfer QR" className="w-48 h-48 sm:w-[160px] sm:h-[160px] rounded-lg" />
+            ) : (
+              <div className="w-48 h-48 sm:w-[160px] sm:h-[160px] bg-surface-elevatedDark rounded-lg animate-pulse" />
+            )}
+            <p className="text-muted text-xs">Scan with receiver device</p>
+          </div>
+          <div className="sm:order-1 bg-surface-cardDark rounded-xl border border-hairline-dark p-4">
             <p className="text-muted text-xs font-semibold uppercase tracking-wider mb-3">Metadata (QR-safe)</p>
             <textarea
               readOnly
               value={JSON.stringify(meta, null, 2)}
-              className="w-full bg-transparent text-xs text-body font-mono resize-none h-36 scrollbar-hide outline-none"
+              className="w-full bg-transparent text-xs text-body font-mono resize-none h-32 scrollbar-hide outline-none"
             />
             <p className="text-muted text-xs mt-2">✓ Raw AES key not included</p>
-          </div>
-          <div className="bg-surface-cardDark rounded-xl border border-hairline-dark p-4 flex flex-col items-center justify-center">
-            {qrDataUrl ? (
-              <img src={qrDataUrl} alt="Transfer QR" className="w-[160px] h-[160px] rounded-lg" />
-            ) : (
-              <div className="w-[160px] h-[160px] bg-surface-elevatedDark rounded-lg animate-pulse" />
-            )}
-            <p className="text-muted text-xs mt-3">Scan with receiver</p>
           </div>
         </div>
       )}

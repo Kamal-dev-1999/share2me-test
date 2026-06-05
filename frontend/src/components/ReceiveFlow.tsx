@@ -125,24 +125,26 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, onJoin, onImpo
         <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">
           One-Time Code
         </label>
-        <div className="flex gap-3">
+        {/* OTC input — stacks on very narrow screens */}
+        <div className="flex flex-col xs:flex-row gap-2">
           <input
             type="text"
+            inputMode="numeric"
             value={otc}
             onChange={(e) => setOtc(e.target.value.replace(/\D/g, "").slice(0, 6))}
             placeholder="Enter 6-digit code"
             maxLength={6}
             className="flex-1 bg-surface-cardDark border border-hairline-dark rounded-lg
-                       px-4 py-3 text-white font-mono text-lg tracking-[0.2em] placeholder:text-muted
+                       px-4 py-3 text-white font-mono text-xl tracking-[0.25em] placeholder:text-muted
                        focus:outline-none focus:border-primary transition-colors"
           />
           <button
             disabled={otc.length !== 6 || joining || !isIdle}
             onClick={handleJoin}
-            className="bg-primary text-ink font-semibold text-sm px-6 py-3 rounded-md
+            className="w-full xs:w-auto bg-primary text-ink font-semibold text-sm px-6 py-3 rounded-md
                        hover:bg-primary-active transition-colors
                        disabled:opacity-40 disabled:cursor-not-allowed
-                       flex items-center gap-2 whitespace-nowrap"
+                       flex items-center justify-center gap-2 whitespace-nowrap"
           >
             {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Join Room
@@ -164,7 +166,8 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, onJoin, onImpo
       {/* Metadata input — QR scan or manual paste */}
       {showMeta && (
         <div className="animate-fade-in">
-          <div className="flex items-center justify-between mb-3">
+          {/* Label + toggle — stack on mobile */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
             <label className="text-xs font-semibold text-muted uppercase tracking-wider">
               Sender Metadata
             </label>
@@ -172,7 +175,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, onJoin, onImpo
             <div className="flex items-center gap-1 bg-surface-cardDark border border-hairline-dark rounded-lg p-1">
               <button
                 onClick={() => { setMetaMode("scan"); setCameraError(null); }}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors
                   ${metaMode === "scan" ? "bg-primary text-ink" : "text-muted hover:text-white"}`}
               >
                 <Camera className="w-3.5 h-3.5" />
@@ -180,7 +183,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, onJoin, onImpo
               </button>
               <button
                 onClick={() => { setMetaMode("paste"); stopCamera(); }}
-                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors
                   ${metaMode === "paste" ? "bg-primary text-ink" : "text-muted hover:text-white"}`}
               >
                 <ClipboardPaste className="w-3.5 h-3.5" />
