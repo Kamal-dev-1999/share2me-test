@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TopNav }       from "@/components/TopNav";
 import { HeroSection }  from "@/components/HeroSection";
@@ -9,7 +9,8 @@ import { ReceiveFlow }  from "@/components/ReceiveFlow";
 import { useSocket }    from "@/hooks/useSocket";
 import { useTransfer }  from "@/hooks/useTransfer";
 
-export default function Home() {
+// ─── Inner component uses useSearchParams — must be inside <Suspense> ─────────
+function HomeContent() {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"send" | "receive">("send");
 
@@ -23,7 +24,7 @@ export default function Home() {
     return () => window.removeEventListener("set-transfer-mode", handler);
   }, []);
 
-  // Auto-select receive mode + scroll if ?mode=receive (cross-page nav)
+  // Auto-select mode + scroll if ?mode=send|receive (cross-page nav)
   useEffect(() => {
     const m = searchParams.get("mode");
     if (m === "receive" || m === "send") {
@@ -144,5 +145,15 @@ export default function Home() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// ─── Page export wraps HomeContent in Suspense (required by Next.js 14 for
+//     any component that calls useSearchParams during static generation) ────────
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-canvas-dark" />}>
+      <HomeContent />
+    </Suspense>
   );
 }
