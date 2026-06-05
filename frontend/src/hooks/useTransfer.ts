@@ -135,7 +135,7 @@ export function useTransfer(socket: Socket) {
         setReceiverStatus("Answer sent. Waiting for data…");
         setReceiverPhase("connecting");
       } else if (msg.type === "ice" && rcv.current.pc) {
-        try { await rcv.current.pc.addIceCandidate(msg.data as RTCIceCandidateInit); } catch (_) {}
+        try { await rcv.current.pc.addIceCandidate(msg.data as RTCIceCandidateInit); } catch { }
       }
     }
   }, [socket]);
