@@ -60,6 +60,7 @@ export function useTransfer(socket: Socket) {
   const [senderOtc, setSenderOtc] = useState<string | null>(null);
   const [senderMeta, setSenderMeta] = useState<SenderMeta | null>(null);
   const [senderProgress, setSenderProgress] = useState(0); // 0-100
+  const [senderBytes, setSenderBytes]       = useState(0); // bytes sent so far
 
   // ── Receiver state ────────────────────────────────────────────────────────
   const [receiverPhase, setReceiverPhase] = useState<TransferPhase>("idle");
@@ -67,6 +68,7 @@ export function useTransfer(socket: Socket) {
   const [receiverKeyStatus, setReceiverKeyStatus] = useState<"pending"|"generated"|"ready">("pending");
   const [receiverProgress, setReceiverProgress] = useState(0);
   const [receivedText, setReceivedText] = useState<string | null>(null);
+  const [receiverBytes, setReceiverBytes] = useState(0); // bytes decrypted so far
 
   // ── Internal refs (not exposed to UI) ─────────────────────────────────────
   const snd = useRef({
@@ -272,6 +274,8 @@ export function useTransfer(socket: Socket) {
       }
 
       s.dc.send(JSON.stringify({ seq: chunk.seq, total: sorted.length, data: chunk.data, iv: chunk.iv }));
+      const chunkSize = snd.current.metadata?.c ?? 65536;
+      setSenderBytes((chunk.seq + 1) * chunkSize);   // approximate; last chunk may be smaller
       setSenderProgress(Math.min(100, Math.round(((chunk.seq + 1) / sorted.length) * 100)));
       setSenderStatus(`Sent chunk ${chunk.seq + 1}/${sorted.length}`);
     }
@@ -401,6 +405,7 @@ export function useTransfer(socket: Socket) {
       if (!w._received) w._received = [];
       w._received[msg.seq] = new Uint8Array(msg.data);
       rcv.current.receivedSeqs.add(msg.seq);
+      setReceiverBytes((b) => b + (msg.data as ArrayBuffer).byteLength);
       const total = rcv.current.expectedTotal || 1;
       const pct = Math.min(100, Math.round((rcv.current.receivedSeqs.size / total) * 100));
       setReceiverProgress(pct);
@@ -620,10 +625,10 @@ export function useTransfer(socket: Socket) {
 
   return {
     // Sender
-    senderPhase, senderStatus, senderOtc, senderMeta, senderProgress,
+    senderPhase, senderStatus, senderOtc, senderMeta, senderProgress, senderBytes,
     createRoom, createTextRoom, startWebRtcSend,
     // Receiver
-    receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress, receivedText,
+    receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress, receiverBytes, receivedText,
     joinRoom, importMetadata,
   };
 }

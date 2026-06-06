@@ -8,6 +8,34 @@ import Image from "next/image";
 import QRCode from "qrcode";
 import { TransferPhase } from "@/hooks/useTransfer";
 
+/** Rolling 3-second window speed calculator */
+function useTransferSpeed(bytesTransferred: number) {
+  const history = useRef<{ bytes: number; ts: number }[]>([]);
+  const [speedBps, setSpeedBps] = useState(0);
+  useEffect(() => {
+    const now = Date.now();
+    history.current.push({ bytes: bytesTransferred, ts: now });
+    // keep only last 3 seconds
+    const cutoff = now - 3000;
+    history.current = history.current.filter((h) => h.ts >= cutoff);
+    if (history.current.length >= 2) {
+      const oldest = history.current[0];
+      const newest = history.current[history.current.length - 1];
+      const dt = (newest.ts - oldest.ts) / 1000;
+      const db = newest.bytes - oldest.bytes;
+      if (dt > 0) setSpeedBps(db / dt);
+    }
+  }, [bytesTransferred]);
+  return speedBps;
+}
+
+function formatSpeed(bps: number): string {
+  if (bps >= 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`;
+  if (bps >= 1024)        return `${(bps / 1024).toFixed(0)} KB/s`;
+  return `${bps.toFixed(0)} B/s`;
+}
+
+
 interface Props {
   phase: TransferPhase;
   status: string;
@@ -16,6 +44,7 @@ interface Props {
   onCreateRoom:     (file: File)   => void;
   onCreateTextRoom: (text: string) => void;
   onStartSend:      () => void;
+  bytesTransferred?: number;
 }
 
 function formatBytes(bytes: number) {
@@ -29,7 +58,9 @@ type TransferType = "file" | "text";
 export function SendFlow({
   phase, status, otc, progress,
   onCreateRoom, onCreateTextRoom, onStartSend,
+  bytesTransferred = 0,
 }: Props) {
+  const speedBps = useTransferSpeed(bytesTransferred);
   const [transferType, setTransferType] = useState<TransferType>("file");
 
   // ── File state ────────────────────────────────────────────────────────────
@@ -250,14 +281,24 @@ export function SendFlow({
       {/* ── Progress ── */}
       {(isTransferring || isDone) && (
         <div className="bg-surface-cardDark rounded-xl border border-hairline-dark p-5 animate-fade-in">
-          <div className="flex justify-between mb-2">
+          <div className="flex justify-between items-center mb-2">
             <span className="text-white text-sm font-semibold">Transfer Progress</span>
-            <span className="text-primary font-mono text-sm font-bold">{progress}%</span>
+            <div className="flex items-center gap-3">
+              {isTransferring && speedBps > 0 && (
+                <span className="text-xs font-mono font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                  ↑ {formatSpeed(speedBps)}
+                </span>
+              )}
+              <span className="text-primary font-mono text-sm font-bold">{progress}%</span>
+            </div>
           </div>
           <div className="w-full h-2 bg-surface-elevatedDark rounded-full overflow-hidden">
             <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
-          {isDone && <p className="text-trading-up text-xs mt-3 font-semibold">✓ Transfer complete</p>}
+          <div className="flex justify-between mt-2">
+            <span className="text-muted text-xs">{formatBytes(bytesTransferred)} sent</span>
+            {isDone && <span className="text-trading-up text-xs font-semibold">✓ Transfer complete</span>}
+          </div>
         </div>
       )}
 

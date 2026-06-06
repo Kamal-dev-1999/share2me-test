@@ -37,9 +37,9 @@ function HomeContent() {
 
   const socket = useSocket();
   const {
-    senderPhase, senderStatus, senderOtc, senderProgress,
+    senderPhase, senderStatus, senderOtc, senderProgress, senderBytes,
     createRoom, createTextRoom, startWebRtcSend,
-    receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress, receivedText,
+    receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress, receiverBytes, receivedText,
     joinRoom,
   } = useTransfer(socket);
 
@@ -98,6 +98,7 @@ function HomeContent() {
                 status={senderStatus}
                 otc={senderOtc}
                 progress={senderProgress}
+                bytesTransferred={senderBytes}
                 onCreateRoom={createRoom}
                 onCreateTextRoom={createTextRoom}
                 onStartSend={startWebRtcSend}
@@ -108,6 +109,7 @@ function HomeContent() {
                 status={receiverStatus}
                 keyStatus={receiverKeyStatus}
                 progress={receiverProgress}
+                bytesTransferred={receiverBytes}
                 receivedText={receivedText}
                 onJoin={joinRoom}
               />

@@ -4,6 +4,38 @@ import { Download, Key, Loader2, CheckCircle2, Camera, CameraOff, Copy, Check } 
 import jsQR from "jsqr";
 import { TransferPhase } from "@/hooks/useTransfer";
 
+/** Rolling 3-second window speed calculator */
+function useTransferSpeed(bytesTransferred: number) {
+  const history = useRef<{ bytes: number; ts: number }[]>([]);
+  const [speedBps, setSpeedBps] = useState(0);
+  useEffect(() => {
+    const now = Date.now();
+    history.current.push({ bytes: bytesTransferred, ts: now });
+    const cutoff = now - 3000;
+    history.current = history.current.filter((h) => h.ts >= cutoff);
+    if (history.current.length >= 2) {
+      const oldest = history.current[0];
+      const newest = history.current[history.current.length - 1];
+      const dt = (newest.ts - oldest.ts) / 1000;
+      const db = newest.bytes - oldest.bytes;
+      if (dt > 0) setSpeedBps(db / dt);
+    }
+  }, [bytesTransferred]);
+  return speedBps;
+}
+
+function formatSpeed(bps: number): string {
+  if (bps >= 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`;
+  if (bps >= 1024)        return `${(bps / 1024).toFixed(0)} KB/s`;
+  return `${bps.toFixed(0)} B/s`;
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024)        return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
 interface Props {
   phase: TransferPhase;
   status: string;
@@ -11,6 +43,7 @@ interface Props {
   progress: number;
   receivedText: string | null;
   onJoin: (otc: string) => Promise<void>;
+  bytesTransferred?: number;
 }
 
 const KEY_STATUS_STYLES = {
@@ -25,7 +58,8 @@ const KEY_STATUS_LABELS = {
   ready:     "Key: ready ✓",
 };
 
-export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin }: Props) {
+export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin, bytesTransferred = 0 }: Props) {
+  const speedBps = useTransferSpeed(bytesTransferred);
   const [otc, setOtc]         = useState("");
   const [joining, setJoining] = useState(false);
   const [copied, setCopied]   = useState(false);
@@ -282,7 +316,14 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                 {receivedText !== null ? "Receiving Text" : "Receiving File"}
               </span>
             </div>
-            <span className="text-primary font-mono text-sm font-bold">{progress}%</span>
+            <div className="flex items-center gap-3">
+              {isTransfer && speedBps > 0 && (
+                <span className="text-xs font-mono font-semibold text-trading-up bg-trading-up/10 px-2 py-0.5 rounded-md">
+                  ↓ {formatSpeed(speedBps)}
+                </span>
+              )}
+              <span className="text-primary font-mono text-sm font-bold">{progress}%</span>
+            </div>
           </div>
           <div className="w-full h-2 bg-surface-elevatedDark rounded-full overflow-hidden">
             <div
@@ -290,12 +331,12 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
               style={{ width: `${progress}%` }}
             />
           </div>
-          {isDone && !receivedText && (
-            <div className="flex items-center gap-2 mt-3">
-              <CheckCircle2 className="w-4 h-4 text-trading-up" />
-              <span className="text-trading-up text-sm font-semibold">File received — download started</span>
-            </div>
-          )}
+          <div className="flex justify-between mt-2">
+            <span className="text-muted text-xs">{formatBytes(bytesTransferred)} received</span>
+            {isDone && !receivedText && (
+              <span className="text-trading-up text-xs font-semibold">File received — download started</span>
+            )}
+          </div>
         </div>
       )}
 
