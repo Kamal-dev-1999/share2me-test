@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { Download, Key, Loader2, CheckCircle2, Copy, Check } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Download, Key, Loader2, CheckCircle2, Camera, CameraOff, Copy, Check } from "lucide-react";
+import jsQR from "jsqr";
 import { TransferPhase } from "@/hooks/useTransfer";
 
 interface Props {
@@ -13,42 +14,127 @@ interface Props {
 }
 
 const KEY_STATUS_STYLES = {
-  pending: "text-muted",
+  pending:   "text-muted",
   generated: "text-primary",
-  ready: "text-trading-up",
+  ready:     "text-trading-up",
 };
 
 const KEY_STATUS_LABELS = {
-  pending: "Key: pending",
+  pending:   "Key: pending",
   generated: "Key: generated",
-  ready: "Key: ready ✓",
+  ready:     "Key: ready ✓",
 };
 
 export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin }: Props) {
-  const [otc, setOtc]     = useState("");
+  const [otc, setOtc]         = useState("");
   const [joining, setJoining] = useState(false);
   const [copied, setCopied]   = useState(false);
 
+  // ── QR scanner ───────────────────────────────────────────────────────────
+  const videoRef   = useRef<HTMLVideoElement>(null);
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const streamRef  = useRef<MediaStream | null>(null);
+  const rafRef     = useRef<number>(0);
+  const scanningRef = useRef(false); // stable ref inside RAF
+
+  const [scanning,    setScanning]    = useState(false);
+  const [videoReady,  setVideoReady]  = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const stopCamera = useCallback(() => {
+    scanningRef.current = false;
+    cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setScanning(false);
+    setVideoReady(false);
+  }, []);
+
+  useEffect(() => () => stopCamera(), [stopCamera]);
+
+  const startScan = useCallback(async () => {
+    setCameraError(null);
+    setScanSuccess(false);
+    setVideoReady(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      streamRef.current = stream;
+      scanningRef.current = true;
+      setScanning(true);
+      // video element is always in DOM (just hidden) so videoRef is always available
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setCameraError(
+        msg.includes("Permission") || msg.includes("denied") || msg.includes("NotAllowed")
+          ? "Camera permission denied. Please allow camera access and try again."
+          : "Could not start camera. Enter the 6-digit code manually instead."
+      );
+      setScanning(false);
+    }
+  }, []);
+
+  // Started from onCanPlay on the <video> element — guarantees real pixels
+  const startTick = useCallback(() => {
+    setVideoReady(true);
+    const tick = () => {
+      if (!scanningRef.current) return;
+      if (!videoRef.current || !canvasRef.current) return;
+      const video = videoRef.current;
+      if (video.readyState < 2) { rafRef.current = requestAnimationFrame(tick); return; }
+
+      const canvas = canvasRef.current;
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      ctx.drawImage(video, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, canvas.width, canvas.height);
+      if (code?.data) {
+        const scanned = code.data.trim();
+        stopCamera();
+        setScanSuccess(true);
+        if (/^\d{6}$/.test(scanned)) {
+          // QR encodes 6-digit OTC → auto-join the room
+          setOtc(scanned);
+          onJoin(scanned).catch(console.error);
+        }
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, [onJoin, stopCamera]);
+
+  // ── Manual join ──────────────────────────────────────────────────────────
   const handleJoin = async () => {
     if (!otc.trim()) return;
     setJoining(true);
     try { await onJoin(otc.trim()); } finally { setJoining(false); }
   };
 
-  const isIdle = phase === "idle";
-  const isReady = phase === "ready";      // joined, waiting for sender metadata
+  const isIdle     = phase === "idle";
+  const isReady    = phase === "ready";
   const isExchange = phase === "key_exchange";
   const isTransfer = phase === "transferring";
-  const isDone = phase === "done";
+  const isDone     = phase === "done";
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* OTC input */}
+
+      {/* ── OTC input ── */}
       <div>
         <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">
           One-Time Code
         </label>
-        {/* OTC input — stacks on very narrow screens */}
         <div className="flex flex-col xs:flex-row gap-2">
           <input
             type="text"
@@ -75,7 +161,93 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         </div>
       </div>
 
-      {/* Key status badge */}
+      {/* ── QR scanner (idle only — scan sender's QR to auto-join) ── */}
+      {isIdle && (
+        <div className="bg-surface-cardDark rounded-xl border border-hairline-dark overflow-hidden">
+          {/* Always-mounted video so videoRef is always in DOM */}
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            onCanPlay={startTick}
+            className={`w-full object-cover rounded-t-xl ${scanning && videoReady ? "block" : "hidden"}`}
+            style={{ maxHeight: 260 }}
+          />
+          <canvas ref={canvasRef} className="hidden" />
+
+          {scanSuccess ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-10">
+              <div className="w-14 h-14 rounded-full bg-trading-up/10 flex items-center justify-center">
+                <CheckCircle2 className="w-7 h-7 text-trading-up" />
+              </div>
+              <p className="text-trading-up font-semibold text-sm">QR scanned — joining room…</p>
+            </div>
+          ) : scanning ? (
+            /* Live camera view */
+            <div className="relative" style={{ minHeight: videoReady ? 0 : 180 }}>
+              {!videoReady && (
+                <div className="flex items-center justify-center py-16 gap-2 text-muted text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Starting camera…
+                </div>
+              )}
+              {/* Scanning reticle */}
+              {videoReady && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-48 h-48 rounded-2xl border-2 border-primary/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]">
+                    <span className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-primary rounded-tl-xl" />
+                    <span className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-primary rounded-tr-xl" />
+                    <span className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-primary rounded-bl-xl" />
+                    <span className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-primary rounded-br-xl" />
+                  </div>
+                </div>
+              )}
+              {/* Controls */}
+              <div className="absolute bottom-3 right-3">
+                <button
+                  onClick={stopCamera}
+                  className="flex items-center gap-1.5 bg-black/60 hover:bg-black/80 text-white
+                             text-xs font-semibold px-3 py-2 rounded-lg backdrop-blur-sm transition-colors"
+                >
+                  <CameraOff className="w-3.5 h-3.5" /> Stop
+                </button>
+              </div>
+              <div className="absolute bottom-3 left-3">
+                <span className="flex items-center gap-1.5 bg-black/60 text-primary text-xs font-semibold px-3 py-2 rounded-lg backdrop-blur-sm">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Scanning…
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* Idle prompt */
+            <div className="flex flex-col items-center justify-center gap-4 py-10 px-6">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Camera className="w-8 h-8 text-primary" />
+              </div>
+              <div className="text-center">
+                <p className="text-white font-semibold text-sm mb-1">Scan sender&apos;s QR code</p>
+                <p className="text-muted text-xs">
+                  Point your camera at the QR on the sender&apos;s screen to auto-join the room.
+                </p>
+              </div>
+              {cameraError && (
+                <p className="text-trading-down text-xs text-center bg-trading-down/10 rounded-lg px-4 py-2">
+                  {cameraError}
+                </p>
+              )}
+              <button
+                onClick={startScan}
+                className="bg-primary text-ink font-semibold text-sm px-8 py-3 rounded-md
+                           hover:bg-primary-active transition-colors flex items-center gap-2"
+              >
+                <Camera className="w-4 h-4" />
+                Open Camera
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Key status badge ── */}
       {phase !== "idle" && (
         <div className="flex items-center gap-2 animate-fade-in">
           <Key className={`w-4 h-4 ${KEY_STATUS_STYLES[keyStatus]}`} />
@@ -86,7 +258,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         </div>
       )}
 
-      {/* After joining — waiting for sender metadata to auto-arrive via socket */}
+      {/* ── Waiting for sender (after joining, before metadata arrives) ── */}
       {isReady && (
         <div className="bg-surface-cardDark border border-primary/20 rounded-xl p-5 animate-fade-in">
           <div className="flex items-center gap-3 mb-3">
@@ -100,7 +272,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         </div>
       )}
 
-      {/* Progress */}
+      {/* ── Progress ── */}
       {(isTransfer || isDone) && (
         <div className="bg-surface-cardDark rounded-xl border border-hairline-dark p-5 animate-fade-in">
           <div className="flex items-center justify-between mb-3">
@@ -127,19 +299,16 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         </div>
       )}
 
-      {/* Received text result */}
+      {/* ── Received text result ── */}
       {receivedText !== null && isDone && (
         <div className="bg-surface-cardDark rounded-xl border border-trading-up/30 p-5 animate-fade-in">
-          {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-trading-up" />
               <span className="text-trading-up text-sm font-semibold">Text received</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-muted text-xs">
-                {receivedText.length.toLocaleString()} chars
-              </span>
+              <span className="text-muted text-xs">{receivedText.length.toLocaleString()} chars</span>
               <button
                 onClick={async () => {
                   await navigator.clipboard.writeText(receivedText);
@@ -149,36 +318,31 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                 className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg
                             border transition-all duration-200
                             ${copied
-                    ? "text-trading-up border-trading-up/40 bg-trading-up/10"
-                    : "text-primary border-primary/30 bg-primary/10 hover:bg-primary/20"
-                  }`}
+                  ? "text-trading-up border-trading-up/40 bg-trading-up/10"
+                  : "text-primary border-primary/30 bg-primary/10 hover:bg-primary/20"
+                }`}
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? "Copied!" : "Copy All"}
               </button>
             </div>
           </div>
-
-          {/* Scrollable text display */}
-          <div className="relative">
-            <textarea
-              readOnly
-              value={receivedText}
-              rows={10}
-              className="w-full bg-surface-elevatedDark border border-hairline-dark rounded-xl
-                         px-4 py-3 text-white text-sm font-mono resize-y leading-relaxed
-                         focus:outline-none focus:border-primary/30 transition-colors
-                         scrollbar-hide"
-            />
-          </div>
-
+          <textarea
+            readOnly
+            value={receivedText}
+            rows={10}
+            className="w-full bg-surface-elevatedDark border border-hairline-dark rounded-xl
+                       px-4 py-3 text-white text-sm font-mono resize-y leading-relaxed
+                       focus:outline-none focus:border-primary/30 transition-colors
+                       scrollbar-hide"
+          />
           <p className="text-muted text-xs mt-2">
             Text decoded from UTF-8 · formatting preserved · AES-GCM-256 decrypted
           </p>
         </div>
       )}
 
-      {/* Status */}
+      {/* ── Status bar ── */}
       <div className="bg-surface-elevatedDark rounded-lg px-4 py-3 text-sm text-muted min-h-[44px] flex items-center">
         <span className={phase === "error" ? "text-trading-down" : ""}>{status}</span>
       </div>
