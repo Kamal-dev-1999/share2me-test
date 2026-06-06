@@ -6,13 +6,12 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
-import { TransferPhase, SenderMeta } from "@/hooks/useTransfer";
+import { TransferPhase } from "@/hooks/useTransfer";
 
 interface Props {
   phase: TransferPhase;
   status: string;
   otc: string | null;
-  meta: SenderMeta | null;
   progress: number;
   onCreateRoom:     (file: File)   => void;
   onCreateTextRoom: (text: string) => void;
@@ -28,7 +27,7 @@ function formatBytes(bytes: number) {
 type TransferType = "file" | "text";
 
 export function SendFlow({
-  phase, status, otc, meta, progress,
+  phase, status, otc, progress,
   onCreateRoom, onCreateTextRoom, onStartSend,
 }: Props) {
   const [transferType, setTransferType] = useState<TransferType>("file");
@@ -233,30 +232,17 @@ export function SendFlow({
         </div>
       )}
 
-      {/* ── QR + Metadata ── */}
-      {meta && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-          {/* QR — shows as soon as OTC is known, encodes only 6-digit OTC */}
-          <div className="sm:order-2 bg-surface-cardDark rounded-xl border border-hairline-dark p-4
-                          flex flex-col items-center justify-center gap-3">
-            {qrDataUrl
-              ? <Image src={qrDataUrl} alt="Transfer QR" width={192} height={192} className="sm:w-[160px] sm:h-[160px] rounded-lg" />
-              : <div className="w-48 h-48 sm:w-[160px] sm:h-[160px] bg-surface-elevatedDark rounded-lg animate-pulse" />
-            }
-            <p className="text-muted text-xs text-center">
-              Scan to connect · OTC only · auto-syncs keys
-            </p>
-          </div>
-          <div className="sm:order-1 bg-surface-cardDark rounded-xl border border-hairline-dark p-4">
-            <p className="text-muted text-xs font-semibold uppercase tracking-wider mb-3">
-              {meta.textMode ? "Text Metadata (QR-safe)" : "File Metadata (QR-safe)"}
-            </p>
-            <textarea
-              readOnly
-              value={JSON.stringify(meta, null, 2)}
-              className="w-full bg-transparent text-xs text-body font-mono resize-none h-32 scrollbar-hide outline-none"
-            />
-            <p className="text-muted text-xs mt-2">✓ Raw AES key not included</p>
+      {/* ── QR ── */}
+      {otc && (
+        <div className="bg-surface-cardDark rounded-xl border border-hairline-dark p-6 animate-fade-in
+                        flex flex-col items-center justify-center gap-4">
+          {qrDataUrl
+            ? <Image src={qrDataUrl} alt="Transfer QR" width={220} height={220} className="rounded-xl" />
+            : <div className="w-[220px] h-[220px] bg-surface-elevatedDark rounded-xl animate-pulse" />
+          }
+          <div className="text-center">
+            <p className="text-white font-mono text-3xl font-bold tracking-[0.2em] mb-1">{otc}</p>
+            <p className="text-muted text-xs">Scan QR or share the code · keys sync automatically</p>
           </div>
         </div>
       )}
