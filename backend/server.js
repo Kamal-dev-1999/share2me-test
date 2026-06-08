@@ -123,7 +123,7 @@ class RateLimiter {
 const connLimiter = new RateLimiter(60 * 1000, 10);
 const createRoomLimiter = new RateLimiter(60 * 1000, 3);
 const joinRoomLimiter = new RateLimiter(60 * 1000, 10);
-const signalLimiter = new RateLimiter(60 * 1000, 120);
+const signalLimiter = new RateLimiter(60 * 1000, 1000);
 
 function genOTC() {
   return String(randomInt(0, 1000000)).padStart(6, '0');
@@ -133,7 +133,7 @@ function checkPayloadSize(msg) {
   if (!msg) return true;
   try {
     const str = typeof msg === 'string' ? msg : JSON.stringify(msg);
-    return str.length <= 100 * 1024;
+    return str.length <= 2 * 1024 * 1024; // 2 MB limit
   } catch {
     return false;
   }
