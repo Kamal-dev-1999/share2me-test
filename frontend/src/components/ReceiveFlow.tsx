@@ -197,15 +197,15 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
 
       {/* ── QR scanner (idle only — scan sender's QR to auto-join) ── */}
       {isIdle && (
-        <div className="bg-surface-cardDark rounded-xl border border-hairline-dark overflow-hidden">
+        <div className="relative bg-surface-cardDark rounded-xl border border-hairline-dark overflow-hidden">
           {/* Always-mounted video so videoRef is always in DOM */}
           <video
             ref={videoRef}
             muted
             playsInline
             onCanPlay={startTick}
-            className={`w-full object-cover rounded-t-xl ${scanning && videoReady ? "block" : "hidden"}`}
-            style={{ maxHeight: 260 }}
+            className={`w-full object-cover ${scanning && videoReady ? "block" : "hidden"}`}
+            style={{ maxHeight: 280 }}
           />
           <canvas ref={canvasRef} className="hidden" />
 
@@ -216,37 +216,34 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
               </div>
               <p className="text-trading-up font-semibold text-sm">QR scanned — joining room…</p>
             </div>
-          ) : scanning ? (
-            /* Live camera view */
-            <div className="relative" style={{ minHeight: videoReady ? 0 : 180 }}>
-              {!videoReady && (
-                <div className="flex items-center justify-center py-16 gap-2 text-muted text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Starting camera…
-                </div>
-              )}
+          ) : scanning && !videoReady ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-muted text-sm min-h-[180px]">
+              <Loader2 className="w-4 h-4 animate-spin" /> Starting camera…
+            </div>
+          ) : scanning && videoReady ? (
+            /* Live camera view overlay */
+            <div className="absolute inset-0 pointer-events-none">
               {/* Scanning reticle */}
-              {videoReady && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-48 h-48 rounded-2xl border-2 border-primary/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]">
-                    <span className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-primary rounded-tl-xl" />
-                    <span className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-primary rounded-tr-xl" />
-                    <span className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-primary rounded-bl-xl" />
-                    <span className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-primary rounded-br-xl" />
-                  </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-2xl border-2 border-primary/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
+                  <span className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-primary rounded-tl-xl" />
+                  <span className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-primary rounded-tr-xl" />
+                  <span className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-primary rounded-bl-xl" />
+                  <span className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-primary rounded-br-xl" />
                 </div>
-              )}
+              </div>
               {/* Controls */}
-              <div className="absolute bottom-3 right-3">
+              <div className="absolute bottom-3 right-3 pointer-events-auto">
                 <button
                   onClick={stopCamera}
                   className="flex items-center gap-1.5 bg-black/60 hover:bg-black/80 text-white
-                             text-xs font-semibold px-3 py-2 rounded-lg backdrop-blur-sm transition-colors"
+                             text-xs font-semibold px-3 py-2 rounded-lg backdrop-blur-sm transition-colors shadow-lg"
                 >
                   <CameraOff className="w-3.5 h-3.5" /> Stop
                 </button>
               </div>
               <div className="absolute bottom-3 left-3">
-                <span className="flex items-center gap-1.5 bg-black/60 text-primary text-xs font-semibold px-3 py-2 rounded-lg backdrop-blur-sm">
+                <span className="flex items-center gap-1.5 bg-black/60 text-primary text-xs font-semibold px-3 py-2 rounded-lg backdrop-blur-sm shadow-lg">
                   <Loader2 className="w-3 h-3 animate-spin" /> Scanning…
                 </span>
               </div>
