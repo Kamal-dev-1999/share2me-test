@@ -56,9 +56,9 @@ const GUARANTEES = [
 const FAQS = [
   { q: "What is the maximum file size?", a: "No hard limit. Practical limits depend on available browser memory and network speed. Files over 1 GB may take longer to encrypt." },
   { q: "Do both devices need to be online simultaneously?", a: "Yes. WebRTC is a live connection. Both sender and receiver must have the page open at the same time." },
-  { q: "What if the transfer fails halfway?", a: "ShareIt uses NACK (Negative Acknowledgement) retry. After the sender signals done, the receiver checks for missing chunks and requests only those to be re-sent." },
+  { q: "What if the transfer fails halfway?", a: "Share2Me uses NACK (Negative Acknowledgement) retry. After the sender signals done, the receiver checks for missing chunks and requests only those to be re-sent." },
   { q: "Do I need to trust the signaling server?", a: "No. The server only sees WebRTC offer/answer/ICE messages and the 6-digit OTC. It never sees your file, AES key, or any plaintext data." },
-  { q: "Can I self-host ShareIt?", a: "Yes. The backend is a single Node.js file (server.js). Clone the repo and run npm install in both directories." },
+  { q: "Can I self-host Share2Me?", a: "Yes. The backend is a single Node.js file (server.js). Clone the repo and run npm install in both directories." },
 ];
 
 // ── Flow Diagram ─────────────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ export default function HowItWorksPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
           <p className="text-primary text-xs font-semibold uppercase tracking-widest mb-4">Under the Hood</p>
           <h1 className="text-3xl sm:text-5xl font-display font-bold text-white tracking-tight mb-5">
-            How ShareIt Works
+            How Share2Me Works
           </h1>
           <p className="text-muted text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
             Every transfer is end-to-end encrypted, peer-to-peer, and ephemeral.

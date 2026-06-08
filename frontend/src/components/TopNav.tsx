@@ -24,9 +24,9 @@ export function TopNav() {
     <nav className="h-16 bg-canvas-dark border-b border-hairline-dark flex items-center px-4 sm:px-6 sticky top-0 z-50">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
-        <img src="/logo.png" alt="ShareIt Logo" className="w-8 h-8 rounded-md object-cover" />
+        <img src="/logo.png" alt="Share2Me Logo" className="w-8 h-8 rounded-md object-cover" />
         <span className="text-white font-display font-bold text-xl tracking-tight">
-          Share<span className="text-primary">It</span>
+          Share<span className="text-primary">2Me</span>
         </span>
       </Link>
 

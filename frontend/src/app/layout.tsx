@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ShareIt — Secure P2P File Transfer",
+  title: "Share2Me — Secure P2P File Transfer",
   description:
     "Send files peer-to-peer with end-to-end AES-GCM encryption and ECDH key exchange. No cloud. No middleman.",
 };

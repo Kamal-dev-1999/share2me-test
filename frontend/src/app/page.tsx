@@ -122,7 +122,7 @@ function HomeContent() {
       <footer className="bg-surface-softLight border-t border-hairline-light">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-muted">© 2026 ShareIt. No data stored. No servers involved.</span>
+            <span className="text-xs text-muted">© 2026 Share2Me. No data stored. No servers involved.</span>
             <div className="flex items-center gap-6">
               <a
                 href="https://github.com/Kamal-dev-1999/shareit"

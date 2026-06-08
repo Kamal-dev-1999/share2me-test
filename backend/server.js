@@ -15,7 +15,7 @@ app.use('/poc', express.static('public'));
 
 // Health check endpoint (used by Render and uptime monitors)
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'shareit-signaling', ts: Date.now() });
+  res.json({ status: 'ok', service: 'share2me-signaling', ts: Date.now() });
 });
 
 // Only proxy to Next.js dev server in local development.
@@ -46,7 +46,7 @@ if (NEXT_URL) {
   // Production fallback — signal server is running, frontend is hosted elsewhere
   app.get('/', (req, res) => {
     res.json({
-      service: 'ShareIt Signaling Server',
+      service: 'Share2Me Signaling Server',
       status: 'running',
       note: 'Connect your frontend by setting NEXT_PUBLIC_SIGNAL_URL to this server URL.',
     });
