@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Shield, Zap, Wifi } from "lucide-react";
+import { Shield, Wifi } from "lucide-react";
 
 export function TopNav() {
   const pathname = usePathname();
@@ -23,10 +23,8 @@ export function TopNav() {
   return (
     <nav className="h-16 bg-canvas-dark border-b border-hairline-dark flex items-center px-4 sm:px-6 sticky top-0 z-50">
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-        <div className="w-8 h-8 bg-primary rounded-sm flex items-center justify-center">
-          <Zap className="w-5 h-5 text-ink" strokeWidth={2.5} />
-        </div>
+      <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
+        <img src="/logo.png" alt="ShareIt Logo" className="w-8 h-8 rounded-md object-cover" />
         <span className="text-white font-display font-bold text-xl tracking-tight">
           Share<span className="text-primary">It</span>
         </span>
