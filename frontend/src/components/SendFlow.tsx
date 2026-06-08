@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
+import * as fflate from "fflate";
 import { TransferPhase } from "@/hooks/useTransfer";
 
 /** Rolling 3-second window speed calculator */
@@ -62,9 +63,10 @@ export function SendFlow({
 }: Props) {
   const speedBps = useTransferSpeed(bytesTransferred);
   const [transferType, setTransferType] = useState<TransferType>("file");
+  const [isZipping, setIsZipping] = useState(false);
 
   // ── File state ────────────────────────────────────────────────────────────
-  const [file,     setFile]     = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,11 +87,73 @@ export function SendFlow({
     }).then(setQrDataUrl).catch(() => {});
   }, [otc]);  // regenerate only when OTC changes, not on every metadata update
 
-  const handleFile = useCallback((f: File) => setFile(f), []);
+  const handleFiles = useCallback((selectedFiles: FileList | File[]) => {
+    const newFiles = Array.from(selectedFiles);
+    setFiles((prev) => {
+      const combined = [...prev, ...newFiles];
+      if (combined.length > 10) {
+        alert("Maximum 10 files allowed.");
+        return prev;
+      }
+      const totalSize = combined.reduce((acc, f) => acc + f.size, 0);
+      if (totalSize > 1.5 * 1024 * 1024 * 1024) {
+        alert("Total size exceeds 1.5 GB limit.");
+        return prev;
+      }
+      return combined;
+    });
+  }, []);
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
+    if (e.dataTransfer.files?.length) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleCreateRoom = async () => {
+    if (transferType === "text" && textInput.trim()) {
+      onCreateTextRoom(textInput);
+      return;
+    }
+    if (transferType === "file" && files.length > 0) {
+      if (files.length === 1) {
+        onCreateRoom(files[0]);
+      } else {
+        setIsZipping(true);
+        try {
+          const zipData: Record<string, Uint8Array> = {};
+          for (const f of files) {
+            const buffer = await f.arrayBuffer();
+            let name = f.name;
+            let counter = 1;
+            while (zipData[name]) {
+              const parts = f.name.split('.');
+              if (parts.length > 1) {
+                const ext = parts.pop();
+                name = `${parts.join('.')}_${counter}.${ext}`;
+              } else {
+                name = `${f.name}_${counter}`;
+              }
+              counter++;
+            }
+            zipData[name] = new Uint8Array(buffer);
+          }
+          fflate.zip(zipData, { level: 0 }, (err, data) => {
+            setIsZipping(false);
+            if (err) {
+              alert("Failed to zip files");
+              return;
+            }
+            const zipFile = new File([data], "Shared_Files.zip", { type: "application/zip" });
+            onCreateRoom(zipFile);
+          });
+        } catch {
+          setIsZipping(false);
+          alert("Error reading files for zip");
+        }
+      }
+    }
   };
 
   const isIdle        = phase === "idle";
@@ -99,7 +163,7 @@ export function SendFlow({
   const isDone        = phase === "done";
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const canPrepare = isIdle && (transferType === "file" ? !!file : textInput.trim().length > 0);
+  const canPrepare = isIdle && !isZipping && (transferType === "file" ? files.length > 0 : textInput.trim().length > 0);
   const textBytes  = new TextEncoder().encode(textInput).length;
 
   return (
@@ -133,41 +197,70 @@ export function SendFlow({
 
       {/* ── FILE MODE: drop zone ── */}
       {transferType === "file" && (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`
-            relative bg-surface-cardDark rounded-xl border-2 border-dashed p-8 text-center cursor-pointer
-            transition-all duration-200 select-none
-            ${dragging ? "border-primary bg-primary/5" : "border-hairline-dark hover:border-primary/50"}
-            ${file ? "border-primary/30" : ""}
-          `}
-        >
-          <input
-            ref={fileInputRef} type="file" className="hidden"
-            onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
-          />
-          {file ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <FileText className="w-6 h-6 text-primary" />
+        <div className="space-y-3">
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            onClick={() => isIdle && fileInputRef.current?.click()}
+            className={`
+              relative bg-surface-cardDark rounded-xl border-2 border-dashed p-8 text-center
+              transition-all duration-200 select-none
+              ${!isIdle ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+              ${dragging ? "border-primary bg-primary/5" : "border-hairline-dark hover:border-primary/50"}
+              ${files.length > 0 ? "border-primary/30" : ""}
+            `}
+          >
+            <input
+              ref={fileInputRef} type="file" className="hidden" multiple
+              onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }}
+              disabled={!isIdle}
+            />
+            {files.length > 0 ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-sm">
+                    {files.length === 1 ? files[0].name : `${files.length} files selected`}
+                  </p>
+                  <p className="text-muted text-xs mt-0.5">
+                    {formatBytes(files.reduce((acc, f) => acc + f.size, 0))} total
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-white font-semibold text-sm">{file.name}</p>
-                <p className="text-muted text-xs mt-0.5">{formatBytes(file.size)}</p>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-surface-elevatedDark flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-muted" />
+                </div>
+                <div>
+                  <p className="text-white text-sm font-medium">Drop files here or click to browse</p>
+                  <p className="text-muted text-xs mt-1">Up to 10 files · Max 1.5 GB total</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-surface-elevatedDark flex items-center justify-center">
-                <Upload className="w-6 h-6 text-muted" />
-              </div>
-              <div>
-                <p className="text-white text-sm font-medium">Drop file here or click to browse</p>
-                <p className="text-muted text-xs mt-1">Any file type · Any size</p>
-              </div>
+            )}
+          </div>
+          
+          {/* File List */}
+          {files.length > 0 && isIdle && (
+            <div className="bg-surface-elevatedDark rounded-xl p-3 max-h-40 overflow-y-auto border border-hairline-dark space-y-2">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center justify-between bg-surface-cardDark px-3 py-2 rounded-lg border border-hairline-light">
+                  <span className="text-xs text-white truncate max-w-[70%]">{f.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted">{formatBytes(f.size)}</span>
+                    <button
+                      onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
+                      className="text-muted hover:text-trading-down transition-colors text-lg leading-none"
+                      title="Remove file"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -225,17 +318,14 @@ export function SendFlow({
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           disabled={!canPrepare}
-          onClick={() => {
-            if (transferType === "file" && file) onCreateRoom(file);
-            else if (transferType === "text" && textInput.trim()) onCreateTextRoom(textInput);
-          }}
+          onClick={handleCreateRoom}
           className="flex-1 bg-primary text-ink font-semibold text-sm px-6 py-3 rounded-md
                      hover:bg-primary-active transition-colors disabled:opacity-40 disabled:cursor-not-allowed
                      flex items-center justify-center gap-2"
         >
-          {isPreparing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {isPreparing
-            ? (transferType === "text" ? "Encrypting text…" : "Encrypting…")
+          {isPreparing || isZipping ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {isPreparing || isZipping
+            ? (isZipping ? "Packaging files…" : transferType === "text" ? "Encrypting text…" : "Encrypting…")
             : (transferType === "text" ? "Create OTC & Encrypt Text" : "Create OTC & Prepare")}
         </button>
         <button
