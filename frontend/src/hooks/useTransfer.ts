@@ -463,7 +463,9 @@ export function useTransfer(socket: Socket) {
   // ─────────────────────────────────────────────────────────────────────────
 
   const setupReceiverPeer = useCallback(() => {
-    if (rcv.current.pc) return; // Prevent overwriting existing connection
+    if (rcv.current.pc) {
+      try { rcv.current.pc.close(); } catch {}
+    }
     rcv.current.pc = new RTCPeerConnection(ICE_SERVERS);
     rcv.current.pc.ondatachannel = (event) => {
       const dc = event.channel;
@@ -507,8 +509,6 @@ export function useTransfer(socket: Socket) {
       }
     });
 
-    setupReceiverPeer();
-
     return () => {
       socket.off("signal");
       socket.off("receiver_pub");
@@ -516,7 +516,7 @@ export function useTransfer(socket: Socket) {
       socket.off("nack");
       socket.off("metadata_relay");
     };
-  }, [socket, handleSignal, handleReceiverPub, handleWrappedKey, resendMissingChunks, setupReceiverPeer]);
+  }, [socket, handleSignal, handleReceiverPub, handleWrappedKey, resendMissingChunks]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Public API — Sender actions
@@ -593,6 +593,9 @@ export function useTransfer(socket: Socket) {
     setSenderPhase("connecting");
     setSenderStatus("Starting WebRTC connection…");
 
+    if (s.pc) {
+      try { s.pc.close(); } catch {}
+    }
     s.pc = new RTCPeerConnection(ICE_SERVERS);
     s.dc = s.pc.createDataChannel("file");
     s.dc.binaryType = "arraybuffer";
@@ -626,6 +629,7 @@ export function useTransfer(socket: Socket) {
   const joinRoom = useCallback((otc: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       rcv.current.otc = otc;
+      setupReceiverPeer();
       socket.emit("join_room", { otc }, (res: { ok?: boolean; error?: string }) => {
         if (res?.error) {
           setReceiverStatus(`Join error: ${res.error}`);
@@ -638,7 +642,7 @@ export function useTransfer(socket: Socket) {
         resolve();
       });
     });
-  }, [socket]);
+  }, [socket, setupReceiverPeer]);
 
   const importMetadata = useCallback((metaJson: string) => {
     try {
