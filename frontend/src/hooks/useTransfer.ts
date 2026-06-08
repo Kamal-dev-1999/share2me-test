@@ -114,6 +114,7 @@ export function useTransfer(socket: Socket) {
     received: [] as Uint8Array[],
     nackTimer: null as ReturnType<typeof setTimeout> | null,
     doneReceived: false,
+    downloadTriggered: false,
   });
 
   const sndIceQueue = useRef<RTCIceCandidateInit[]>([]);
@@ -204,6 +205,8 @@ export function useTransfer(socket: Socket) {
 
   const assembleDownload = useCallback(async () => {
     const r = rcv.current;
+    if (r.downloadTriggered) return;
+    r.downloadTriggered = true;
     const parts: Uint8Array[] = [];
     for (let i = 0; i < r.expectedTotal; i++) {
       const chunk = r.received[i];
@@ -281,6 +284,10 @@ export function useTransfer(socket: Socket) {
         scheduleNackCheck(true);
         return;
       }
+      // Prevent queueing duplicates if the sender resent a chunk we already have or are processing
+      if (rcv.current.receivedSeqs.has(obj.seq)) return;
+      if (rcv.current.pendingEncrypted.some(p => p.seq === obj.seq)) return;
+
       rcv.current.pendingEncrypted.push(obj);
       flushReceiverQueue();
     } catch (err) {
