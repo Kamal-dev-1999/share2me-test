@@ -43,22 +43,31 @@ export type TransferPhase =
 // so transfers work across different networks (different WiFi, mobile data, etc.).
 // STUN covers ~85% of NAT types. TURN (relay) would cover the remaining ~15%
 // (symmetric NAT / strict firewalls) but requires a paid relay server.
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    {
-      urls: "turn:free.expressturn.com:3478",
-      username: "00000000002096297695",
-      credential: "zVlnXteQh/ygNA5w0dsumVPPFIo=",
-    },
-    {
-      urls: "turn:free.expressturn.com:3478?transport=tcp",
-      username: "00000000002096297695",
-      credential: "zVlnXteQh/ygNA5w0dsumVPPFIo=",
-    },
-  ],
-};
+let cachedIceServers: RTCConfiguration | null = null;
+let fetchingIceServers: Promise<RTCConfiguration> | null = null;
+
+async function getIceServers(): Promise<RTCConfiguration> {
+  if (cachedIceServers) return cachedIceServers;
+  if (fetchingIceServers) return fetchingIceServers;
+
+  const backendUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3000";
+  fetchingIceServers = fetch(`${backendUrl}/api/ice-servers`)
+    .then((res) => res.json())
+    .then((data) => {
+      cachedIceServers = { iceServers: data.iceServers };
+      return cachedIceServers;
+    })
+    .catch((err) => {
+      console.warn("Failed to fetch ICE servers, falling back to STUN only", err);
+      return {
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+        ],
+      };
+    });
+  return fetchingIceServers;
+}
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
@@ -455,11 +464,12 @@ export function useTransfer(socket: Socket) {
   // Setup receiver peer connection
   // ─────────────────────────────────────────────────────────────────────────
 
-  const setupReceiverPeer = useCallback(() => {
+  const setupReceiverPeer = useCallback(async () => {
     if (rcv.current.pc) {
       try { rcv.current.pc.close(); } catch {}
     }
-    rcv.current.pc = new RTCPeerConnection(ICE_SERVERS);
+    const iceConfig = await getIceServers();
+    rcv.current.pc = new RTCPeerConnection(iceConfig);
     rcv.current.pc.ondatachannel = (event) => {
       const dc = event.channel;
       dc.binaryType = "arraybuffer";
@@ -591,7 +601,8 @@ export function useTransfer(socket: Socket) {
     if (s.pc) {
       try { s.pc.close(); } catch {}
     }
-    s.pc = new RTCPeerConnection(ICE_SERVERS);
+    const iceConfig = await getIceServers();
+    s.pc = new RTCPeerConnection(iceConfig);
     s.dc = s.pc.createDataChannel("file");
     s.dc.binaryType = "arraybuffer";
 
@@ -622,10 +633,10 @@ export function useTransfer(socket: Socket) {
   // ─────────────────────────────────────────────────────────────────────────
 
   const joinRoom = useCallback((otc: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       role.current = "receiver";
       rcv.current.otc = otc;
-      setupReceiverPeer();
+      await setupReceiverPeer();
       socket.emit("join_room", { otc }, (res: { ok?: boolean; error?: string }) => {
         if (res?.error) {
           setReceiverStatus(`Join error: ${res.error}`);
