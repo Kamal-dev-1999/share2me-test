@@ -47,10 +47,16 @@ const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
-    { urls: "stun:global.stun.twilio.com:3478" }
+    {
+      urls: "turn:free.expressturn.com:3478",
+      username: "00000000002096297695",
+      credential: "zVlnXteQh/ygNA5w0dsumVPPFIo=",
+    },
+    {
+      urls: "turn:free.expressturn.com:3478?transport=tcp",
+      username: "00000000002096297695",
+      credential: "zVlnXteQh/ygNA5w0dsumVPPFIo=",
+    },
   ],
 };
 
