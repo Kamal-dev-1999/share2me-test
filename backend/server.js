@@ -15,8 +15,8 @@ const io = new Server(server, {
 // On Render: add TURN_URL, TURN_USERNAME, TURN_CREDENTIAL as environment variables.
 const TURN_CONFIG = {
   url: process.env.TURN_URL || 'turn:free.expressturn.com:3478',
-  username: process.env.TURN_USERNAME || '',
-  credential: process.env.TURN_CREDENTIAL || '',
+  username: process.env.TURN_USERNAME || '00000000002096297695',
+  credential: process.env.TURN_CREDENTIAL || 'zVlnXteQh/ygNA5w0dsumVPPFIo=',
 };
 
 // ─── ICE servers endpoint — frontend fetches this instead of hardcoding ───────
