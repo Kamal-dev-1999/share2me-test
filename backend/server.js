@@ -45,6 +45,7 @@ app.get('/api/ice-servers', (req, res) => {
 
   // Cache for 5 minutes — balances freshness vs. server load
   res.setHeader('Cache-Control', 'public, max-age=300');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.json({ iceServers });
 });
 

@@ -50,7 +50,7 @@ async function getIceServers(): Promise<RTCConfiguration> {
   if (cachedIceServers) return cachedIceServers;
   if (fetchingIceServers) return fetchingIceServers;
 
-  const backendUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3000";
+  const backendUrl = process.env.NEXT_PUBLIC_SIGNAL_URL || "http://localhost:3000";
   fetchingIceServers = fetch(`${backendUrl}/api/ice-servers`)
     .then((res) => res.json())
     .then((data) => {
@@ -78,12 +78,12 @@ export function useTransfer(socket: Socket) {
   const [senderOtc, setSenderOtc] = useState<string | null>(null);
   const [senderMeta, setSenderMeta] = useState<SenderMeta | null>(null);
   const [senderProgress, setSenderProgress] = useState(0); // 0-100
-  const [senderBytes, setSenderBytes]       = useState(0); // bytes sent so far
+  const [senderBytes, setSenderBytes] = useState(0); // bytes sent so far
 
   // ── Receiver state ────────────────────────────────────────────────────────
   const [receiverPhase, setReceiverPhase] = useState<TransferPhase>("idle");
   const [receiverStatus, setReceiverStatus] = useState("Enter OTC to join a transfer.");
-  const [receiverKeyStatus, setReceiverKeyStatus] = useState<"pending"|"generated"|"ready">("pending");
+  const [receiverKeyStatus, setReceiverKeyStatus] = useState<"pending" | "generated" | "ready">("pending");
   const [receiverProgress, setReceiverProgress] = useState(0);
   const [receivedText, setReceivedText] = useState<string | null>(null);
   const [receiverBytes, setReceiverBytes] = useState(0); // bytes decrypted so far
@@ -300,7 +300,7 @@ export function useTransfer(socket: Socket) {
     const sorted = [...chunks].sort((a, b) => a.seq - b.seq);
 
     const HIGH_WATER = 256 * 1024; // pause above 256 KB buffered
-    const LOW_WATER  =  64 * 1024; // resume below 64 KB buffered
+    const LOW_WATER = 64 * 1024; // resume below 64 KB buffered
 
     for (const chunk of sorted) {
       if (!s.dc || s.dc.readyState !== "open") break;
@@ -338,7 +338,7 @@ export function useTransfer(socket: Socket) {
     const fullTotal = s.chunks.length; // always use the original total, not missing count
 
     const HIGH_WATER = 256 * 1024;
-    const LOW_WATER  =  64 * 1024;
+    const LOW_WATER = 64 * 1024;
 
     for (const chunk of toSend.sort((a, b) => a.seq - b.seq)) {
       if (!s.dc || s.dc.readyState !== "open") break;
@@ -466,7 +466,7 @@ export function useTransfer(socket: Socket) {
 
   const setupReceiverPeer = useCallback(async () => {
     if (rcv.current.pc) {
-      try { rcv.current.pc.close(); } catch {}
+      try { rcv.current.pc.close(); } catch { }
     }
     const iceConfig = await getIceServers();
     rcv.current.pc = new RTCPeerConnection(iceConfig);
@@ -482,7 +482,7 @@ export function useTransfer(socket: Socket) {
     rcv.current.pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("signal", { otc: rcv.current.otc, type: "ice", data: event.candidate });
-        if (snd.current.pc) snd.current.pc.addIceCandidate(event.candidate).catch(() => {});
+        if (snd.current.pc) snd.current.pc.addIceCandidate(event.candidate).catch(() => { });
       }
     };
   }, [socket, handleDataChannelMessage]);
@@ -493,7 +493,7 @@ export function useTransfer(socket: Socket) {
 
   // Use a ref so the socket useEffect can call importMetadata without it
   // being a dependency (importMetadata is declared later in the file).
-  const importMetadataRef = useRef<(json: string) => void>(() => {});
+  const importMetadataRef = useRef<(json: string) => void>(() => { });
 
   useEffect(() => {
     socket.on("signal", (msg) => handleSignal(msg).catch(console.error));
@@ -577,8 +577,8 @@ export function useTransfer(socket: Socket) {
       snd.current.worker = worker;
 
       // UTF-8 encode the text to bytes, then treat it like a file buffer
-      const bytes   = new TextEncoder().encode(text);
-      const buffer  = bytes.buffer;
+      const bytes = new TextEncoder().encode(text);
+      const buffer = bytes.buffer;
       // Use 16 KB chunks for text (good balance of overhead vs chunk count)
       const chunkSz = 16 * 1024;
 
@@ -599,7 +599,7 @@ export function useTransfer(socket: Socket) {
     setSenderStatus("Starting WebRTC connection…");
 
     if (s.pc) {
-      try { s.pc.close(); } catch {}
+      try { s.pc.close(); } catch { }
     }
     const iceConfig = await getIceServers();
     s.pc = new RTCPeerConnection(iceConfig);
@@ -616,7 +616,7 @@ export function useTransfer(socket: Socket) {
     s.pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("signal", { otc: s.otc, type: "ice", data: event.candidate });
-        if (rcv.current.pc) rcv.current.pc.addIceCandidate(event.candidate).catch(() => {});
+        if (rcv.current.pc) rcv.current.pc.addIceCandidate(event.candidate).catch(() => { });
       }
     };
 
