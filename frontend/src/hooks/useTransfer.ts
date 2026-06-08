@@ -50,22 +50,7 @@ const ICE_SERVERS: RTCConfiguration = {
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
     { urls: "stun:stun4.l.google.com:19302" },
-    { urls: "stun:global.stun.twilio.com:3478" },
-    {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    }
+    { urls: "stun:global.stun.twilio.com:3478" }
   ],
 };
 
@@ -111,18 +96,21 @@ export function useTransfer(socket: Socket) {
     keyReady: false,
     pendingEncrypted: [] as { seq: number; total: number; data: string; iv: string }[],
     receivedSeqs: new Set<number>(),
+    received: [] as Uint8Array[],
     nackTimer: null as ReturnType<typeof setTimeout> | null,
     doneReceived: false,
   });
 
   const sndIceQueue = useRef<RTCIceCandidateInit[]>([]);
   const rcvIceQueue = useRef<RTCIceCandidateInit[]>([]);
+  const role = useRef<"sender" | "receiver" | null>(null);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Named handlers — called both from socket.on() AND local dispatch
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleReceiverPub = useCallback((msg: { otc: string; receiverPubKey: JsonWebKey }) => {
+    if (role.current !== "sender") return;
     if (!snd.current.otc || msg.otc !== snd.current.otc) return;
     if (!snd.current.worker || !snd.current.metadata) {
       snd.current.pendingReceiverPubKey = msg.receiverPubKey;
@@ -135,6 +123,7 @@ export function useTransfer(socket: Socket) {
   }, []);
 
   const handleWrappedKey = useCallback((msg: { otc: string; senderPubKey: JsonWebKey; wrappedKey: string; iv: string }) => {
+    if (role.current !== "receiver") return;
     if (!msg) return;
     if (rcv.current.otc && msg.otc === rcv.current.otc && rcv.current.worker) {
       rcv.current.worker.postMessage({
@@ -150,7 +139,7 @@ export function useTransfer(socket: Socket) {
   const handleSignal = useCallback(async (msg: { otc: string; type: string; data: unknown }) => {
     if (!msg || !msg.otc) return;
     // Sender side: receives answer + ICE from receiver
-    if (snd.current.otc && msg.otc === snd.current.otc) {
+    if (role.current === "sender" && snd.current.otc && msg.otc === snd.current.otc) {
       if (msg.type === "answer" && snd.current.pc) {
         await snd.current.pc.setRemoteDescription(msg.data as RTCSessionDescriptionInit);
         setSenderStatus("WebRTC handshake complete. Sending…");
@@ -169,7 +158,7 @@ export function useTransfer(socket: Socket) {
       }
     }
     // Receiver side: receives offer + ICE from sender
-    if (rcv.current.otc && msg.otc === rcv.current.otc) {
+    if (role.current === "receiver" && rcv.current.otc && msg.otc === rcv.current.otc) {
       if (msg.type === "offer" && rcv.current.pc) {
         await rcv.current.pc.setRemoteDescription(msg.data as RTCSessionDescriptionInit);
         const answer = await rcv.current.pc.createAnswer();
@@ -202,7 +191,7 @@ export function useTransfer(socket: Socket) {
     const r = rcv.current;
     const parts: Uint8Array[] = [];
     for (let i = 0; i < r.expectedTotal; i++) {
-      const chunk = (window as unknown as { _received?: Uint8Array[] })._received?.[i];
+      const chunk = r.received[i];
       if (chunk) parts.push(chunk);
     }
     if (!parts.length) return;
@@ -440,9 +429,7 @@ export function useTransfer(socket: Socket) {
     }
 
     if (msg.type === "decrypted") {
-      const w = window as unknown as { _received?: Uint8Array[] };
-      if (!w._received) w._received = [];
-      w._received[msg.seq] = new Uint8Array(msg.data);
+      rcv.current.received[msg.seq] = new Uint8Array(msg.data);
       rcv.current.receivedSeqs.add(msg.seq);
       setReceiverBytes((b) => b + (msg.data as ArrayBuffer).byteLength);
       const total = rcv.current.expectedTotal || 1;
@@ -523,6 +510,7 @@ export function useTransfer(socket: Socket) {
   // ─────────────────────────────────────────────────────────────────────────
 
   const createRoom = useCallback(async (file: File) => {
+    role.current = "sender";
     setSenderPhase("preparing");
     setSenderStatus("Creating room…");
     snd.current.chunks = [];
@@ -545,7 +533,7 @@ export function useTransfer(socket: Socket) {
           type: "prepareSenderTransfer",
           fileName: file.name,
           fileBuffer: buffer,
-          chunkSize: file.size >= 5 * 1024 * 1024 ? 64 * 1024 : 1024,
+          chunkSize: 16 * 1024,
           transferId: res.otc,
         });
       });
@@ -554,6 +542,7 @@ export function useTransfer(socket: Socket) {
 
   // Text transfer — same pipeline as file, but encodes text to UTF-8 bytes
   const createTextRoom = useCallback(async (text: string) => {
+    role.current = "sender";
     setSenderPhase("preparing");
     setSenderStatus("Creating room…");
     snd.current.chunks = [];
@@ -628,6 +617,7 @@ export function useTransfer(socket: Socket) {
 
   const joinRoom = useCallback((otc: string): Promise<void> => {
     return new Promise((resolve, reject) => {
+      role.current = "receiver";
       rcv.current.otc = otc;
       setupReceiverPeer();
       socket.emit("join_room", { otc }, (res: { ok?: boolean; error?: string }) => {
@@ -652,6 +642,7 @@ export function useTransfer(socket: Socket) {
       rcv.current.expectedTotal = meta.total ?? Math.ceil(meta.s / (meta.c || 1024));
       rcv.current.doneReceived = false;
       rcv.current.receivedSeqs = new Set();
+      rcv.current.received = [];
       rcvIceQueue.current = [];
       (window as unknown as { _received?: unknown[] })._received = [];
 
