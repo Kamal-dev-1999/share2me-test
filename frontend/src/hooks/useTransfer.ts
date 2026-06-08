@@ -97,6 +97,9 @@ export function useTransfer(socket: Socket) {
     doneReceived: false,
   });
 
+  const sndIceQueue = useRef<RTCIceCandidateInit[]>([]);
+  const rcvIceQueue = useRef<RTCIceCandidateInit[]>([]);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Named handlers — called both from socket.on() AND local dispatch
   // ─────────────────────────────────────────────────────────────────────────
@@ -134,8 +137,17 @@ export function useTransfer(socket: Socket) {
         await snd.current.pc.setRemoteDescription(msg.data as RTCSessionDescriptionInit);
         setSenderStatus("WebRTC handshake complete. Sending…");
         setSenderPhase("transferring");
+        // Flush queued ICE candidates
+        while (sndIceQueue.current.length > 0) {
+          const cand = sndIceQueue.current.shift()!;
+          try { await snd.current.pc.addIceCandidate(cand); } catch { }
+        }
       } else if (msg.type === "ice" && snd.current.pc) {
-        try { await snd.current.pc.addIceCandidate(msg.data as RTCIceCandidateInit); } catch { }
+        if (snd.current.pc.remoteDescription) {
+          try { await snd.current.pc.addIceCandidate(msg.data as RTCIceCandidateInit); } catch { }
+        } else {
+          sndIceQueue.current.push(msg.data as RTCIceCandidateInit);
+        }
       }
     }
     // Receiver side: receives offer + ICE from sender
@@ -149,8 +161,17 @@ export function useTransfer(socket: Socket) {
         await handleSignal(answerMsg); // local dispatch answer back to sender
         setReceiverStatus("Answer sent. Waiting for data…");
         setReceiverPhase("connecting");
+        // Flush queued ICE candidates
+        while (rcvIceQueue.current.length > 0) {
+          const cand = rcvIceQueue.current.shift()!;
+          try { await rcv.current.pc.addIceCandidate(cand); } catch { }
+        }
       } else if (msg.type === "ice" && rcv.current.pc) {
-        try { await rcv.current.pc.addIceCandidate(msg.data as RTCIceCandidateInit); } catch { }
+        if (rcv.current.pc.remoteDescription) {
+          try { await rcv.current.pc.addIceCandidate(msg.data as RTCIceCandidateInit); } catch { }
+        } else {
+          rcvIceQueue.current.push(msg.data as RTCIceCandidateInit);
+        }
       }
     }
   }, [socket]);
@@ -489,6 +510,7 @@ export function useTransfer(socket: Socket) {
     snd.current.chunksReady = false;
     snd.current.metadata = null;
     snd.current.isTextMode = false;
+    sndIceQueue.current = [];
 
     socket.emit("create_room", (res: { otc: string }) => {
       snd.current.otc = res.otc;
@@ -519,6 +541,7 @@ export function useTransfer(socket: Socket) {
     snd.current.chunksReady = false;
     snd.current.metadata = null;
     snd.current.isTextMode = true; // flag so metadata carries textMode: true
+    sndIceQueue.current = [];
 
     socket.emit("create_room", (res: { otc: string }) => {
       snd.current.otc = res.otc;
@@ -606,6 +629,7 @@ export function useTransfer(socket: Socket) {
       rcv.current.expectedTotal = meta.total ?? Math.ceil(meta.s / (meta.c || 1024));
       rcv.current.doneReceived = false;
       rcv.current.receivedSeqs = new Set();
+      rcvIceQueue.current = [];
       (window as unknown as { _received?: unknown[] })._received = [];
 
       setReceiverStatus("Metadata imported. Starting key exchange…");
