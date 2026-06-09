@@ -73,11 +73,6 @@ function HomeContent() {
               </button>
             </div>
             
-            {/* History Button */}
-            <Link href="/history" className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-background-card border border-border hover:border-border-hover text-[13px] font-medium text-text-secondary hover:text-text-primary transition-all">
-              <Clock className="w-4 h-4" />
-              Transfer History
-            </Link>
           </div>
 
           {/* Transfer Flow */}
