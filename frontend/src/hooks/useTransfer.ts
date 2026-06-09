@@ -72,6 +72,18 @@ async function getIceServers(): Promise<RTCConfiguration> {
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useTransfer(socket: Socket) {
+  // ── Network Discovery ──────────────────────────────────────────────────────
+  const searchNearby = useCallback(async (): Promise<any[]> => {
+    return new Promise((resolve) => {
+      socket.emit("search_nearby", (res: any) => {
+        if (res && res.devices) {
+          resolve(res.devices);
+        } else {
+          resolve([]);
+        }
+      });
+    });
+  }, [socket]);
   // ── Sender state ──────────────────────────────────────────────────────────
   const [senderPhase, setSenderPhase] = useState<TransferPhase>("idle");
   const [senderStatus, setSenderStatus] = useState("Pick a file to begin.");
@@ -700,6 +712,8 @@ export function useTransfer(socket: Socket) {
   importMetadataRef.current = importMetadata;
 
   return {
+    // Shared
+    searchNearby,
     // Sender
     senderPhase, senderStatus, senderOtc, senderMeta, senderProgress, senderBytes,
     createRoom, createTextRoom, startWebRtcSend,

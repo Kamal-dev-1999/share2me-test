@@ -43,10 +43,11 @@ interface Props {
   progress: number;
   receivedText: string | null;
   onJoin: (otc: string) => Promise<void>;
+  searchNearby: () => Promise<any[]>;
   bytesTransferred?: number;
 }
 
-export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin, bytesTransferred = 0 }: Props) {
+export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin, searchNearby, bytesTransferred = 0 }: Props) {
   const speedBps = useTransferSpeed(bytesTransferred);
   const [otc, setOtc]         = useState("");
   const [joining, setJoining] = useState(false);
@@ -182,6 +183,35 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
               >
                 {joining ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                 {joining ? "Joining Room…" : "Join Transfer"}
+              </button>
+            </div>
+
+            {/* Nearby Devices Scanner */}
+            <div className="bg-background-card border border-border rounded-[20px] p-6 shadow-sm flex flex-col items-center justify-center text-center">
+              <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 relative">
+                <div className="absolute inset-0 rounded-full border border-primary/30 animate-[radar-spin_3s_linear_infinite] border-t-primary" />
+                <Activity className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-[15px] font-semibold text-text-primary">Search Available Devices Nearby</h3>
+              <p className="text-[13px] text-text-tertiary mt-1 mb-5">Automatically find active transfers on your network.</p>
+              
+              <button
+                onClick={async () => {
+                  try {
+                    const devices = await searchNearby();
+                    if (devices.length > 0) {
+                      setOtc(devices[0].otc); // Auto-fill first found
+                      handleJoin(devices[0].otc);
+                    } else {
+                      alert("No devices found nearby. Make sure the sender has generated a code and is on the same network.");
+                    }
+                  } catch (e) {
+                    console.error("Search failed", e);
+                  }
+                }}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-background-elevated border border-border hover:border-border-hover hover:text-primary text-[14px] font-medium text-text-secondary rounded-xl transition-all w-full"
+              >
+                <Activity className="w-4 h-4" /> Scan Network
               </button>
             </div>
 

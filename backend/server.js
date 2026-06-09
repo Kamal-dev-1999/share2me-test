@@ -160,10 +160,26 @@ io.on('connection', (socket) => {
     }
     const otc = genOTC();
     // Store ownerSocketId so only the real sender can overwrite metadata
-    otcToRoom.set(otc, { createdAt: Date.now(), metadata: null, ownerSocketId: socket.id });
+    // Store ip to allow nearby discovery
+    otcToRoom.set(otc, { createdAt: Date.now(), metadata: null, ownerSocketId: socket.id, ip });
     socket.join(otc);
     socket.roomOTC = otc;
     if (cb) cb({ otc });
+  });
+
+  socket.on('search_nearby', (cb) => {
+    const nearbyOTCs = [];
+    for (const [otc, room] of otcToRoom.entries()) {
+      if (room.ip === ip && room.ownerSocketId !== socket.id) {
+        // Only return rooms that are on the same public IP and not created by this socket
+        nearbyOTCs.push({
+          otc,
+          createdAt: room.createdAt,
+          metadata: room.metadata
+        });
+      }
+    }
+    cb && cb({ devices: nearbyOTCs });
   });
 
   socket.on('sender_ready', ({ otc, metadata }) => {

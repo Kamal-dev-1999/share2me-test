@@ -39,7 +39,7 @@ function HomeContent() {
     senderPhase, senderStatus, senderOtc, senderProgress, senderBytes,
     createRoom, createTextRoom, startWebRtcSend,
     receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress, receiverBytes, receivedText,
-    joinRoom,
+    joinRoom, searchNearby
   } = useTransfer(socket);
 
   return (
@@ -103,6 +103,7 @@ function HomeContent() {
                 bytesTransferred={receiverBytes}
                 receivedText={receivedText}
                 onJoin={joinRoom}
+                searchNearby={searchNearby}
               />
             )}
           </div>
