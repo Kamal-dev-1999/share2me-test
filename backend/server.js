@@ -167,20 +167,6 @@ io.on('connection', (socket) => {
     if (cb) cb({ otc });
   });
 
-  socket.on('search_nearby', (cb) => {
-    const nearbyOTCs = [];
-    for (const [otc, room] of otcToRoom.entries()) {
-      if (room.ip === ip && room.ownerSocketId !== socket.id) {
-        // Only return rooms that are on the same public IP and not created by this socket
-        nearbyOTCs.push({
-          otc,
-          createdAt: room.createdAt,
-          metadata: room.metadata
-        });
-      }
-    }
-    cb && cb({ devices: nearbyOTCs });
-  });
 
   socket.on('sender_ready', ({ otc, metadata }) => {
     if (!otc || !metadata) return;

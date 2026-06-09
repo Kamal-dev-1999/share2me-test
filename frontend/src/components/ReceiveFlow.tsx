@@ -43,11 +43,10 @@ interface Props {
   progress: number;
   receivedText: string | null;
   onJoin: (otc: string) => Promise<void>;
-  searchNearby: () => Promise<any[]>;
   bytesTransferred?: number;
 }
 
-export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin, searchNearby, bytesTransferred = 0 }: Props) {
+export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin, bytesTransferred = 0 }: Props) {
   const speedBps = useTransferSpeed(bytesTransferred);
   const [otc, setOtc]         = useState("");
   const [joining, setJoining] = useState(false);
@@ -185,7 +184,6 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                 {joining ? "Joining Room…" : "Join Transfer"}
               </button>
             </div>
-
 
 
             {/* QR Scanner */}

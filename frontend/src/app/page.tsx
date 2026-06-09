@@ -97,7 +97,6 @@ function HomeContent() {
                 bytesTransferred={receiverBytes}
                 receivedText={receivedText}
                 onJoin={joinRoom}
-                searchNearby={searchNearby}
               />
             )}
           </div>
