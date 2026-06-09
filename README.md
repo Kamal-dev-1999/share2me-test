@@ -30,9 +30,9 @@ Your data travels directly between devices — it never touches a server.
 
 ---
 
-## ✦ What is ShareIt?
+## ✦ What is Share2Me?
 
-ShareIt is a **browser-native, serverless transfer tool** for files and text. Pick a file or paste any text on one device, share a 6-digit code or scan a QR with the other device, and the data streams peer-to-peer with AES-GCM-256 encryption — no accounts, no uploads, no cloud storage.
+Share2Me is a **browser-native, serverless transfer tool** for files and text. Pick a file or paste any text on one device, share a 6-digit code or scan a QR with the other device, and the data streams peer-to-peer with AES-GCM-256 encryption — no accounts, no uploads, no cloud storage.
 
 ```
 Device A ──── WebRTC DataChannel ────► Device B
@@ -340,5 +340,3 @@ MIT © 2026 ShareIt
 <div align="center">
 <sub>Built with WebRTC · AES-GCM-256 · ECDH P-256 · TextEncoder/Decoder · No cloud. No compromise.</sub>
 </div>
-#   s h a r e 2 m e - v e r s i o n - 2 . 0  
- 
