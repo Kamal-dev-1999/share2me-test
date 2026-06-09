@@ -3,18 +3,18 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TopNav }       from "@/components/TopNav";
 import { HeroSection }  from "@/components/HeroSection";
-import { ModeSelector } from "@/components/ModeSelector";
+import { TrustSection } from "@/components/TrustSection";
 import { SendFlow }     from "@/components/SendFlow";
 import { ReceiveFlow }  from "@/components/ReceiveFlow";
 import { useSocket }    from "@/hooks/useSocket";
 import { useTransfer }  from "@/hooks/useTransfer";
+import { Clock } from "lucide-react";
+import Link from "next/link";
 
-// ─── Inner component uses useSearchParams — must be inside <Suspense> ─────────
 function HomeContent() {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"send" | "receive">("send");
 
-  // Listen for nav-dispatched mode switches (same-page scroll)
   useEffect(() => {
     const handler = (e: Event) => {
       const mode = (e as CustomEvent<"send" | "receive">).detail;
@@ -24,7 +24,6 @@ function HomeContent() {
     return () => window.removeEventListener("set-transfer-mode", handler);
   }, []);
 
-  // Auto-select mode + scroll if ?mode=send|receive (cross-page nav)
   useEffect(() => {
     const m = searchParams.get("mode");
     if (m === "receive" || m === "send") {
@@ -44,54 +43,46 @@ function HomeContent() {
   } = useTransfer(socket);
 
   return (
-    <div className="min-h-screen bg-canvas-dark">
+    <div className="min-h-screen bg-background">
       <TopNav />
       <HeroSection />
+      <TrustSection />
 
-      {/* Transfer workspace — id used for scroll-to from nav */}
-      <section id="transfer" className="px-4 sm:px-6 pb-16 sm:pb-section max-w-3xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <h2 className="text-xl sm:text-title-lg font-display font-semibold text-white">
-            Start a Transfer
-          </h2>
-          <ModeSelector mode={mode} onChange={setMode} />
-        </div>
-
-        <div className="bg-surface-cardDark rounded-xl border border-hairline-dark overflow-hidden">
-          {/* Card header */}
-          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-hairline-dark bg-surface-elevatedDark/40">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                mode === "send"
-                  ? (senderPhase === "done" ? "bg-trading-up" : senderPhase !== "idle" ? "bg-primary animate-pulse-ring" : "bg-muted")
-                  : (receiverPhase === "done" ? "bg-trading-up" : receiverPhase !== "idle" ? "bg-trading-up animate-pulse-ring" : "bg-muted")
-              }`} />
-              <span className="text-white text-sm font-semibold">
-                {mode === "send" ? "Sender Workspace" : "Receiver Workspace"}
-              </span>
+      {/* Transfer Workspace */}
+      <section id="transfer" className="w-full max-w-[1440px] mx-auto px-6 lg:px-8 pb-24">
+        <div className="bg-background-elevated rounded-[24px] border border-border p-2 sm:p-6 shadow-soft">
+          
+          {/* Top Control Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 px-2 sm:px-0">
+            {/* Tabs */}
+            <div className="flex items-center gap-2 border-b border-border w-full sm:w-auto">
+              <button
+                onClick={() => setMode("send")}
+                className={`pb-3 px-2 text-[15px] font-semibold transition-colors border-b-2 ${
+                  mode === "send" ? "border-primary text-text-primary" : "border-transparent text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Send Files
+              </button>
+              <button
+                onClick={() => setMode("receive")}
+                className={`pb-3 px-2 text-[15px] font-semibold transition-colors border-b-2 ${
+                  mode === "receive" ? "border-primary text-text-primary" : "border-transparent text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                Receive Files
+              </button>
             </div>
-            <div className="flex items-center gap-2">
-              {mode === "send" && senderOtc && (
-                <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">
-                  OTC: {senderOtc}
-                </span>
-              )}
-              {mode === "receive" && (
-                <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                  receiverKeyStatus === "ready"
-                    ? "text-trading-up bg-trading-up/10"
-                    : receiverKeyStatus === "generated"
-                    ? "text-primary bg-primary/10"
-                    : "text-muted bg-surface-elevatedDark"
-                }`}>
-                  {receiverKeyStatus === "ready" ? "Key: ready ✓" : receiverKeyStatus === "generated" ? "Key: generated" : "Key: pending"}
-                </span>
-              )}
-            </div>
+            
+            {/* History Button */}
+            <Link href="/history" className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-background-card border border-border hover:border-border-hover text-[13px] font-medium text-text-secondary hover:text-text-primary transition-all">
+              <Clock className="w-4 h-4" />
+              Transfer History
+            </Link>
           </div>
 
-          {/* Card body */}
-          <div className="p-4 sm:p-6">
+          {/* Transfer Flow */}
+          <div className="w-full">
             {mode === "send" ? (
               <SendFlow
                 phase={senderPhase}
@@ -119,27 +110,27 @@ function HomeContent() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-surface-softLight border-t border-hairline-light">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-muted">© 2026 Share2Me. No data stored. No servers involved.</span>
+      <footer className="w-full border-t border-border bg-background py-12">
+        <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                </svg>
+              </div>
+              <span className="text-text-primary font-display font-bold">Share2Me</span>
+            </div>
+            
+            <div className="text-[13px] text-text-tertiary">
+              © 2026 Share2Me. All rights reserved.
+            </div>
+
             <div className="flex items-center gap-6">
-              <a
-                href="https://github.com/Kamal-dev-1999/shareit"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-muted hover:text-body-light transition-colors font-medium"
-              >
-                GitHub ↗
-              </a>
-              <a
-                href="https://github.com/Kamal-dev-1999/shareit/contribute"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-muted hover:text-body-light transition-colors font-medium"
-              >
-                Contribute ↗
-              </a>
+              <a href="https://github.com/Kamal-dev-1999/shareit" target="_blank" rel="noopener noreferrer" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">GitHub</a>
+              <a href="#" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Privacy</a>
+              <a href="#" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Terms</a>
             </div>
           </div>
         </div>
@@ -148,11 +139,9 @@ function HomeContent() {
   );
 }
 
-// ─── Page export wraps HomeContent in Suspense (required by Next.js 14 for
-//     any component that calls useSearchParams during static generation) ────────
 export default function Home() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-canvas-dark" />}>
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <HomeContent />
     </Suspense>
   );

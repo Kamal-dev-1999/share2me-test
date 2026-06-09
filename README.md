@@ -340,3 +340,5 @@ MIT © 2026 ShareIt
 <div align="center">
 <sub>Built with WebRTC · AES-GCM-256 · ECDH P-256 · TextEncoder/Decoder · No cloud. No compromise.</sub>
 </div>
+#   s h a r e 2 m e - v e r s i o n - 2 . 0  
+ 

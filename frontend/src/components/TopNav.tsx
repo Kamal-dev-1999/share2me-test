@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Shield, Wifi } from "lucide-react";
+import { Shield, Wifi, User } from "lucide-react";
+import Image from "next/image";
 
 export function TopNav() {
   const pathname = usePathname();
@@ -11,62 +12,63 @@ export function TopNav() {
   const goToTransfer = (mode: "send" | "receive") => (e: React.MouseEvent) => {
     e.preventDefault();
     if (pathname === "/") {
-      // Already home — just scroll and set mode via custom event
       window.dispatchEvent(new CustomEvent("set-transfer-mode", { detail: mode }));
       document.getElementById("transfer")?.scrollIntoView({ behavior: "smooth" });
     } else {
-      // Navigate home then scroll
       router.push(`/?mode=${mode}#transfer`);
     }
   };
 
   return (
-    <nav className="h-16 bg-canvas-dark border-b border-hairline-dark flex items-center px-4 sm:px-6 sticky top-0 z-50">
-      {/* Logo */}
-      <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
-        <img src="/logo.png" alt="Share2Me Logo" className="w-8 h-8 rounded-md object-cover" />
-        <span className="text-white font-display font-bold text-xl tracking-tight">
-          Share<span className="text-primary">2Me</span>
-        </span>
-      </Link>
-
-      {/* Nav links */}
-      <div className="hidden md:flex items-center gap-1 ml-10">
-        <a
-          href="#transfer"
-          onClick={goToTransfer("send")}
-          className="px-3 py-1.5 rounded-md text-sm font-medium text-muted hover:text-white hover:bg-surface-cardDark transition-colors cursor-pointer"
-        >
-          Send
-        </a>
-        <a
-          href="#transfer"
-          onClick={goToTransfer("receive")}
-          className="px-3 py-1.5 rounded-md text-sm font-medium text-muted hover:text-white hover:bg-surface-cardDark transition-colors cursor-pointer"
-        >
-          Receive
-        </a>
-        <Link
-          href="/how-it-works"
-          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            pathname === "/how-it-works"
-              ? "text-white bg-surface-elevatedDark"
-              : "text-muted hover:text-white hover:bg-surface-cardDark"
-          }`}
-        >
-          How it Works
+    <nav className="h-[72px] bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-center sticky top-0 z-50">
+      <div className="w-full max-w-[1440px] px-6 lg:px-8 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-3 flex-shrink-0 group">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors border border-primary/20">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </div>
+          <span className="text-text-primary font-display font-bold text-xl tracking-tight">
+            Share<span className="text-primary">2Me</span>
+          </span>
         </Link>
-      </div>
 
-      {/* Right cluster */}
-      <div className="ml-auto flex items-center gap-3">
-        <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted">
-          <Shield className="w-3.5 h-3.5 text-trading-up" />
-          <span>E2E Encrypted</span>
+        {/* Nav links */}
+        <div className="hidden md:flex items-center gap-1.5 ml-12 lg:ml-16">
+          <a href="#transfer" onClick={goToTransfer("send")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
+            Send
+          </a>
+          <a href="#transfer" onClick={goToTransfer("receive")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
+            Receive
+          </a>
+          <Link href="/history" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
+            My Transfers
+          </Link>
+          <Link href="/how-it-works" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
+            How it Works
+          </Link>
+          <Link href="/pricing" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
+            Pricing
+          </Link>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted">
-          <Wifi className="w-3.5 h-3.5 text-primary" />
-          <span>P2P Only</span>
+
+        {/* Right cluster */}
+        <div className="ml-auto flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-background-elevated/50">
+              <Shield className="w-3.5 h-3.5 text-status-success" />
+              <span className="text-[12px] font-medium text-text-secondary">E2E Encrypted</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-background-elevated/50">
+              <Wifi className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[12px] font-medium text-text-secondary">P2P Only</span>
+            </div>
+          </div>
+          <button className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-text-secondary hover:text-text-primary hover:border-border-hover transition-colors ml-2">
+            <User className="w-5 h-5" />
+          </button>
         </div>
       </div>
     </nav>

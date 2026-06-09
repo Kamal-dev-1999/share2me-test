@@ -2,21 +2,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Upload, FileText, CheckCircle2, Loader2, Wifi,
-  ClipboardPaste, Type, FileUp,
+  ClipboardPaste, Type, FileUp, X, Shield, Activity, HardDrive
 } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
 import * as fflate from "fflate";
 import { TransferPhase } from "@/hooks/useTransfer";
+import { motion, AnimatePresence } from "framer-motion";
 
-/** Rolling 3-second window speed calculator */
 function useTransferSpeed(bytesTransferred: number) {
   const history = useRef<{ bytes: number; ts: number }[]>([]);
   const [speedBps, setSpeedBps] = useState(0);
   useEffect(() => {
     const now = Date.now();
     history.current.push({ bytes: bytesTransferred, ts: now });
-    // keep only last 3 seconds
     const cutoff = now - 3000;
     history.current = history.current.filter((h) => h.ts >= cutoff);
     if (history.current.length >= 2) {
@@ -36,6 +35,11 @@ function formatSpeed(bps: number): string {
   return `${bps.toFixed(0)} B/s`;
 }
 
+function formatBytes(bytes: number) {
+  if (bytes < 1024)             return `${bytes} B`;
+  if (bytes < 1024 * 1024)      return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
 
 interface Props {
   phase: TransferPhase;
@@ -46,12 +50,6 @@ interface Props {
   onCreateTextRoom: (text: string) => void;
   onStartSend:      () => void;
   bytesTransferred?: number;
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024)             return `${bytes} B`;
-  if (bytes < 1024 * 1024)      return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
 type TransferType = "file" | "text";
@@ -65,27 +63,21 @@ export function SendFlow({
   const [transferType, setTransferType] = useState<TransferType>("file");
   const [isZipping, setIsZipping] = useState(false);
 
-  // ── File state ────────────────────────────────────────────────────────────
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Text state ────────────────────────────────────────────────────────────
   const [textInput, setTextInput] = useState("");
-
-  // ── QR ────────────────────────────────────────────────────────────────────
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!otc) { setQrDataUrl(null); return; }
-    // Encode ONLY the 6-digit OTC — keeps the QR tiny (version 1) and scannable
-    // by any phone camera. Metadata is relayed automatically via the signaling server.
     QRCode.toDataURL(otc, {
-      width: 220, margin: 2,
-      errorCorrectionLevel: "H",   // highest redundancy — scannable even if partially obscured
-      color: { dark: "#0b0e11", light: "#fcd535" },
+      width: 260, margin: 2,
+      errorCorrectionLevel: "H",
+      color: { dark: "#070B14", light: "#FFD54A" },
     }).then(setQrDataUrl).catch(() => {});
-  }, [otc]);  // regenerate only when OTC changes, not on every metadata update
+  }, [otc]);
 
   const handleFiles = useCallback((selectedFiles: FileList | File[]) => {
     const newFiles = Array.from(selectedFiles);
@@ -141,10 +133,7 @@ export function SendFlow({
           }
           fflate.zip(zipData, { level: 0 }, (err, data) => {
             setIsZipping(false);
-            if (err) {
-              alert("Failed to zip files");
-              return;
-            }
+            if (err) { alert("Failed to zip files"); return; }
             const zipFile = new File([data], "Shared_Files.zip", { type: "application/zip" });
             onCreateRoom(zipFile);
           });
@@ -156,245 +145,241 @@ export function SendFlow({
     }
   };
 
-  const isIdle        = phase === "idle";
-  const isPreparing   = phase === "preparing";
-  const isReady       = phase === "ready" || phase === "key_exchange";
-  const isTransferring= phase === "transferring";
-  const isDone        = phase === "done";
+  const isIdle         = phase === "idle";
+  const isPreparing    = phase === "preparing";
+  const isReady        = phase === "ready" || phase === "key_exchange";
+  const isTransferring = phase === "transferring";
+  const isDone         = phase === "done";
 
-  // ── Derived ───────────────────────────────────────────────────────────────
   const canPrepare = isIdle && !isZipping && (transferType === "file" ? files.length > 0 : textInput.trim().length > 0);
   const textBytes  = new TextEncoder().encode(textInput).length;
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in w-full">
+      
+      {/* ── LEFT PANEL: UPLOAD & CONTROLS ── */}
+      <div className="flex flex-col gap-5">
+        
+        {/* Type Selector */}
+        <div className="flex p-1 bg-background-elevated rounded-[14px] border border-border">
+          <button
+            onClick={() => setTransferType("file")}
+            disabled={!isIdle}
+            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-semibold py-2.5 rounded-[10px] transition-all
+              ${transferType === "file" ? "bg-primary text-background shadow-soft" : "text-text-secondary hover:text-text-primary disabled:opacity-40"}`}
+          >
+            <FileUp className="w-[18px] h-[18px]" /> Files
+          </button>
+          <button
+            onClick={() => setTransferType("text")}
+            disabled={!isIdle}
+            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-semibold py-2.5 rounded-[10px] transition-all
+              ${transferType === "text" ? "bg-primary text-background shadow-soft" : "text-text-secondary hover:text-text-primary disabled:opacity-40"}`}
+          >
+            <Type className="w-[18px] h-[18px]" /> Text
+          </button>
+        </div>
 
-      {/* ── Transfer type tabs ── */}
-      <div className="flex items-center bg-surface-elevatedDark border border-hairline-dark rounded-xl p-1">
-        <button
-          onClick={() => setTransferType("file")}
-          disabled={!isIdle}
-          className={`flex-1 flex items-center justify-center gap-2 text-sm font-semibold py-2 rounded-lg transition-all
-            ${transferType === "file"
-              ? "bg-primary text-ink shadow-sm"
-              : "text-muted hover:text-white disabled:opacity-40"}`}
-        >
-          <FileUp className="w-4 h-4" />
-          File
-        </button>
-        <button
-          onClick={() => setTransferType("text")}
-          disabled={!isIdle}
-          className={`flex-1 flex items-center justify-center gap-2 text-sm font-semibold py-2 rounded-lg transition-all
-            ${transferType === "text"
-              ? "bg-primary text-ink shadow-sm"
-              : "text-muted hover:text-white disabled:opacity-40"}`}
-        >
-          <Type className="w-4 h-4" />
-          Text
-        </button>
+        {/* Upload Zone */}
+        {transferType === "file" ? (
+          <div className="flex flex-col gap-4">
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+              onClick={() => isIdle && fileInputRef.current?.click()}
+              className={`relative bg-background-card rounded-[20px] border-2 border-dashed p-10 text-center transition-all duration-300 select-none
+                ${!isIdle ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}
+                ${files.length > 0 ? "border-primary/30" : ""}
+              `}
+            >
+              <input ref={fileInputRef} type="file" className="hidden" multiple onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }} disabled={!isIdle} />
+              
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-background-elevated border border-border flex items-center justify-center">
+                  {files.length > 0 ? <FileText className="w-8 h-8 text-primary" /> : <Upload className="w-8 h-8 text-text-secondary" />}
+                </div>
+                <div>
+                  <p className="text-text-primary text-[15px] font-semibold">
+                    {files.length > 0 
+                      ? (files.length === 1 ? files[0].name : `${files.length} files selected`) 
+                      : "Drag & drop files here"}
+                  </p>
+                  <p className="text-text-secondary text-[13px] mt-1.5">
+                    {files.length > 0 
+                      ? `${formatBytes(files.reduce((acc, f) => acc + f.size, 0))} total size`
+                      : "Up to 10 files · Max 1.5 GB total"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* File List Queue */}
+            <AnimatePresence>
+              {files.length > 0 && isIdle && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between bg-background-card px-4 py-3 rounded-xl border border-border group">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <FileText className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+                        <span className="text-[13px] text-text-primary truncate">{f.name}</span>
+                      </div>
+                      <div className="flex items-center gap-4 pl-3">
+                        <span className="text-[12px] text-text-tertiary whitespace-nowrap">{formatBytes(f.size)}</span>
+                        <button onClick={() => setFiles(files.filter((_, idx) => idx !== i))} className="text-text-tertiary hover:text-status-error transition-colors p-1 rounded-md hover:bg-status-error/10">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className="relative">
+            <textarea
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              disabled={!isIdle}
+              placeholder="Paste or type any text here..."
+              rows={8}
+              className="w-full bg-background-card border border-border rounded-[20px] p-5 text-text-primary text-[14px] font-mono resize-y focus:outline-none focus:border-primary transition-colors placeholder:text-text-tertiary disabled:opacity-50"
+            />
+            <div className="absolute bottom-4 left-5 right-5 flex justify-between items-center">
+              <span className="text-[12px] text-text-tertiary bg-background/50 backdrop-blur-sm px-2 py-1 rounded-md border border-border">
+                {textInput.length.toLocaleString()} chars · {formatBytes(textBytes)}
+              </span>
+              {isIdle && textInput.length === 0 && (
+                <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setTextInput(t); } catch {} }} className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary bg-background/50 hover:bg-primary/10 hover:text-primary hover:border-primary/30 px-3 py-1.5 rounded-lg border border-border transition-all">
+                  <ClipboardPaste className="w-3.5 h-3.5" /> Paste
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 mt-auto">
+          <button
+            disabled={!canPrepare}
+            onClick={handleCreateRoom}
+            className="flex-1 bg-primary text-background font-bold text-[15px] h-[48px] rounded-xl hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-glow"
+          >
+            {isPreparing || isZipping ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+            {isPreparing || isZipping ? (isZipping ? "Packaging files…" : "Encrypting…") : "Generate Code"}
+          </button>
+          
+          <button
+            disabled={!isReady && !isTransferring}
+            onClick={onStartSend}
+            className="flex-1 bg-background-elevated text-text-primary font-bold text-[15px] h-[48px] rounded-xl border border-border hover:border-border-hover hover:bg-background-card transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <Wifi className="w-4 h-4" /> Start Transfer
+          </button>
+        </div>
+
       </div>
 
-      {/* ── FILE MODE: drop zone ── */}
-      {transferType === "file" && (
-        <div className="space-y-3">
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-            onClick={() => isIdle && fileInputRef.current?.click()}
-            className={`
-              relative bg-surface-cardDark rounded-xl border-2 border-dashed p-8 text-center
-              transition-all duration-200 select-none
-              ${!isIdle ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-              ${dragging ? "border-primary bg-primary/5" : "border-hairline-dark hover:border-primary/50"}
-              ${files.length > 0 ? "border-primary/30" : ""}
-            `}
-          >
-            <input
-              ref={fileInputRef} type="file" className="hidden" multiple
-              onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }}
-              disabled={!isIdle}
-            />
-            {files.length > 0 ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-white font-semibold text-sm">
-                    {files.length === 1 ? files[0].name : `${files.length} files selected`}
-                  </p>
-                  <p className="text-muted text-xs mt-0.5">
-                    {formatBytes(files.reduce((acc, f) => acc + f.size, 0))} total
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-surface-elevatedDark flex items-center justify-center">
-                  <Upload className="w-6 h-6 text-muted" />
-                </div>
-                <div>
-                  <p className="text-white text-sm font-medium">Drop files here or click to browse</p>
-                  <p className="text-muted text-xs mt-1">Up to 10 files · Max 1.5 GB total</p>
-                </div>
-              </div>
-            )}
+      {/* ── RIGHT PANEL: STATUS & DASHBOARD ── */}
+      <div className="bg-background-card rounded-[20px] border border-border overflow-hidden flex flex-col h-full min-h-[400px]">
+        
+        {/* Connection Header */}
+        <div className="px-6 py-4 border-b border-border bg-background-elevated/30 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`w-2.5 h-2.5 rounded-full ${isIdle ? "bg-text-tertiary" : isDone ? "bg-status-success" : "bg-primary animate-pulse-ring"}`} />
+            <span className="text-[13px] font-semibold text-text-secondary uppercase tracking-wider">Connection Status</span>
           </div>
+          <div className="flex items-center gap-1.5 bg-status-success/10 border border-status-success/20 px-2.5 py-1 rounded-md">
+            <Shield className="w-3.5 h-3.5 text-status-success" />
+            <span className="text-[11px] font-semibold text-status-success">E2E Secured</span>
+          </div>
+        </div>
+
+        {/* Dynamic Content Body */}
+        <div className="flex-1 flex flex-col justify-center p-6 relative">
           
-          {/* File List */}
-          {files.length > 0 && isIdle && (
-            <div className="bg-surface-elevatedDark rounded-xl p-3 max-h-40 overflow-y-auto border border-hairline-dark space-y-2">
-              {files.map((f, i) => (
-                <div key={i} className="flex items-center justify-between bg-surface-cardDark px-3 py-2 rounded-lg border border-hairline-light">
-                  <span className="text-xs text-white truncate max-w-[70%]">{f.name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted">{formatBytes(f.size)}</span>
-                    <button
-                      onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
-                      className="text-muted hover:text-trading-down transition-colors text-lg leading-none"
-                      title="Remove file"
-                    >
-                      &times;
-                    </button>
+          <AnimatePresence mode="wait">
+            {isIdle ? (
+              <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center text-center gap-4">
+                <div className="w-20 h-20 rounded-full border border-border flex items-center justify-center bg-background/50">
+                  <Activity className="w-8 h-8 text-text-tertiary" />
+                </div>
+                <div>
+                  <p className="text-text-primary font-medium">Ready to Transfer</p>
+                  <p className="text-text-tertiary text-[13px] mt-1 max-w-[200px]">Select files or text and generate a code to connect.</p>
+                </div>
+              </motion.div>
+            ) : null}
+
+            {otc && !isTransferring && !isDone && (
+              <motion.div key="qr" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex flex-col items-center w-full">
+                {/* OTC Display */}
+                <div className="w-full bg-background border border-border rounded-[16px] p-5 mb-6 text-center">
+                  <span className="text-[11px] font-bold text-text-tertiary uppercase tracking-[0.1em]">Share this code</span>
+                  <div className="font-mono text-[40px] leading-tight font-bold text-primary tracking-[0.25em] mt-1">{otc}</div>
+                </div>
+
+                {/* QR Code */}
+                <div className="bg-primary p-2 rounded-[20px] shadow-glow">
+                  {qrDataUrl ? (
+                    <Image src={qrDataUrl} alt="QR Code" width={200} height={200} className="rounded-xl" />
+                  ) : (
+                    <div className="w-[200px] h-[200px] bg-background-elevated rounded-xl animate-pulse" />
+                  )}
+                </div>
+                <p className="text-[13px] text-text-secondary mt-5 font-medium">Scan QR with receiver device</p>
+              </motion.div>
+            )}
+
+            {(isTransferring || isDone) && (
+              <motion.div key="transfer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full h-full justify-center">
+                
+                {/* Big Circular/Visual Progress Area */}
+                <div className="flex flex-col items-center justify-center mb-10">
+                  <div className="relative w-40 h-40 flex items-center justify-center">
+                    {/* Background Circle */}
+                    <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                      <circle cx="80" cy="80" r="76" fill="none" stroke="currentColor" strokeWidth="6" className="text-border" />
+                      <circle cx="80" cy="80" r="76" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="477.5" strokeDashoffset={477.5 - (477.5 * progress) / 100} className="text-primary transition-all duration-500 ease-out" />
+                    </svg>
+                    <div className="flex flex-col items-center justify-center z-10">
+                      <span className="text-[32px] font-display font-bold text-text-primary leading-none">{progress}%</span>
+                      {isDone ? (
+                        <span className="text-[12px] font-bold text-status-success mt-1 uppercase tracking-wider">Complete</span>
+                      ) : (
+                        <span className="text-[12px] font-medium text-text-tertiary mt-1 uppercase tracking-wider">Sending</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* ── TEXT MODE: textarea ── */}
-      {transferType === "text" && (
-        <div className="relative">
-          <textarea
-            value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
-            disabled={!isIdle}
-            placeholder="Paste or type any text here — any length, any language, any formatting…"
-            rows={7}
-            className="w-full bg-surface-cardDark border border-hairline-dark rounded-xl
-                       px-4 py-3 text-white text-sm font-mono resize-y leading-relaxed
-                       focus:outline-none focus:border-primary transition-colors
-                       placeholder:text-muted placeholder:font-sans
-                       disabled:opacity-50"
-          />
-          <div className="flex items-center justify-between mt-1.5 px-1">
-            <span className="text-xs text-muted">
-              {textInput.length.toLocaleString()} chars · {formatBytes(textBytes)}
-            </span>
-            {textInput.length > 0 && isIdle && (
-              <button
-                onClick={() => setTextInput("")}
-                className="text-xs text-muted hover:text-trading-down transition-colors"
-              >
-                Clear
-              </button>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  <div className="bg-background border border-border rounded-xl p-4 flex flex-col">
+                    <span className="text-[12px] text-text-tertiary font-medium mb-1">Transferred</span>
+                    <span className="text-[15px] font-semibold text-text-primary font-mono">{formatBytes(bytesTransferred)}</span>
+                  </div>
+                  <div className="bg-background border border-border rounded-xl p-4 flex flex-col">
+                    <span className="text-[12px] text-text-tertiary font-medium mb-1">Current Speed</span>
+                    <span className="text-[15px] font-semibold text-primary font-mono">{speedBps > 0 ? formatSpeed(speedBps) : "--"}</span>
+                  </div>
+                </div>
+              </motion.div>
             )}
-          </div>
-          {/* Paste from clipboard button */}
-          {isIdle && textInput.length === 0 && (
-            <button
-              onClick={async () => {
-                try {
-                  const t = await navigator.clipboard.readText();
-                  setTextInput(t);
-                } catch { /* permission denied, let user type */ }
-              }}
-              className="absolute top-3 right-3 flex items-center gap-1.5 text-xs text-muted
-                         bg-surface-elevatedDark hover:bg-primary/10 hover:text-primary
-                         px-2.5 py-1.5 rounded-lg border border-hairline-dark transition-colors"
-            >
-              <ClipboardPaste className="w-3 h-3" />
-              Paste
-            </button>
-          )}
-        </div>
-      )}
+          </AnimatePresence>
 
-      {/* ── Action buttons ── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          disabled={!canPrepare}
-          onClick={handleCreateRoom}
-          className="flex-1 bg-primary text-ink font-semibold text-sm px-6 py-3 rounded-md
-                     hover:bg-primary-active transition-colors disabled:opacity-40 disabled:cursor-not-allowed
-                     flex items-center justify-center gap-2"
-        >
-          {isPreparing || isZipping ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {isPreparing || isZipping
-            ? (isZipping ? "Packaging files…" : transferType === "text" ? "Encrypting text…" : "Encrypting…")
-            : (transferType === "text" ? "Create OTC & Encrypt Text" : "Create OTC & Prepare")}
-        </button>
-        <button
-          disabled={!isReady && !isTransferring}
-          onClick={onStartSend}
-          className="flex-1 bg-surface-cardDark text-white font-semibold text-sm px-6 py-3 rounded-md
-                     border border-hairline-dark hover:border-primary/50 transition-colors
-                     disabled:opacity-40 disabled:cursor-not-allowed
-                     flex items-center justify-center gap-2"
-        >
-          <Wifi className="w-4 h-4" />
-          Start WebRTC Send
-        </button>
-      </div>
-
-      {/* ── OTC display ── */}
-      {otc && (
-        <div className="bg-surface-cardDark rounded-xl border border-hairline-dark p-5 animate-fade-in">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-muted text-xs font-semibold uppercase tracking-wider">One-Time Code</span>
-            <CheckCircle2 className="w-4 h-4 text-trading-up" />
-          </div>
-          <div className="font-mono text-4xl font-bold text-primary tracking-[0.15em]">{otc}</div>
-          <p className="text-muted text-xs mt-2">Share this code with the receiver</p>
-        </div>
-      )}
-
-      {/* ── QR ── */}
-      {otc && (
-        <div className="bg-surface-cardDark rounded-xl border border-hairline-dark p-6 animate-fade-in
-                        flex flex-col items-center justify-center gap-4">
-          {qrDataUrl
-            ? <Image src={qrDataUrl} alt="Transfer QR" width={220} height={220} className="rounded-xl" />
-            : <div className="w-[220px] h-[220px] bg-surface-elevatedDark rounded-xl animate-pulse" />
-          }
-          <div className="text-center">
-            <p className="text-white font-mono text-3xl font-bold tracking-[0.2em] mb-1">{otc}</p>
-            <p className="text-muted text-xs">Scan QR or share the code · keys sync automatically</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Progress ── */}
-      {(isTransferring || isDone) && (
-        <div className="bg-surface-cardDark rounded-xl border border-hairline-dark p-5 animate-fade-in">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-white text-sm font-semibold">Transfer Progress</span>
+          {/* Persistent Status Bar at Bottom */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-background/50 backdrop-blur-md">
             <div className="flex items-center gap-3">
-              {isTransferring && speedBps > 0 && (
-                <span className="text-xs font-mono font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                  ↑ {formatSpeed(speedBps)}
-                </span>
-              )}
-              <span className="text-primary font-mono text-sm font-bold">{progress}%</span>
+              {isPreparing ? <Loader2 className="w-4 h-4 text-primary animate-spin" /> : <HardDrive className="w-4 h-4 text-text-tertiary" />}
+              <span className={`text-[13px] font-medium truncate ${phase === "error" ? "text-status-error" : "text-text-secondary"}`}>
+                {status}
+              </span>
             </div>
           </div>
-          <div className="w-full h-2 bg-surface-elevatedDark rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-          </div>
-          <div className="flex justify-between mt-2">
-            <span className="text-muted text-xs">{formatBytes(bytesTransferred)} sent</span>
-            {isDone && <span className="text-trading-up text-xs font-semibold">✓ Transfer complete</span>}
-          </div>
         </div>
-      )}
-
-      {/* ── Status ── */}
-      <div className="bg-surface-elevatedDark rounded-lg px-4 py-3 text-sm text-muted min-h-[44px] flex items-center">
-        <span className={phase === "error" ? "text-trading-down" : ""}>{status}</span>
       </div>
     </div>
   );
