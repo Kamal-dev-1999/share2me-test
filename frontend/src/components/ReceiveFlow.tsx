@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, Key, Loader2, CheckCircle2, Camera, CameraOff, Copy, Check, Shield, Activity, HardDrive } from "lucide-react";
+import { Key, Loader2, CheckCircle2, Camera, CameraOff, Copy, Check, Shield, Activity, HardDrive } from "lucide-react";
 import jsQR from "jsqr";
 import { TransferPhase } from "@/hooks/useTransfer";
 import { motion, AnimatePresence } from "framer-motion";
@@ -90,8 +90,8 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         videoRef.current.play();
       }
       setScanning(true);
-    } catch (err: any) {
-      setCameraError(err.message || "Camera access denied");
+    } catch (err: unknown) {
+      setCameraError(err instanceof Error ? err.message : "Camera access denied");
     }
   }, []);
 
@@ -147,9 +147,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
   const isTransferring = phase === "transferring";
   const isDone         = phase === "done";
   
-  // Format OTC for display
-  const otcDisplay = otc.padEnd(6, " ");
-
+  // Removed unused otcDisplay
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in w-full">
       
@@ -161,7 +159,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
             {/* OTC Input Box */}
             <div className="bg-background-card border border-border rounded-[20px] p-6 shadow-sm">
               <label className="block text-[13px] font-semibold text-text-tertiary uppercase tracking-wider mb-4">
-                Enter Sender's Code
+                Enter Sender&apos;s Code
               </label>
               
               <div className="flex items-center gap-3">
@@ -195,7 +193,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                     <Camera className="w-7 h-7 text-text-tertiary" />
                   </div>
                   <h3 className="text-[15px] font-semibold text-text-primary">Scan QR Code</h3>
-                  <p className="text-[13px] text-text-tertiary mt-1 mb-5">Quickly connect by scanning the sender's code.</p>
+                  <p className="text-[13px] text-text-tertiary mt-1 mb-5">Quickly connect by scanning the sender&apos;s code.</p>
                   
                   {cameraError ? (
                     <p className="text-[13px] text-status-error mb-4 px-4 bg-status-error/10 py-2 rounded-lg border border-status-error/20">{cameraError}</p>

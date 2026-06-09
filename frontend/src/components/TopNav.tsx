@@ -1,8 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Shield, Wifi, User } from "lucide-react";
-import Image from "next/image";
+import { Shield, Wifi } from "lucide-react";
 
 export function TopNav() {
   const pathname = usePathname();

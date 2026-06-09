@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Upload, FileText, CheckCircle2, Loader2, Wifi,
+  Upload, FileText, Loader2, Wifi,
   ClipboardPaste, Type, FileUp, X, Shield, Activity, HardDrive
 } from "lucide-react";
 import Image from "next/image";
@@ -147,7 +147,6 @@ export function SendFlow({
 
   const isIdle         = phase === "idle";
   const isPreparing    = phase === "preparing";
-  const isReady        = phase === "ready" || phase === "key_exchange";
   const isTransferring = phase === "transferring";
   const isDone         = phase === "done";
 

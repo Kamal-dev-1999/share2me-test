@@ -8,8 +8,6 @@ import { SendFlow }     from "@/components/SendFlow";
 import { ReceiveFlow }  from "@/components/ReceiveFlow";
 import { useSocket }    from "@/hooks/useSocket";
 import { useTransfer }  from "@/hooks/useTransfer";
-import { Clock } from "lucide-react";
-import Link from "next/link";
 
 function HomeContent() {
   const searchParams = useSearchParams();

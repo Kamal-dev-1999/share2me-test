@@ -1,9 +1,8 @@
 "use client";
-import { Lock, Zap, Globe } from "lucide-react";
+import { motion } from "framer-motion";
 
 // const STATS = [
 //   { value: "AES-256", label: "Encryption Standard", color: "text-primary" },
-import { motion } from "framer-motion";
 
 export function HeroSection() {
   return (
