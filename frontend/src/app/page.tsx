@@ -46,7 +46,6 @@ function HomeContent() {
     <div className="min-h-screen bg-background">
       <TopNav />
       <HeroSection />
-      <TrustSection />
 
       {/* Transfer Workspace */}
       <section id="transfer" className="w-full max-w-[1440px] mx-auto px-6 lg:px-8 pb-24">
@@ -109,6 +108,8 @@ function HomeContent() {
           </div>
         </div>
       </section>
+
+      <TrustSection />
 
       {/* Footer */}
       <footer className="w-full border-t border-border bg-background py-12">

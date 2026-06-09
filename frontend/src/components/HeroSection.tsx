@@ -46,7 +46,7 @@ export function HeroSection() {
         </div>
 
         {/* Right: Interactive Illustration */}
-        <div className="w-full lg:w-[55%] h-[400px] relative flex justify-center items-center z-10">
+        <div className="hidden sm:flex w-full lg:w-[55%] h-[240px] lg:h-[400px] relative justify-center items-center z-10 mt-8 lg:mt-0">
           <div className="absolute inset-0 bg-primary/5 blur-[100px] rounded-full" />
 
           <div className="relative w-full h-full max-w-lg mx-auto flex items-center justify-between px-4 sm:px-12">
