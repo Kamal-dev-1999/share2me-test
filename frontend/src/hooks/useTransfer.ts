@@ -251,13 +251,19 @@ export function useTransfer(socket: Socket) {
       setReceiverStatus("File received. Download started.");
       setReceiverProgress(100);
     }
-  }, []);
+    if (r.nackTimer) { clearTimeout(r.nackTimer); r.nackTimer = null; }
+    if (r.otc) {
+      socket.emit("transfer_complete", { otc: r.otc });
+    }
+  }, [socket]);
 
   const scheduleNackCheck = useCallback((finalCheck = false) => {
     const r = rcv.current;
+    if (r.downloadTriggered) return;
     if (finalCheck) r.doneReceived = true;
     if (r.nackTimer) clearTimeout(r.nackTimer);
     r.nackTimer = setTimeout(async () => {
+      if (r.downloadTriggered) return;
       const total = r.expectedTotal || r.metadata?.total || 0;
       if (!total) return;
       const missing: number[] = [];
@@ -357,8 +363,8 @@ export function useTransfer(socket: Socket) {
     if (s.dc?.readyState === "open") {
       s.dc.send(JSON.stringify({ done: true, transferId: s.otc, total: sorted.length }));
     }
-    setSenderPhase("done");
-    setSenderStatus("All chunks sent.");
+    // We stay in transferring phase until the receiver sends transfer_complete
+    setSenderStatus("All chunks sent. Waiting for receiver confirmation…");
   }, []);
 
   const resendMissingChunks = useCallback(async (missingSeqs: number[]) => {
@@ -544,6 +550,13 @@ export function useTransfer(socket: Socket) {
         importMetadataRef.current(JSON.stringify(metadata));
       }
     });
+    socket.on("transfer_complete", (msg) => {
+      if (role.current === "sender" && msg && msg.otc === snd.current.otc) {
+        setSenderPhase("done");
+        setSenderStatus("All chunks sent. Receiver confirmed download.");
+        setSenderProgress(100);
+      }
+    });
 
     return () => {
       socket.off("signal");
@@ -551,6 +564,7 @@ export function useTransfer(socket: Socket) {
       socket.off("wrapped_key");
       socket.off("nack");
       socket.off("metadata_relay");
+      socket.off("transfer_complete");
     };
   }, [socket, handleSignal, handleReceiverPub, handleWrappedKey, resendMissingChunks]);
 

@@ -253,6 +253,7 @@ io.on('connection', (socket) => {
   socket.on('key_exchange', (msg) => handleRelay('key_exchange', msg));
   socket.on('nack', (msg) => handleRelay('nack', msg));
   socket.on('ack', (msg) => handleRelay('ack', msg));
+  socket.on('transfer_complete', (msg) => handleRelay('transfer_complete', msg));
 
   socket.on('disconnect', () => {
     const otc = socket.roomOTC;
