@@ -39,7 +39,7 @@ function HomeContent() {
     senderPhase, senderStatus, senderOtc, senderProgress, senderBytes,
     createRoom, createTextRoom, startWebRtcSend,
     receiverPhase, receiverStatus, receiverKeyStatus, receiverProgress, receiverBytes, receivedText,
-    joinRoom, searchNearby
+    joinRoom
   } = useTransfer(socket);
 
   return (
