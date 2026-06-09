@@ -64,6 +64,39 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
   const [scanSuccess, setScanSuccess] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  // ── Nearby Scanner ────────────────────────────────────────────────────────
+  const [isScanningNearby, setIsScanningNearby] = useState(false);
+  const [nearbyDevices, setNearbyDevices] = useState<any[]>([]);
+  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startNearbyScan = useCallback(() => {
+    setIsScanningNearby(true);
+    setNearbyDevices([]);
+    
+    const doScan = async () => {
+      try {
+        const devices = await searchNearby();
+        setNearbyDevices(devices);
+      } catch (e) {
+        console.error("Nearby scan failed", e);
+      }
+    };
+    
+    doScan(); // initial scan
+    scanIntervalRef.current = setInterval(doScan, 2500);
+  }, [searchNearby]);
+
+  const stopNearbyScan = useCallback(() => {
+    setIsScanningNearby(false);
+    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+    };
+  }, []);
+
   const stopCamera = useCallback(() => {
     scanningRef.current = false;
     cancelAnimationFrame(rafRef.current);
@@ -187,32 +220,79 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
             </div>
 
             {/* Nearby Devices Scanner */}
-            <div className="bg-background-card border border-border rounded-[20px] p-6 shadow-sm flex flex-col items-center justify-center text-center">
-              <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 relative">
-                <div className="absolute inset-0 rounded-full border border-primary/30 animate-[radar-spin_3s_linear_infinite] border-t-primary" />
-                <Activity className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-[15px] font-semibold text-text-primary">Search Available Devices Nearby</h3>
-              <p className="text-[13px] text-text-tertiary mt-1 mb-5">Automatically find active transfers on your network.</p>
+            <div className="bg-background-card border border-border rounded-[20px] p-6 shadow-sm flex flex-col items-center justify-center text-center overflow-hidden relative min-h-[220px]">
               
-              <button
-                onClick={async () => {
-                  try {
-                    const devices = await searchNearby();
-                    if (devices.length > 0) {
-                      setOtc(devices[0].otc); // Auto-fill first found
-                      handleJoin(devices[0].otc);
-                    } else {
-                      alert("No devices found nearby. Make sure the sender has generated a code and is on the same network.");
-                    }
-                  } catch (e) {
-                    console.error("Search failed", e);
-                  }
-                }}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-background-elevated border border-border hover:border-border-hover hover:text-primary text-[14px] font-medium text-text-secondary rounded-xl transition-all w-full"
-              >
-                <Activity className="w-4 h-4" /> Scan Network
-              </button>
+              {!isScanningNearby ? (
+                <>
+                  <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 relative group cursor-pointer" onClick={startNearbyScan}>
+                    <div className="absolute inset-0 rounded-full border border-primary/30 group-hover:scale-110 transition-transform" />
+                    <Activity className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
+                  </div>
+                  <h3 className="text-[15px] font-semibold text-text-primary">Search Available Devices Nearby</h3>
+                  <p className="text-[13px] text-text-tertiary mt-1 mb-5">Automatically find active transfers on your network.</p>
+                  
+                  <button
+                    onClick={startNearbyScan}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-background-elevated border border-border hover:border-border-hover hover:text-primary text-[14px] font-medium text-text-secondary rounded-xl transition-all w-full"
+                  >
+                    <Activity className="w-4 h-4" /> Scan Network
+                  </button>
+                </>
+              ) : (
+                <div className="w-full flex flex-col items-center relative">
+                  {/* Radar */}
+                  <div className="w-24 h-24 rounded-full bg-primary/5 border border-primary/20 flex items-center justify-center mb-6 relative">
+                    <div className="absolute inset-[-50%] rounded-full border border-primary/10 animate-[pulse-ring_2s_ease-out_infinite]" />
+                    <div className="absolute inset-0 rounded-full border border-primary/30 animate-[radar-spin_2s_linear_infinite] border-t-primary" />
+                    <Activity className="w-6 h-6 text-primary" />
+                    
+                    {/* Render found devices around the radar */}
+                    {nearbyDevices.map((device, idx) => {
+                      const angle = (idx * (360 / Math.max(nearbyDevices.length, 1))) * (Math.PI / 180);
+                      const radius = 70; // px
+                      const x = Math.cos(angle) * radius;
+                      const y = Math.sin(angle) * radius;
+                      
+                      return (
+                        <div
+                          key={device.otc}
+                          className="absolute flex flex-col items-center gap-1 cursor-pointer hover:scale-110 transition-transform z-10"
+                          style={{ transform: `translate(${x}px, ${y}px)` }}
+                          onClick={() => {
+                            stopNearbyScan();
+                            setOtc(device.otc);
+                            handleJoin(device.otc);
+                          }}
+                        >
+                          <div className="w-10 h-10 rounded-full bg-background-elevated border border-primary shadow-glow flex items-center justify-center">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                              <rect width="16" height="12" x="4" y="4" rx="2"></rect>
+                              <rect width="6" height="4" x="9" y="16" rx="1"></rect>
+                            </svg>
+                          </div>
+                          <span className="text-[10px] font-mono font-bold bg-background-card px-1.5 py-0.5 rounded border border-border text-text-primary whitespace-nowrap">
+                            {device.otc}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <h3 className="text-[15px] font-semibold text-text-primary mb-1">
+                    {nearbyDevices.length > 0 ? `Found ${nearbyDevices.length} device${nearbyDevices.length > 1 ? 's' : ''}` : 'Scanning Network...'}
+                  </h3>
+                  <p className="text-[12px] text-text-tertiary mb-5">
+                    {nearbyDevices.length > 0 ? 'Click a device to join.' : 'Looking for active transfers.'}
+                  </p>
+                  
+                  <button
+                    onClick={stopNearbyScan}
+                    className="text-[13px] font-medium text-text-secondary hover:text-text-primary"
+                  >
+                    Stop Scanning
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* QR Scanner */}
