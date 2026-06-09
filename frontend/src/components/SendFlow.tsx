@@ -261,22 +261,22 @@ export function SendFlow({
         )}
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-auto">
+        <div className="flex flex-row gap-3 mt-4 sm:mt-auto w-full">
           <button
             disabled={!canPrepare}
             onClick={handleCreateRoom}
-            className="flex-1 bg-primary text-background font-bold text-[15px] h-[48px] rounded-xl hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-100 disabled:bg-background-card disabled:text-text-tertiary disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-glow disabled:shadow-none border border-transparent disabled:border-border"
+            className="flex-1 bg-primary text-background font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-100 disabled:bg-background-card disabled:text-text-tertiary disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-glow disabled:shadow-none border border-transparent disabled:border-border whitespace-nowrap px-2"
           >
             {isPreparing || isZipping ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-            {isPreparing || isZipping ? (isZipping ? "Packaging files…" : "Encrypting…") : "Generate Code"}
+            {isPreparing || isZipping ? (isZipping ? "Packaging…" : "Encrypting…") : "Generate Code"}
           </button>
           
           <button
             disabled={!isReady && !isTransferring}
             onClick={onStartSend}
-            className="flex-1 bg-background-elevated text-text-primary font-bold text-[15px] h-[48px] rounded-xl border border-border hover:border-border-hover hover:bg-background-card transition-all disabled:opacity-100 disabled:bg-background/50 disabled:text-text-tertiary disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 bg-background-elevated text-text-primary font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl border border-border hover:border-border-hover hover:bg-background-card transition-all disabled:opacity-100 disabled:bg-background/50 disabled:text-text-tertiary disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap px-2"
           >
-            <Wifi className="w-4 h-4" /> Start Transfer
+            <Wifi className="w-4 h-4 hidden xs:block" /> Start Transfer
           </button>
         </div>
 
