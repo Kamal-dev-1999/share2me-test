@@ -110,6 +110,7 @@ export function useTransfer(socket: Socket) {
     expectedTotal: 0,
     keyReady: false,
     pendingEncrypted: [] as { seq: number; total: number; data: string; iv: string }[],
+    processingSeqs: new Set<number>(),
     receivedSeqs: new Set<number>(),
     received: [] as Uint8Array[],
     nackTimer: null as ReturnType<typeof setTimeout> | null,
@@ -249,13 +250,22 @@ export function useTransfer(socket: Socket) {
       if (!total) return;
       const missing: number[] = [];
       for (let i = 0; i < total; i++) {
-        if (!r.receivedSeqs.has(i)) missing.push(i);
+        // Exclude chunks that are already received, currently processing, or queued
+        if (!r.receivedSeqs.has(i) && !r.processingSeqs.has(i) && !r.pendingEncrypted.some(p => p.seq === i)) {
+          missing.push(i);
+        }
       }
       if (missing.length) {
         socket.emit("nack", { otc: r.otc, transferId: r.transferId || r.otc, total, missingSeqs: missing });
         setReceiverStatus(`Requesting ${missing.length} missing chunk(s)…`);
         return;
       }
+      
+      // If we are still processing chunks, wait. The worker will call scheduleNackCheck again.
+      if (r.processingSeqs.size > 0 || r.pendingEncrypted.length > 0) {
+        return;
+      }
+
       if (r.doneReceived) {
         await assembleDownload();
       }
@@ -271,6 +281,7 @@ export function useTransfer(socket: Socket) {
     if (!r.keyReady || !r.worker) return;
     while (r.pendingEncrypted.length) {
       const obj = r.pendingEncrypted.shift()!;
+      r.processingSeqs.add(obj.seq);
       r.worker.postMessage({ type: "decryptChunk", seq: obj.seq, dataB64: obj.data, ivB64: obj.iv });
       r.expectedTotal = obj.total || r.expectedTotal;
     }
@@ -286,6 +297,7 @@ export function useTransfer(socket: Socket) {
       }
       // Prevent queueing duplicates if the sender resent a chunk we already have or are processing
       if (rcv.current.receivedSeqs.has(obj.seq)) return;
+      if (rcv.current.processingSeqs.has(obj.seq)) return;
       if (rcv.current.pendingEncrypted.some(p => p.seq === obj.seq)) return;
 
       rcv.current.pendingEncrypted.push(obj);
@@ -451,6 +463,7 @@ export function useTransfer(socket: Socket) {
     }
 
     if (msg.type === "decrypted") {
+      rcv.current.processingSeqs.delete(msg.seq);
       rcv.current.received[msg.seq] = new Uint8Array(msg.data);
       rcv.current.receivedSeqs.add(msg.seq);
       setReceiverBytes((b) => b + (msg.data as ArrayBuffer).byteLength);
@@ -463,6 +476,7 @@ export function useTransfer(socket: Socket) {
     }
 
     if (msg.type === "decryptError") {
+      rcv.current.processingSeqs.delete(msg.seq);
       setReceiverStatus(`Decrypt error on chunk ${msg.seq}: ${msg.message}`);
     }
   }, [socket, handleReceiverPub, flushReceiverQueue, scheduleNackCheck]);
