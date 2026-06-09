@@ -419,15 +419,15 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
 
-          {/* Persistent Status Bar at Bottom */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-background/50 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              {isTransferring ? <Loader2 className="w-4 h-4 text-primary animate-spin" /> : <HardDrive className="w-4 h-4 text-text-tertiary" />}
-              <span className={`text-[13px] font-medium truncate ${phase === "error" ? "text-status-error" : "text-text-secondary"}`}>
-                {status}
-              </span>
-            </div>
+        {/* Persistent Status Bar at Bottom */}
+        <div className="w-full p-4 border-t border-border bg-background/50 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3">
+            {isTransferring ? <Loader2 className="w-4 h-4 text-primary animate-spin" /> : <HardDrive className="w-4 h-4 text-text-tertiary" />}
+            <span className={`text-[13px] font-medium truncate ${phase === "error" ? "text-status-error" : "text-text-secondary"}`}>
+              {status}
+            </span>
           </div>
         </div>
       </div>
