@@ -43,14 +43,8 @@ export function TopNav() {
           <a href="#transfer" onClick={goToTransfer("receive")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
             Receive
           </a>
-          <Link href="/history" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
-            My Transfers
-          </Link>
           <Link href="/how-it-works" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
             How it Works
-          </Link>
-          <Link href="/pricing" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
-            Pricing
           </Link>
         </div>
 
@@ -66,9 +60,6 @@ export function TopNav() {
               <span className="text-[12px] font-medium text-text-secondary">P2P Only</span>
             </div>
           </div>
-          <button className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-text-secondary hover:text-text-primary hover:border-border-hover transition-colors ml-2">
-            <User className="w-5 h-5" />
-          </button>
         </div>
       </div>
     </nav>

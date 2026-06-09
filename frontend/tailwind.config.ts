@@ -18,31 +18,31 @@ const config: Config = {
     extend: {
       colors: {
         background: {
-          DEFAULT: "#070B14",
-          secondary: "#0D111C",
-          elevated: "#121827",
-          card: "#171E2E",
+          DEFAULT: "#0b0e11",
+          secondary: "#181a20",
+          elevated: "#2b3139",
+          card: "#1e2329",
         },
         primary: {
-          DEFAULT: "#FFD54A",
-          hover: "#FFE27A",
-          active: "#FFC700",
-          disabled: "rgba(255, 213, 74, 0.4)",
+          DEFAULT: "#fcd535",
+          hover: "#f0b90b",
+          active: "#f0b90b",
+          disabled: "rgba(252, 213, 53, 0.4)",
         },
         status: {
-          success: "#00D26A",
-          warning: "#FFB020",
-          error: "#FF5D5D",
+          success: "#0ecb81",
+          warning: "#fcd535",
+          error: "#f6465d",
         },
         text: {
-          primary: "#FFFFFF",
-          secondary: "#A0AEC0",
-          tertiary: "#718096",
+          primary: "#eaecef",
+          secondary: "#cdd1d6",
+          tertiary: "#707a8a",
         },
         border: {
-          DEFAULT: "rgba(255, 255, 255, 0.08)",
-          hover: "rgba(255, 255, 255, 0.16)",
-          active: "rgba(255, 255, 255, 0.24)",
+          DEFAULT: "#2b3139",
+          hover: "#3f4753",
+          active: "#474d57",
         },
         // Legacy colors to maintain compatibility while transitioning
         ink:  "#181a20",
