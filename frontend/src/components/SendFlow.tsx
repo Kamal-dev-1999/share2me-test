@@ -272,11 +272,17 @@ export function SendFlow({
           </button>
           
           <button
-            disabled={!isReady && !isTransferring}
+            disabled={phase !== "key_exchange"}
             onClick={onStartSend}
             className="flex-1 bg-background-elevated text-text-primary font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl border border-border hover:border-border-hover hover:bg-background-card transition-all disabled:opacity-100 disabled:bg-background/50 disabled:text-text-tertiary disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap px-2"
           >
-            <Wifi className="w-4 h-4 hidden xs:block" /> Start Transfer
+            {phase === "ready" ? (
+              <><Loader2 className="w-4 h-4 animate-spin hidden xs:block" /> Waiting for Receiver…</>
+            ) : phase === "connecting" || phase === "transferring" ? (
+              <><Loader2 className="w-4 h-4 animate-spin hidden xs:block" /> Connecting…</>
+            ) : (
+              <><Wifi className="w-4 h-4 hidden xs:block" /> Start Transfer</>
+            )}
           </button>
         </div>
 
