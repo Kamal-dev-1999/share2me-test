@@ -54,10 +54,10 @@ function HomeContent() {
           {/* Top Control Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 px-2 sm:px-0">
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-border w-full sm:w-auto">
+            <div className="flex items-center border-b border-border w-full sm:w-auto">
               <button
                 onClick={() => setMode("send")}
-                className={`pb-3 px-2 text-[15px] font-semibold transition-colors border-b-2 ${
+                className={`flex-1 sm:flex-none pb-3 px-4 text-[16px] sm:text-[17px] font-semibold transition-colors border-b-2 ${
                   mode === "send" ? "border-primary text-text-primary" : "border-transparent text-text-secondary hover:text-text-primary"
                 }`}
               >
@@ -65,7 +65,7 @@ function HomeContent() {
               </button>
               <button
                 onClick={() => setMode("receive")}
-                className={`pb-3 px-2 text-[15px] font-semibold transition-colors border-b-2 ${
+                className={`flex-1 sm:flex-none pb-3 px-4 text-[16px] sm:text-[17px] font-semibold transition-colors border-b-2 ${
                   mode === "receive" ? "border-primary text-text-primary" : "border-transparent text-text-secondary hover:text-text-primary"
                 }`}
               >
