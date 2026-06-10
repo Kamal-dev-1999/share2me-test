@@ -168,6 +168,11 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                   maxLength={6}
                   value={otc}
                   onChange={(e) => setOtc(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && otc.length === 6 && !joining) {
+                      handleJoin(otc);
+                    }
+                  }}
                   placeholder="6-DIGIT CODE"
                   className="w-full bg-background border border-border rounded-xl px-5 py-4 text-primary font-mono text-[20px] font-bold tracking-[0.2em] focus:border-primary focus:outline-none transition-colors uppercase placeholder:text-border placeholder:font-sans placeholder:tracking-normal"
                 />

@@ -9,6 +9,7 @@ import { ReceiveFlow }  from "@/components/ReceiveFlow";
 import { useSocket }    from "@/hooks/useSocket";
 import { useTransfer }  from "@/hooks/useTransfer";
 import Link from "next/link";
+import { RotateCw } from "lucide-react";
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -72,6 +73,15 @@ function HomeContent() {
               </button>
             </div>
             
+            {/* New Transfer Button (Desktop only) */}
+            <button
+              onClick={() => window.location.href = "/"}
+              className="hidden sm:flex items-center gap-2 px-5 py-3 rounded-[12px] border border-border bg-background-elevated hover:bg-border/50 text-[15px] font-bold text-text-primary transition-all shadow-sm active:scale-[0.98]"
+              title="Start a new transfer"
+            >
+              <RotateCw className="w-4 h-4 text-primary" />
+              <span>New Transfer</span>
+            </button>
           </div>
 
           {/* Transfer Flow */}

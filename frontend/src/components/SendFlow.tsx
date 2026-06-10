@@ -62,6 +62,39 @@ export function SendFlow({
   const speedBps = useTransferSpeed(bytesTransferred);
   const [transferType, setTransferType] = useState<TransferType>("file");
   const [isZipping, setIsZipping] = useState(false);
+  const [showNudge, setShowNudge] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (phase === "key_exchange") {
+      timer = setTimeout(() => {
+        setShowNudge(true);
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContext) {
+            const audioCtx = new AudioContext();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+          }
+        } catch (e) {
+          console.warn("Audio generation failed", e);
+        }
+      }, 10000);
+    } else {
+      setShowNudge(false);
+    }
+    return () => clearTimeout(timer);
+  }, [phase]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -154,6 +187,7 @@ export function SendFlow({
   const textBytes  = new TextEncoder().encode(textInput).length;
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in w-full">
       
       {/* ── LEFT PANEL: UPLOAD & CONTROLS ── */}
@@ -395,5 +429,45 @@ export function SendFlow({
         </div>
       </div>
     </div>
+      
+    {/* ── NUDGE POPUP ── */}
+    <AnimatePresence>
+      {showNudge && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          className="fixed bottom-8 right-8 z-[100] bg-background-elevated border border-primary/50 shadow-[0_8px_32px_rgba(252,213,53,0.15)] rounded-[20px] p-6 flex flex-col gap-5 w-full max-w-[340px]"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                <Wifi className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h4 className="text-[15px] font-bold text-text-primary leading-tight">Receiver is Ready!</h4>
+                <p className="text-[13px] text-text-secondary mt-1 leading-snug">Connection established. They are waiting for you to start.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowNudge(false)} 
+              className="text-text-tertiary hover:text-text-primary transition-colors p-1 shrink-0 bg-background rounded-full border border-border"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              setShowNudge(false);
+              onStartSend();
+            }}
+            className="w-full bg-primary text-background font-bold text-[14px] h-[44px] rounded-xl shadow-glow hover:-translate-y-0.5 transition-transform"
+          >
+            Start Transfer Now
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
