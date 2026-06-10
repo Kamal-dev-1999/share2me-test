@@ -79,7 +79,7 @@ const config: Config = {
         mono:    ["'JetBrains Mono'", "'IBM Plex Mono'", "monospace"],
       },
       fontSize: {
-        hero: ["64px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
+        hero: ["clamp(40px, 10vw, 64px)", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
         h1: ["48px", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" }],
         h2: ["36px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "600" }],
         h3: ["28px", { lineHeight: "1.3", letterSpacing: "-0.01em", fontWeight: "600" }],
