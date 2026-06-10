@@ -51,21 +51,21 @@ function HomeContent() {
         <div className="bg-background-elevated rounded-[24px] border border-border p-2 sm:p-6 shadow-soft">
           
           {/* Top Control Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 px-2 sm:px-0">
-            {/* Tabs */}
-            <div className="flex items-center border-b border-border w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 px-2 sm:px-0">
+            {/* Segmented Control for Mode Switching */}
+            <div className="flex bg-background border border-border p-1.5 rounded-[14px] w-full sm:w-auto shadow-inner relative">
               <button
                 onClick={() => setMode("send")}
-                className={`flex-1 sm:flex-none pb-3 px-4 text-[16px] sm:text-[17px] font-semibold transition-colors border-b-2 ${
-                  mode === "send" ? "border-primary text-text-primary" : "border-transparent text-text-secondary hover:text-text-primary"
+                className={`flex-1 sm:flex-none py-3 px-6 sm:px-10 text-[15px] sm:text-[16px] font-bold rounded-[10px] transition-all duration-200 z-10 ${
+                  mode === "send" ? "text-primary shadow-[0_2px_12px_rgba(0,0,0,0.15)] bg-background-elevated border border-border/50" : "text-text-secondary hover:text-text-primary border border-transparent"
                 }`}
               >
                 Send Files
               </button>
               <button
                 onClick={() => setMode("receive")}
-                className={`flex-1 sm:flex-none pb-3 px-4 text-[16px] sm:text-[17px] font-semibold transition-colors border-b-2 ${
-                  mode === "receive" ? "border-primary text-text-primary" : "border-transparent text-text-secondary hover:text-text-primary"
+                className={`flex-1 sm:flex-none py-3 px-6 sm:px-10 text-[15px] sm:text-[16px] font-bold rounded-[10px] transition-all duration-200 z-10 ${
+                  mode === "receive" ? "text-primary shadow-[0_2px_12px_rgba(0,0,0,0.15)] bg-background-elevated border border-border/50" : "text-text-secondary hover:text-text-primary border border-transparent"
                 }`}
               >
                 Receive Files
