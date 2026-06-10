@@ -8,6 +8,7 @@ import { SendFlow }     from "@/components/SendFlow";
 import { ReceiveFlow }  from "@/components/ReceiveFlow";
 import { useSocket }    from "@/hooks/useSocket";
 import { useTransfer }  from "@/hooks/useTransfer";
+import Link from "next/link";
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -122,9 +123,8 @@ function HomeContent() {
             </div>
 
             <div className="flex items-center gap-6">
-              <a href="https://github.com/Kamal-dev-1999/shareit" target="_blank" rel="noopener noreferrer" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">GitHub</a>
-              <a href="#" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Privacy</a>
-              <a href="#" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Terms</a>
+              <Link href="/privacy" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Privacy</Link>
+              <Link href="/terms" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Terms</Link>
             </div>
           </div>
         </div>
