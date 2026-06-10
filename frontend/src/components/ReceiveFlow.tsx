@@ -176,7 +176,11 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
               <button
                 disabled={otc.length !== 6 || joining}
                 onClick={() => handleJoin(otc)}
-                className="w-full mt-4 bg-primary text-background font-bold text-[15px] h-[48px] rounded-xl hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-100 disabled:bg-background-card disabled:text-text-tertiary disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-glow disabled:shadow-none border border-transparent disabled:border-border"
+                className={`w-full mt-4 font-bold text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 transition-all duration-200 ${
+                  otc.length !== 6 || joining
+                    ? "bg-background-elevated text-text-tertiary border border-border opacity-50 cursor-not-allowed"
+                    : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 shadow-glow border border-transparent"
+                }`}
               >
                 {joining ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                 {joining ? "Joining Room…" : "Join Transfer"}

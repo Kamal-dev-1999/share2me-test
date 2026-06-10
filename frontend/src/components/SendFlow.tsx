@@ -264,7 +264,11 @@ export function SendFlow({
           <button
             disabled={!canPrepare}
             onClick={handleCreateRoom}
-            className="flex-1 bg-primary text-background font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-100 disabled:bg-background-card disabled:text-text-tertiary disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-glow disabled:shadow-none border border-transparent disabled:border-border whitespace-nowrap px-2"
+            className={`flex-1 font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
+              !canPrepare
+                ? "bg-background-elevated text-text-tertiary border border-border opacity-50 cursor-not-allowed"
+                : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 shadow-glow border border-transparent"
+            }`}
           >
             {isPreparing || isZipping ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
             {isPreparing || isZipping ? (isZipping ? "Packaging…" : "Encrypting…") : "Generate Code"}
@@ -273,7 +277,11 @@ export function SendFlow({
           <button
             disabled={phase !== "key_exchange"}
             onClick={onStartSend}
-            className="flex-1 bg-background-elevated text-text-primary font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl border border-border hover:border-border-hover hover:bg-background-card transition-all disabled:opacity-100 disabled:bg-background/50 disabled:text-text-tertiary disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap px-2"
+            className={`flex-1 font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
+              phase !== "key_exchange"
+                ? "bg-background-elevated text-text-tertiary border border-border opacity-50 cursor-not-allowed"
+                : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 shadow-glow border border-transparent"
+            }`}
           >
             {phase === "ready" ? (
               <><Loader2 className="w-4 h-4 animate-spin hidden xs:block" /> Waiting for Receiver…</>
