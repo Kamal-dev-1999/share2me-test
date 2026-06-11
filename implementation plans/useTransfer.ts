@@ -114,19 +114,11 @@ const DECRYPT_CONCURRENCY = 4;
  * chunkSize passed to the worker for future transfers in this session.
  * The CURRENT transfer always uses the size negotiated at createRoom time.
  */
-/**
- * Browser SCTP limit (Chrome / Safari): 262 144 bytes (256 KB).
- * Each frame adds 20 B header + 16 B AES-GCM tag = 36 B overhead.
- * Max safe plaintext chunk = 262 144 - 36 = 262 108 B ≈ 256 KB - 64.
- *
- * Tiers are capped well below that limit so there is headroom even
- * if the browser implementation is slightly stricter than the spec.
- */
 const CHUNK_SIZE_TABLE = {
-  fast:   256 * 1024 - 64, // ~262 080 B — Chrome limit minus overhead
-  medium: 128 * 1024,       //  131 072 B — 128 KB, safe on all browsers
-  default: 64 * 1024,       //   65 536 B — 64 KB, matches original proven value
-  slow:    16 * 1024,       //   16 384 B — 16 KB, lossy / very slow links
+  fast:    1024 * 1024, // >500 Mbps: 1 MB
+  medium:   512 * 1024, // >100 Mbps: 512 KB
+  default:  256 * 1024, // >20 Mbps:  256 KB  ← starting point
+  slow:      64 * 1024, // <20 Mbps:  64 KB   (mobile / weak WiFi)
 } as const;
 
 // ─── Binary Frame Helpers ─────────────────────────────────────────────────────
@@ -197,10 +189,10 @@ function base64ToBytes(b64: string): Uint8Array {
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
-  // Process in 8 KB blocks; use Array.from to satisfy TS downlevel iteration
+  // Process in 8 KB blocks to avoid call-stack limits on large buffers
   const BLOCK = 8192;
   for (let i = 0; i < bytes.length; i += BLOCK) {
-    binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + BLOCK)));
+    binary += String.fromCharCode(...bytes.subarray(i, i + BLOCK));
   }
   return btoa(binary);
 }

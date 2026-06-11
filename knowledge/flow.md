@@ -1,37 +1,34 @@
-### 3_System_Flow.md
-```markdown
 # System Flow 
 
-### Phase 1: Initialization & Smart Chunking
-1. `FilePickerComponent` captures file.
-2. `Worker.ts` initialized. File passed to worker.
-3. Worker calculates SHA-256 hash of entire file.
-4. Transport Logic branches based on `file.size`:
-   - If >= 5MB: Sets chunk size to 64 kB. Transport mode = `webrtc`.
-   - If < 5MB: Sets chunk size to 512 bytes. Transport mode = `optical`.
-5. AES-GCM key generated. Chunks encrypted.
+### Phase 1: Initialization & Encryption (Sender)
+1. User drops file into `SendFlow` component.
+2. `useTransfer` hook calls backend `create_room` to get a 6-digit OTC.
+3. `worker.js` initialized. File passed to worker.
+4. Worker generates ephemeral ECDH P-256 keypair and a random AES-GCM-256 key.
+5. Worker calculates SHA-256 hash of entire file, encrypts file in 64 kB chunks.
+6. Encrypted chunks are cached in memory (`useTransfer` state) and stored in OPFS (`storage.js`).
+7. Worker generates Metadata JSON containing filename, total chunks, size, hash, and `senderPubKey` (but **no raw AES key**).
 
-### Phase 2: Signaling & Handshake
-6. `SignalingService` generates a 6-digit OTC via Socket.io backend.
-7. `QRCodeGenerator` renders the Metadata QR containing the AES key, metadata, transport mode, and WebRTC SDP offer.
-8. Receiver device scans QR.
-9. Receiver decodes metadata, extracts AES key.
-   - If `webrtc`: Sends SDP Answer back via Signaling Server (using OTC room).
-   - If `optical`: UI prepares for high-speed camera scanning.
+### Phase 2: Signaling & ECDH Key Exchange
+8. Receiver inputs OTC into `ReceiveFlow` and joins the signaling room.
+9. Receiver inputs the Metadata JSON (pasted or scanned via QR).
+10. Receiver `worker.js` generates its own ECDH keypair and sends its `receiverPubKey` to Sender via Socket.io.
+11. Sender receives `receiverPubKey`.
+12. Sender `worker.js` performs ECDH key agreement to derive a shared key, wraps the raw AES file key, and sends `wrapped_key` to Receiver via Socket.io.
+13. Receiver receives `wrapped_key`, unwraps it using their derived shared key, making the AES file key ready for decryption.
 
-### Phase 3: The Stream
-**Branch A: WebRTC Stream**
-10a. `WebRTCDataChannel` opens.
-11a. Sender streams 64 kB encrypted chunks. Backpressure handling applied.
-12a. Receiver gets chunks, validates CRC32 checksum. NACK sent for missing chunks.
+### Phase 3: WebRTC Transfer
+14. Sender initiates WebRTC connection. `useTransfer` creates `RTCPeerConnection` and `RTCDataChannel`.
+15. SDP Offers/Answers and ICE candidates are relayed through Socket.io `signal` event.
+16. `RTCDataChannel` opens.
+17. Sender streams the 64 kB encrypted chunks from memory over the DataChannel.
+18. Receiver gets chunks, buffers them in memory, and passes them to `worker.js` for AES-GCM decryption.
+19. Receiver issues `nack` via Socket.io for any missing chunk sequences. Sender resends them.
 
-**Branch B: Optical Stream**
-10b. Sender starts `requestAnimationFrame` loop, displaying 512B chunks as QR codes at 15 fps.
-11b. Receiver camera scans continuously. Reed-Solomon FEC applied to fix dropped frames.
-12b. Missing chunk IDs are communicated back to sender via OTC signaling if network exists, or user must wait for loop to restart.
-
-### Phase 4: Reassembly
-13. Receiver `Worker.ts` decrypts chunks using the AES key.
-14. Chunks appended to OPFS (Origin Private File System).
-15. Once `received_chunks == total_chunks`, OPFS generates a Blob URL.
-16. Browser triggers native download of the reassembled file.
+### Phase 4: Reassembly (Receiver)
+20. Receiver `worker.js` successfully decrypts chunks and passes them to `storage.js` for OPFS persistence.
+21. Sender sends a `{done: true}` DataChannel message.
+22. Receiver sets `doneReceived` latch to true.
+23. Once all chunks are decrypted and the latch is true, the `assembleDownload` function triggers.
+24. Receiver reads all chunks from OPFS, creates a unified `Blob`, and generates an Object URL.
+25. Browser triggers native download of the reassembled file using the original filename.
