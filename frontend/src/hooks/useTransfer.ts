@@ -465,8 +465,16 @@ export function useTransfer(socket: Socket) {
       const total = r.expectedTotal || r.metadata?.total || 0;
       if (!total) return;
 
+      let highestSeq = -1;
+      r.receivedSeqs.forEach(seq => { if (seq > highestSeq) highestSeq = seq; });
+      r.processingSeqs.forEach(seq => { if (seq > highestSeq) highestSeq = seq; });
+      for (const f of r.decryptQueue) if (f.seq > highestSeq) highestSeq = f.seq;
+      for (const f of r.pendingFrames) if (f.seq > highestSeq) highestSeq = f.seq;
+
+      const checkLimit = r.doneReceived ? total : (highestSeq > 0 ? highestSeq : 0);
       const missing: number[] = [];
-      for (let i = 0; i < total; i++) {
+      
+      for (let i = 0; i < checkLimit; i++) {
         if (
           !r.receivedSeqs.has(i) &&
           !r.processingSeqs.has(i) &&
