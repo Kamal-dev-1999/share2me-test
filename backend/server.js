@@ -57,9 +57,9 @@ const metrics = {
 
 // ─── TURN / ICE config ────────────────────────────────────────────────────────
 const TURN_CONFIG = {
-  url:        process.env.TURN_URL        || '',
-  username:   process.env.TURN_USERNAME   || '',
-  credential: process.env.TURN_CREDENTIAL || '',
+  url:        process.env.TURN_URL        || 'turn:free.expressturn.com:3478',
+  username:   process.env.TURN_USERNAME   || '00000000002096297695',
+  credential: process.env.TURN_CREDENTIAL || 'zVlnXteQh/ygNA5w0dsumVPPFIo=',
 };
 
 // ─── HTTP Endpoints ───────────────────────────────────────────────────────────
