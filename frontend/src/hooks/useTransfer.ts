@@ -665,6 +665,10 @@ export function useTransfer(socket: Socket) {
     const s = snd.current;
     if (!s.dc || s.dc.readyState !== "open") return;
 
+    // Pause main stream so NACKs get priority and we don't clobber the event handler
+    s.streamPaused = true;
+    s.dc.onbufferedamountlow = null;
+
     const seqSet     = new Set(missingSeqs);
     const fullTotal  = s.frames.length;
     const toResend   = s.frames.filter(({ seq }) => seqSet.has(seq));
@@ -688,7 +692,13 @@ export function useTransfer(socket: Socket) {
     if (s.dc?.readyState === "open") {
       s.dc.send(JSON.stringify({ done: true, transferId: s.otc, resend: true, total: fullTotal }));
     }
-  }, []);
+
+    // Restore the main stream pipeline
+    if (s.streamingIndex < s.frames.length) {
+      s.streamPaused = false;
+      resumeStream();
+    }
+  }, [resumeStream]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Sender worker message handler
