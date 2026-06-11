@@ -116,7 +116,6 @@ const NEXT_URL = process.env.NEXT_URL || 'http://localhost:3001';
 app.use('/', createProxyMiddleware({
   target:       NEXT_URL,
   changeOrigin: true,
-  ws:           true,
   on: {
     error: (err, _req, res) => {
       if (res && typeof res.writeHead === 'function') {
