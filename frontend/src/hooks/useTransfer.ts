@@ -469,7 +469,6 @@ export function useTransfer(socket: Socket) {
       r.receivedSeqs.forEach(seq => { if (seq > highestSeq) highestSeq = seq; });
       r.processingSeqs.forEach(seq => { if (seq > highestSeq) highestSeq = seq; });
       for (const f of r.decryptQueue) if (f.seq > highestSeq) highestSeq = f.seq;
-      for (const f of r.pendingFrames) if (f.seq > highestSeq) highestSeq = f.seq;
 
       const checkLimit = r.doneReceived ? total : (highestSeq > 0 ? highestSeq : 0);
       const missing: number[] = [];
@@ -478,7 +477,6 @@ export function useTransfer(socket: Socket) {
         if (
           !r.receivedSeqs.has(i) &&
           !r.processingSeqs.has(i) &&
-          !r.pendingFrames.some((p) => p.seq === i) &&
           !r.decryptQueue.some((p) => p.seq === i)
         ) {
           missing.push(i);
@@ -639,8 +637,9 @@ export function useTransfer(socket: Socket) {
     // All queued frames sent — if encryption is also done, fire the done signal
     if (s.chunksReady && s.dc?.readyState === "open") {
       s.dc.send(JSON.stringify({ done: true, transferId: s.otc, total: frames.length }));
-      setSenderStatus("All chunks sent. Waiting for receiver confirmation…");
-      s.dc.onbufferedamountlow = null; // Unregister — no more chunks to send
+      setSenderStatus("All chunks sent. Waiting for receiver confirmation...");
+      setSenderPhase("done");
+      s.dc.onbufferedamountlow = null; // Unregister - no more chunks to send
     }
   }, []);
 
@@ -752,13 +751,11 @@ export function useTransfer(socket: Socket) {
       // This is the key change from the original: we don't wait for chunksReady.
       // The moment each chunk is encrypted it goes on the wire. For large files
       // this means the receiver is downloading while the sender is still encrypting.
+      // Only kick the stream if it's actively running and not paused.
+      // startStream() on dc.onopen handles the initial kick.
       const s = snd.current;
-      if (s.dc?.readyState === "open" && !s.streamPaused) {
-        // If we're already at the index for this chunk, push it now
-        // (resumeStream will handle it if streamingIndex hasn't caught up yet)
-        if (s.streamingIndex === snd.current.frames.length - 1) {
-          resumeStream();
-        }
+      if (s.dc?.readyState === "open" && !s.streamPaused && s.chunksReady === false) {
+        resumeStream();
       }
     }
 
@@ -1067,12 +1064,12 @@ export function useTransfer(socket: Socket) {
   // Public API — Receiver actions
   // ─────────────────────────────────────────────────────────────────────────────
 
-  const joinRoom = useCallback((otc: string): Promise<void> => {
-    return new Promise(async (resolve, reject) => {
-      role.current   = "receiver";
-      rcv.current.otc = otc;
-      await setupReceiverPeer();
+  const joinRoom = useCallback(async (otc: string): Promise<void> => {
+    role.current   = "receiver";
+    rcv.current.otc = otc;
+    await setupReceiverPeer();
 
+    return new Promise((resolve, reject) => {
       socket.emit("join_room", { otc }, (res: { ok?: boolean; error?: string }) => {
         if (res?.error) {
           setReceiverStatus(`Join error: ${res.error}`);
