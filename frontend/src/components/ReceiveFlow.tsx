@@ -160,28 +160,6 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
   return (
     <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in w-full relative">
-      <AnimatePresence>
-        {showErrorPopup && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] bg-status-error text-background px-6 py-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.3)] flex items-center gap-3 border border-red-500/50 w-[90%] sm:w-auto min-w-[300px] max-w-[400px]"
-          >
-            <div className="w-8 h-8 bg-background/20 rounded-full flex items-center justify-center shrink-0">
-              <X className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col flex-1 pr-2">
-              <span className="font-bold text-[15px]">Connection Failed</span>
-              <span className="text-[13px] text-background/90">{status || "Invalid or expired transfer code"}</span>
-            </div>
-            <button onClick={() => setShowErrorPopup(false)} className="ml-2 opacity-70 hover:opacity-100 transition-opacity p-1">
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
       {/* ── LEFT PANEL: CODE INPUT & SCANNER ── */}
       <div className="flex flex-col gap-6">
         
@@ -485,6 +463,29 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
               </button>
             </div>
           </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* ── ERROR TOAST ── */}
+    <AnimatePresence>
+      {showErrorPopup && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] bg-status-error text-background px-6 py-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.3)] flex items-center gap-3 border border-red-500/50 w-[90%] sm:w-auto min-w-[300px] max-w-[400px]"
+        >
+          <div className="w-8 h-8 bg-background/20 rounded-full flex items-center justify-center shrink-0">
+            <X className="w-4 h-4" />
+          </div>
+          <div className="flex flex-col flex-1 pr-2">
+            <span className="font-bold text-[15px]">Connection Failed</span>
+            <span className="text-[13px] text-background/90">{status || "Invalid or expired transfer code"}</span>
+          </div>
+          <button onClick={() => setShowErrorPopup(false)} className="ml-2 opacity-70 hover:opacity-100 transition-opacity p-1">
+            <X className="w-4 h-4" />
+          </button>
         </motion.div>
       )}
     </AnimatePresence>
