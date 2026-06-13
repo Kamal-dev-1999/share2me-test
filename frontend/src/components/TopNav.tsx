@@ -57,10 +57,10 @@ export function TopNav() {
 
         {/* Nav links (Desktop) */}
         <div className="hidden md:flex items-center gap-1.5 ml-12 lg:ml-16">
-          <a href="#transfer" onClick={goToTransfer("send")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
+          <a href="/#transfer" onClick={goToTransfer("send")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
             Send
           </a>
-          <a href="#transfer" onClick={goToTransfer("receive")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
+          <a href="/#transfer" onClick={goToTransfer("receive")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
             Receive
           </a>
           <Link href="/how-it-works" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
@@ -101,10 +101,10 @@ export function TopNav() {
               transition={{ duration: 0.2, ease: "easeOut" }}
               className="absolute top-[calc(100%+16px)] right-6 w-56 bg-background-elevated border border-border rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col p-2 md:hidden overflow-hidden origin-top-right z-50"
             >
-              <a href="#transfer" onClick={goToTransfer("send")} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all cursor-pointer flex items-center gap-3">
+              <a href="/#transfer" onClick={goToTransfer("send")} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all cursor-pointer flex items-center gap-3">
                 Send a File
               </a>
-              <a href="#transfer" onClick={goToTransfer("receive")} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all cursor-pointer flex items-center gap-3">
+              <a href="/#transfer" onClick={goToTransfer("receive")} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all cursor-pointer flex items-center gap-3">
                 Receive a File
               </a>
               <div className="h-px w-full bg-border my-1" />

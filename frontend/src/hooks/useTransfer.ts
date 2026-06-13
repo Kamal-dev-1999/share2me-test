@@ -262,7 +262,7 @@ export function useTransfer(socket: Socket) {
 
   // ── Sender state ────────────────────────────────────────────────────────────
   const [senderPhase,    setSenderPhase]    = useState<TransferPhase>("idle");
-  const [senderStatus,   setSenderStatus]   = useState("Pick a file to begin.");
+  const [senderStatus,   setSenderStatus]   = useState("Enter text or select a file to begin.");
   const [senderOtc,      setSenderOtc]      = useState<string | null>(null);
   const [senderMeta,     setSenderMeta]     = useState<SenderMeta | null>(null);
   const [senderProgress, setSenderProgress] = useState(0);

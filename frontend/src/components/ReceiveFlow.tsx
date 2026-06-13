@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Key, Loader2, CheckCircle2, Camera, CameraOff, Copy, Check, Shield, Activity, HardDrive } from "lucide-react";
+import { Key, Loader2, CheckCircle2, Camera, CameraOff, Copy, Check, Shield, Activity, HardDrive, X } from "lucide-react";
 import jsQR from "jsqr";
 import { TransferPhase } from "@/hooks/useTransfer";
 import { motion, AnimatePresence } from "framer-motion";
@@ -62,6 +62,15 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
   const [videoReady,  setVideoReady]  = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+
+  useEffect(() => {
+    if (phase === "error") {
+      setShowErrorPopup(true);
+    } else {
+      setShowErrorPopup(false);
+    }
+  }, [phase]);
 
   const stopCamera = useCallback(() => {
     scanningRef.current = false;
@@ -143,13 +152,35 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
     setTimeout(() => setCopied(false), 2000);
   }, [receivedText]);
 
-  const isIdle         = phase === "idle";
+  const isIdle         = phase === "idle" || phase === "error";
   const isTransferring = phase === "transferring";
   const isDone         = phase === "done";
   
   // Removed unused otcDisplay
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in w-full">
+    <>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in w-full relative">
+      <AnimatePresence>
+        {showErrorPopup && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-0 left-1/2 -translate-x-1/2 z-[100] bg-status-error text-background px-6 py-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.3)] flex items-center gap-3 border border-red-500/50 w-[90%] sm:w-auto min-w-[300px]"
+          >
+            <div className="w-8 h-8 bg-background/20 rounded-full flex items-center justify-center shrink-0">
+              <X className="w-4 h-4" />
+            </div>
+            <div className="flex flex-col flex-1 pr-2">
+              <span className="font-bold text-[15px]">Connection Failed</span>
+              <span className="text-[13px] text-background/90">{status || "Invalid or expired transfer code"}</span>
+            </div>
+            <button onClick={() => setShowErrorPopup(false)} className="ml-2 opacity-70 hover:opacity-100 transition-opacity p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* ── LEFT PANEL: CODE INPUT & SCANNER ── */}
       <div className="flex flex-col gap-6">
@@ -183,7 +214,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                 onClick={() => handleJoin(otc)}
                 className={`w-full mt-4 font-bold text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 transition-all duration-200 ${
                   otc.length !== 6 || joining
-                    ? "bg-background-elevated text-text-tertiary border border-border opacity-50 cursor-not-allowed"
+                    ? "bg-background-elevated text-text-tertiary border border-border opacity-40 cursor-not-allowed"
                     : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 shadow-glow border border-transparent"
                 }`}
               >
@@ -325,12 +356,21 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
             <div className={`w-2.5 h-2.5 rounded-full ${isIdle ? "bg-text-tertiary" : isDone ? "bg-status-success" : "bg-primary animate-pulse-ring"}`} />
             <span className="text-[13px] font-semibold text-text-secondary uppercase tracking-wider">Connection Status</span>
           </div>
-          <div className="flex items-center gap-1.5 bg-status-success/10 border border-status-success/20 px-2.5 py-1 rounded-md">
-            <Shield className="w-3.5 h-3.5 text-status-success" />
-            <span className="text-[11px] font-semibold text-status-success">
-              {keyStatus === "ready" ? "Key Ready" : keyStatus === "generated" ? "Key Generated" : "Secured P2P"}
-            </span>
-          </div>
+          {(!isIdle) ? (
+            <div className="flex items-center gap-1.5 bg-status-success/10 border border-status-success/20 px-2.5 py-1 rounded-md">
+              <Shield className="w-3.5 h-3.5 text-status-success" />
+              <span className="text-[11px] font-semibold text-status-success">
+                {keyStatus === "ready" ? "Key Ready" : keyStatus === "generated" ? "Key Generated" : "Secured P2P"}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 bg-background-elevated border border-border px-2.5 py-1 rounded-md">
+              <Activity className="w-3.5 h-3.5 text-text-tertiary" />
+              <span className="text-[11px] font-semibold text-text-tertiary">
+                Disconnected
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Dynamic Content Body */}
@@ -410,5 +450,44 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         </div>
       </div>
     </div>
+
+    {/* ── COMPLETION POPUP ── */}
+    <AnimatePresence>
+      {isDone && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-background/60 backdrop-blur-md p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="bg-background-card border border-border shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-[24px] p-8 flex flex-col items-center gap-5 w-full max-w-[400px]"
+          >
+            <div className="w-20 h-20 rounded-full bg-status-success/20 flex items-center justify-center mb-2">
+              <CheckCircle2 className="w-10 h-10 text-status-success" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-[22px] font-bold text-text-primary">Transfer Completed!</h3>
+              <p className="text-[14px] text-text-secondary mt-2">
+                Your data has been successfully received. The peer-to-peer connection is now closed.
+              </p>
+            </div>
+            
+            <div className="flex gap-3 w-full mt-4">
+              <button
+                onClick={() => window.location.href = "/"}
+                className="w-full bg-primary text-background font-bold text-[15px] h-[48px] rounded-xl shadow-glow hover:-translate-y-0.5 transition-transform"
+              >
+                New Transfer
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Upload, FileText, Loader2, Wifi,
-  ClipboardPaste, Type, FileUp, X, Shield, Activity, HardDrive
+  ClipboardPaste, Type, FileUp, X, Shield, Activity, HardDrive, CheckCircle2
 } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -465,6 +465,44 @@ export function SendFlow({
           >
             Start Transfer Now
           </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* ── COMPLETION POPUP ── */}
+    <AnimatePresence>
+      {isDone && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-background/60 backdrop-blur-md p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="bg-background-card border border-border shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-[24px] p-8 flex flex-col items-center gap-5 w-full max-w-[400px]"
+          >
+            <div className="w-20 h-20 rounded-full bg-status-success/20 flex items-center justify-center mb-2">
+              <CheckCircle2 className="w-10 h-10 text-status-success" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-[22px] font-bold text-text-primary">Transfer Completed!</h3>
+              <p className="text-[14px] text-text-secondary mt-2">
+                Your data has been successfully sent. The peer-to-peer connection is now closed.
+              </p>
+            </div>
+            
+            <div className="flex gap-3 w-full mt-4">
+              <button
+                onClick={() => window.location.href = "/"}
+                className="w-full bg-primary text-background font-bold text-[15px] h-[48px] rounded-xl shadow-glow hover:-translate-y-0.5 transition-transform"
+              >
+                New Transfer
+              </button>
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
