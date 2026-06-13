@@ -55,25 +55,41 @@ const metrics = {
   nackFloodsBlocked:  0,
 };
 
-// ─── TURN / ICE config ────────────────────────────────────────────────────────
-const TURN_CONFIG = {
-  url:        process.env.TURN_URL        || 'turn:free.expressturn.com:3478',
-  username:   process.env.TURN_USERNAME   || '00000000002096297695',
-  credential: process.env.TURN_CREDENTIAL || 'zVlnXteQh/ygNA5w0dsumVPPFIo=',
-};
+// ─── TURN / ICE config (Metered — supports TCP + TLS/443 for corporate networks) ──
+let cachedMeteredIceServers   = null;
+let cachedMeteredIceServersAt = 0;
+const METERED_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
 // ─── HTTP Endpoints ───────────────────────────────────────────────────────────
-app.get('/api/ice-servers', (_req, res) => {
+app.get('/api/ice-servers', async (_req, res) => {
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
   ];
-  if (TURN_CONFIG.username && TURN_CONFIG.credential) {
-    iceServers.push(
-      { urls: TURN_CONFIG.url, username: TURN_CONFIG.username, credential: TURN_CONFIG.credential },
-      { urls: `${TURN_CONFIG.url}?transport=tcp`, username: TURN_CONFIG.username, credential: TURN_CONFIG.credential },
-    );
+
+  try {
+    const now = Date.now();
+    if (cachedMeteredIceServers && now - cachedMeteredIceServersAt < METERED_CACHE_TTL) {
+      iceServers.push(...cachedMeteredIceServers);
+    } else if (process.env.METERED_API_KEY) {
+      const resp = await fetch(
+        `https://share2.metered.live/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data)) {
+          cachedMeteredIceServers   = data;
+          cachedMeteredIceServersAt = now;
+          iceServers.push(...data);
+        }
+      } else {
+        console.error('[ICE] Metered API error:', resp.status);
+      }
+    }
+  } catch (err) {
+    console.error('[ICE] Failed to fetch Metered credentials:', err.message);
   }
+
   res.setHeader('Cache-Control', 'public, max-age=300');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.json({ iceServers });
