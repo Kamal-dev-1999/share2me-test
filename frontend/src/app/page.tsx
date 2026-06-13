@@ -3,7 +3,6 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TopNav }       from "@/components/TopNav";
 import { HeroSection }  from "@/components/HeroSection";
-import { TrustSection } from "@/components/TrustSection";
 import { SendFlow }     from "@/components/SendFlow";
 import { ReceiveFlow }  from "@/components/ReceiveFlow";
 import { useSocket }    from "@/hooks/useSocket";
@@ -111,8 +110,6 @@ function HomeContent() {
           </div>
         </div>
       </section>
-
-      <TrustSection />
 
       {/* Footer */}
       <footer className="w-full border-t border-border bg-background py-12">
