@@ -112,6 +112,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
       await onJoin(code);
     } catch {
       setJoining(false);
+      setShowErrorPopup(true);
     }
   }, [joining, onJoin, stopCamera]);
 
