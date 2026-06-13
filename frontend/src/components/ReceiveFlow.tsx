@@ -157,6 +157,17 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
   const isTransferring = phase === "transferring";
   const isDone         = phase === "done";
   
+  const getFriendlyError = (errStatus: string) => {
+    if (!errStatus) return "Invalid or expired transfer code";
+    const s = errStatus.toLowerCase();
+    if (s.includes("not_found") || s.includes("not found")) return "The code you entered is invalid or has expired.";
+    if (s.includes("full")) return "This transfer is already in progress with someone else.";
+    if (s.includes("timeout")) return "Connection timed out. The sender might be offline.";
+    if (s.includes("network")) return "Network error. Please check your connection.";
+    if (s === "error") return "Could not connect to the sender. Please verify the code.";
+    return errStatus;
+  };
+
   // Removed unused otcDisplay
   return (
     <>
@@ -423,7 +434,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
           <div className="flex items-center gap-3">
             {isTransferring ? <Loader2 className="w-4 h-4 text-primary animate-spin" /> : <HardDrive className="w-4 h-4 text-text-tertiary" />}
             <span className={`text-[13px] font-medium truncate ${phase === "error" ? "text-status-error" : "text-text-secondary"}`}>
-              {status}
+              {phase === "error" ? getFriendlyError(status) : status}
             </span>
           </div>
         </div>
@@ -483,7 +494,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
           </div>
           <div className="flex flex-col flex-1 pr-2">
             <span className="font-bold text-[15px]">Connection Failed</span>
-            <span className="text-[13px] text-background/90">{status || "Invalid or expired transfer code"}</span>
+            <span className="text-[13px] text-background/90">{getFriendlyError(status)}</span>
           </div>
           <button className="ml-2 opacity-70 hover:opacity-100 transition-opacity p-1 focus:outline-none">
             <X className="w-4 h-4" />
