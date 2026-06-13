@@ -30,7 +30,7 @@ export default function AboutPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/10 shadow-[0_0_20px_rgba(255,204,0,0.15)] mb-8"
           >
             <Star className="w-4 h-4 text-primary" />
-            <span className="text-[14px] font-bold text-primary tracking-wide">SHARE2ME VERSION 2.6</span>
+            <span className="text-[14px] font-bold text-primary tracking-wide">SHARE2ME VERSION 2.7</span>
           </motion.div>
           
           <h1 className="text-5xl md:text-7xl font-display font-extrabold text-text-primary mb-8 leading-[1.15] tracking-tight">
@@ -55,7 +55,7 @@ export default function AboutPage() {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-background-elevated to-background-card border border-border flex items-center justify-center shadow-soft">
               <Rocket className="w-6 h-6 text-primary" />
             </div>
-            <h2 className="text-3xl font-display font-bold text-text-primary">The 2.6 Evolution</h2>
+            <h2 className="text-3xl font-display font-bold text-text-primary">The 2.7 Evolution</h2>
           </motion.div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -72,7 +72,7 @@ export default function AboutPage() {
               </div>
               <h3 className="text-xl font-bold text-text-primary mb-3">Enterprise-Grade TURN</h3>
               <p className="text-[15px] text-text-secondary leading-relaxed">
-                Version 2.6 introduces Metered TURN credentials passing through port 443 with TLS, effortlessly bypassing corporate firewalls and deep-packet inspection.
+                Version 2.7 introduces Metered TURN credentials passing through port 443 with TLS, effortlessly bypassing corporate firewalls and deep-packet inspection.
               </p>
             </motion.div>
             
