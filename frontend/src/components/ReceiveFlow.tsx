@@ -471,10 +471,11 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
     <AnimatePresence>
       {showErrorPopup && (
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] bg-status-error text-background px-6 py-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.3)] flex items-center gap-3 border border-red-500/50 w-[90%] sm:w-auto min-w-[300px] max-w-[400px]"
+          initial={{ opacity: 0, y: -20, x: "-50%" }}
+          animate={{ opacity: 1, y: 0, x: "-50%" }}
+          exit={{ opacity: 0, y: -20, x: "-50%" }}
+          className="fixed top-24 left-1/2 z-[200] bg-status-error text-background px-6 py-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.3)] flex items-center gap-3 border border-red-500/50 w-[90%] sm:w-auto min-w-[300px] max-w-[400px] cursor-pointer"
+          onClick={() => setShowErrorPopup(false)}
         >
           <div className="w-8 h-8 bg-background/20 rounded-full flex items-center justify-center shrink-0">
             <X className="w-4 h-4" />
@@ -483,7 +484,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
             <span className="font-bold text-[15px]">Connection Failed</span>
             <span className="text-[13px] text-background/90">{status || "Invalid or expired transfer code"}</span>
           </div>
-          <button onClick={() => setShowErrorPopup(false)} className="ml-2 opacity-70 hover:opacity-100 transition-opacity p-1">
+          <button className="ml-2 opacity-70 hover:opacity-100 transition-opacity p-1 focus:outline-none">
             <X className="w-4 h-4" />
           </button>
         </motion.div>
