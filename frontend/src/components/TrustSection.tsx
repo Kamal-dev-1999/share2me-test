@@ -49,7 +49,7 @@ const trustFeatures = [
 
 export function TrustSection() {
   return (
-    <section className="w-full max-w-[1440px] mx-auto px-6 lg:px-8 pb-20">
+    <div className="w-full">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
         {trustFeatures.map((f, i) => (
           <motion.div
@@ -69,6 +69,6 @@ export function TrustSection() {
           </motion.div>
         ))}
       </div>
-    </section>
+    </div>
   );
 }
