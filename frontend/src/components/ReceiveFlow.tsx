@@ -166,7 +166,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-0 left-1/2 -translate-x-1/2 z-[100] bg-status-error text-background px-6 py-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.3)] flex items-center gap-3 border border-red-500/50 w-[90%] sm:w-auto min-w-[300px]"
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] bg-status-error text-background px-6 py-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.3)] flex items-center gap-3 border border-red-500/50 w-[90%] sm:w-auto min-w-[300px] max-w-[400px]"
           >
             <div className="w-8 h-8 bg-background/20 rounded-full flex items-center justify-center shrink-0">
               <X className="w-4 h-4" />
