@@ -51,6 +51,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
   const [otc, setOtc]         = useState("");
   const [joining, setJoining] = useState(false);
   const [copied, setCopied]   = useState(false);
+  const [showCompletionPopup, setShowCompletionPopup] = useState(true);
 
   const videoRef   = useRef<HTMLVideoElement>(null);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
@@ -443,7 +444,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
 
     {/* ── COMPLETION POPUP ── */}
     <AnimatePresence>
-      {isDone && (
+      {isDone && showCompletionPopup && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -454,8 +455,14 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="bg-background-card border border-border shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-[24px] p-8 flex flex-col items-center gap-5 w-full max-w-[400px]"
+            className="bg-background-card border border-border shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-[24px] p-8 flex flex-col items-center gap-5 w-full max-w-[400px] relative"
           >
+            <button
+              onClick={() => setShowCompletionPopup(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-background-elevated transition-colors text-text-secondary hover:text-text-primary"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <div className="w-20 h-20 rounded-full bg-status-success/20 flex items-center justify-center mb-2">
               <CheckCircle2 className="w-10 h-10 text-status-success" />
             </div>
