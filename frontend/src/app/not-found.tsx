@@ -23,7 +23,7 @@ export default function NotFound() {
               Page Not Found
             </h1>
             <p className="text-text-secondary text-[15px] leading-relaxed max-w-[320px] mx-auto">
-              Oops! We couldn't find the page you were looking for. It might have been moved or deleted.
+              Oops! We couldn&apos;t find the page you were looking for. It might have been moved or deleted.
             </p>
           </div>
 
