@@ -3,6 +3,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
+import { SplashScreen } from "@/components/SplashScreen";
+
 export const metadata: Metadata = {
   title: "Share2Me — Secure P2P File Transfer",
   description:
@@ -21,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-background text-text-primary antialiased">
+        <SplashScreen />
         {children}
         <Analytics />
         <SpeedInsights />
