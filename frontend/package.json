@@ -16,7 +16,6 @@
     "framer-motion": "^12.40.0",
     "glob": "^13.0.6",
     "jsqr": "^1.4.0",
-    "lottie-react": "^2.4.1",
     "lucide-react": "^1.17.0",
     "next": "^15.5.19",
     "qrcode": "^1.5.4",
