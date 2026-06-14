@@ -9,6 +9,10 @@ export const metadata: Metadata = {
     "Send files peer-to-peer with end-to-end AES-GCM encryption and ECDH key exchange. No cloud. No middleman.",
 };
 
+export const viewport = {
+  themeColor: "#0b0e11",
+};
+
 export default function RootLayout({
   children,
 }: {
