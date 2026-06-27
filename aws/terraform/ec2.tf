@@ -2,8 +2,14 @@
 # ─── Data Source: Latest ECS-Optimized AMI ────────────────────────────────────
 # Automatically picks the latest Amazon Linux 2023 ECS-optimized AMI.
 
-data "aws_ssm_parameter" "ecs_ami" {
-  name = "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id"
+data "aws_ami" "ecs_ami" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-ecs-hvm-2023.*-x86_64"]
+  }
 }
 
 # ─── Elastic IP ───────────────────────────────────────────────────────────────
@@ -45,7 +51,7 @@ resource "aws_iam_role_policy" "ecs_instance_eip" {
 #   4. Tunes kernel params for 2000+ concurrent WebSocket connections
 
 locals {
-  user_data = base64encode(templatestring(<<-USERDATA
+  user_data = base64encode(<<-USERDATA
 #!/bin/bash
 set -euo pipefail
 exec > /var/log/user-data.log 2>&1
@@ -53,17 +59,18 @@ exec > /var/log/user-data.log 2>&1
 echo "=== Share2Me ECS Bootstrap ==="
 
 # 1. Register with ECS cluster
-echo "ECS_CLUSTER=${cluster_name}" >> /etc/ecs/ecs.config
+echo "ECS_CLUSTER=${aws_ecs_cluster.main.name}" >> /etc/ecs/ecs.config
 
 # 2. Associate Elastic IP with this instance
-# This makes the instance reachable at the static IP immediately on boot.
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+# Fetch Instance ID using IMDSv2 (required by AL2023)
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
 aws ec2 associate-address \
   --instance-id "$INSTANCE_ID" \
-  --allocation-id "${eip_allocation_id}" \
-  --region "${aws_region}" \
+  --allocation-id "${aws_eip.ecs_host.id}" \
+  --region "${var.aws_region}" \
   --allow-reassociation
-echo "Elastic IP ${eip_public_ip} associated with $INSTANCE_ID"
+echo "Elastic IP ${aws_eip.ecs_host.public_ip} associated with $INSTANCE_ID"
 
 # 3. Create Caddyfile for the Caddy sidecar container
 # Caddy reads this at /etc/caddy/Caddyfile (bind-mounted from this path)
@@ -72,7 +79,7 @@ mkdir -p /etc/caddy /var/lib/caddy-data
 cat > /etc/caddy/Caddyfile << 'CADDYFILE'
 {
   # Let's Encrypt ACME — change to your email for expiry notifications
-  email ${acme_email}
+  email ${var.acme_email}
 
   # Rate limit protection: avoid hitting Let's Encrypt limits during testing
   # Uncomment the line below to use the staging CA (issues untrusted certs):
@@ -80,8 +87,8 @@ cat > /etc/caddy/Caddyfile << 'CADDYFILE'
 }
 
 # Frontend — serves the Next.js app
-${frontend_domain}, www.${frontend_domain} {
-  reverse_proxy localhost:3000 {
+${var.frontend_domain}, www.${var.frontend_domain} {
+  reverse_proxy frontend:3000 {
     header_up Host {host}
     header_up X-Real-IP {remote_host}
     header_up X-Forwarded-For {remote_host}
@@ -98,8 +105,8 @@ ${frontend_domain}, www.${frontend_domain} {
 }
 
 # Backend — Socket.io signaling server
-${backend_domain} {
-  reverse_proxy localhost:8000 {
+${var.backend_domain} {
+  reverse_proxy backend:8000 {
     header_up Host {host}
     header_up X-Real-IP {remote_host}
     header_up X-Forwarded-For {remote_host}
@@ -134,21 +141,13 @@ sysctl -p
 
 echo "=== Bootstrap complete ==="
 USERDATA
-  , {
-    cluster_name      = aws_ecs_cluster.main.name
-    eip_allocation_id = aws_eip.ecs_host.id
-    eip_public_ip     = aws_eip.ecs_host.public_ip
-    aws_region        = var.aws_region
-    acme_email        = var.acme_email
-    frontend_domain   = var.frontend_domain
-    backend_domain    = var.backend_domain
-  }))
+  )
 }
 
 # ─── Launch Template ──────────────────────────────────────────────────────────
 resource "aws_launch_template" "ecs_host" {
   name_prefix   = "${var.project_name}-ecs-"
-  image_id      = data.aws_ssm_parameter.ecs_ami.value
+  image_id      = data.aws_ami.ecs_ami.id
   instance_type = var.ec2_instance_type
 
   iam_instance_profile {
@@ -188,7 +187,7 @@ resource "aws_launch_template" "ecs_host" {
 # max_size = 1 keeps us firmly on the Free Tier (750 hrs/month).
 
 resource "aws_autoscaling_group" "ecs_host" {
-  name                = "${var.project_name}-ecs-asg"
+  name_prefix         = "${var.project_name}-ecs-asg-"
   vpc_zone_identifier = [aws_subnet.public.id]
   min_size            = 1
   max_size            = 1  # Fixed at 1 — Caddy on fixed ports can't co-exist with a 2nd task on the same host

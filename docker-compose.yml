@@ -1,0 +1,127 @@
+# ─── docker-compose.yml ───────────────────────────────────────────────────────
+# Local containerization test — mirrors the production ECS task structure.
+#
+# Services:                          Port on host
+#   caddy    (reverse proxy)    →    8080  (frontend)
+#                               →    8081  (backend/signal)
+#   frontend (Next.js)          →    3000  (direct access, optional)
+#   backend  (Socket.io)        →    8000  (direct access, optional)
+#   redis    (state store)      →    6379  (internal only)
+#
+# Usage:
+#   docker compose up --build          # Build + start everything
+#   docker compose up --build -d       # Detached mode
+#   docker compose logs -f caddy       # Stream logs from one service
+#   docker compose down                # Stop and remove containers
+#   docker compose down -v             # Also remove named volumes
+
+services:
+
+  # ── Caddy (reverse proxy) ────────────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: share2me-caddy
+    ports:
+      - "8082:8080"   # Frontend via Caddy
+      - "8081:8081"   # Backend via Caddy
+    volumes:
+      - ./caddy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - share2me
+
+  # ── Frontend (Next.js) ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # In local dev, signal goes directly to the backend service
+        NEXT_PUBLIC_SIGNAL_URL: "http://localhost:8081"
+    container_name: share2me-frontend
+    ports:
+      - "3001:3000"   # Direct access (bypass Caddy) — avoids conflict with local dev server
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # Must be 0.0.0.0 so Next.js standalone binds to all interfaces, not just the container IP.
+      # Without this, wget localhost:3000 in the healthcheck fails with 'Connection refused'.
+      HOSTNAME: "0.0.0.0"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+    networks:
+      - share2me
+
+  # ── Backend (Socket.io signaling) ────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: share2me-backend
+    ports:
+      - "8001:8000"   # Direct access for debugging — avoids conflict with local dev server
+    environment:
+      NODE_ENV: production
+      PORT: "8000"
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8080"
+      REDIS_URL: "redis://redis:6379"
+      # METERED_API_KEY: set in .env file (see .env.example)
+    env_file:
+      - .env.local     # Optional: create from .env.example for secrets
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - share2me
+
+  # ── Redis (Socket.io adapter state store) ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: share2me-redis
+    command:
+      - redis-server
+      - --maxmemory
+      - 96mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    # Redis port intentionally NOT exposed on host — internal only
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - share2me
+
+volumes:
+  caddy_data:    # Caddy TLS state (unused locally but keeps parity with prod)
+  caddy_config:  # Caddy config cache
+
+networks:
+  share2me:
+    driver: bridge

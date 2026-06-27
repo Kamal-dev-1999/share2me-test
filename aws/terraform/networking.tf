@@ -54,7 +54,7 @@ resource "aws_security_group" "ecs_host" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP — required for Let's Encrypt ACME HTTP-01 challenge"
+    description = "HTTP - required for Lets Encrypt ACME HTTP-01 challenge"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -62,7 +62,7 @@ resource "aws_security_group" "ecs_host" {
   }
 
   ingress {
-    description = "HTTPS — Caddy terminates TLS and proxies to containers"
+    description = "HTTPS - Caddy terminates TLS and proxies to containers"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"

@@ -82,6 +82,11 @@ resource "aws_iam_role_policy_attachment" "ecs_instance" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
 }
 
+resource "aws_iam_role_policy_attachment" "ecs_instance_ssm" {
+  role       = aws_iam_role.ecs_instance.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_instance_profile" "ecs_instance" {
   name = "${var.project_name}-ecs-instance-profile"
   role = aws_iam_role.ecs_instance.name
@@ -157,6 +162,8 @@ resource "aws_ecs_task_definition" "app" {
         { sourceVolume = "caddy-data",   containerPath = "/data",              readOnly = false }
       ]
 
+      links = ["frontend", "backend"]
+
       # Caddy won't start until the frontend and backend are healthy.
       # dependsOn ensures correct startup order.
       dependsOn = [
@@ -164,13 +171,6 @@ resource "aws_ecs_task_definition" "app" {
         { containerName = "backend",  condition = "HEALTHY" }
       ]
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 30
-      }
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -200,7 +200,7 @@ resource "aws_ecs_task_definition" "app" {
       ]
 
       healthCheck = {
-        command     = ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+        command     = ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
         interval    = 30
         timeout     = 10
         retries     = 3
@@ -231,8 +231,10 @@ resource "aws_ecs_task_definition" "app" {
         { name = "NODE_ENV",       value = "production" },
         { name = "PORT",           value = "8000" },
         { name = "ALLOWED_ORIGINS", value = var.allowed_origins },
-        { name = "REDIS_URL",      value = "redis://localhost:6379" }
+        { name = "REDIS_URL",      value = "redis://redis:6379" }
       ]
+
+      links = ["redis"]
 
       secrets = [{
         name      = "METERED_API_KEY"
@@ -240,7 +242,7 @@ resource "aws_ecs_task_definition" "app" {
       }]
 
       healthCheck = {
-        command     = ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+        command     = ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3

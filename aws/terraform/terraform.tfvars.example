@@ -13,11 +13,11 @@ public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
 availability_zones  = ["ap-south-1a", "ap-south-1b"]
 
 # ─── EC2 ──────────────────────────────────────────────────────────────────────
-ec2_instance_type = "t2.micro"
+ec2_instance_type = "t3.micro"
 ec2_key_pair_name = "share2me-key"   # Create in EC2 → Key Pairs before applying
 
 # ─── Container Resources ──────────────────────────────────────────────────────
-# t2.micro budget: 1024 CPU, ~970 MB RAM
+# t3.micro budget: 2 vCPU, ~1024 MB RAM
 # Caddy (64+64) + Frontend (256+256) + Backend (256+256) + Redis (128+128) = 704 CPU / 704 MB
 frontend_cpu    = 256
 frontend_memory = 256

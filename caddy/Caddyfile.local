@@ -1,0 +1,23 @@
+# ─── Local Development Caddyfile (HTTP only, no TLS) ─────────────────────────
+# Used by docker-compose for local testing.
+# Caddy runs on port 8080 (so it doesn't need root/privileged for 80/443).
+#
+# Production Caddyfile (with Let's Encrypt HTTPS) is in aws/caddy/Caddyfile.
+
+:8080 {
+  # Frontend — Next.js
+  handle {
+    reverse_proxy frontend:3000
+  }
+}
+
+:8081 {
+  # Backend — Socket.io signaling
+  handle {
+    reverse_proxy backend:8000 {
+      transport http {
+        keepalive 30s
+      }
+    }
+  }
+}
