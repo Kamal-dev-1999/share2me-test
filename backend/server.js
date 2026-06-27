@@ -14,6 +14,8 @@ const http    = require('http');
 const { Server }    = require('socket.io');
 const { randomInt } = require('crypto');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createClient }      = require('redis');
+const { createAdapter }     = require('@socket.io/redis-adapter');
 
 const app    = express();
 const server = http.createServer(app);
@@ -42,6 +44,33 @@ const io = new Server(server, {
   pingInterval:      25_000,
   maxHttpBufferSize: 2 * 1024 * 1024,
 });
+
+// ─── Redis Adapter (multi-container Socket.io state sharing) ─────────────────
+// When REDIS_URL is set (production ECS), all backend container instances share
+// Socket.io room state through Redis pub/sub. This allows User A on Container 1
+// to signal User B on Container 2 seamlessly.
+// When REDIS_URL is absent (local dev), the server works with in-memory state.
+async function connectRedisAdapter() {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    console.log('[Redis] REDIS_URL not set — using in-memory adapter (single-node mode)');
+    return;
+  }
+  try {
+    const pubClient = createClient({ url: redisUrl });
+    const subClient = pubClient.duplicate();
+    pubClient.on('error', (err) => console.error('[Redis] pub error:', err.message));
+    subClient.on('error', (err) => console.error('[Redis] sub error:', err.message));
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log(`[Redis] Adapter connected to ${redisUrl}`);
+  } catch (err) {
+    // Non-fatal: if Redis is temporarily unavailable, fall back gracefully.
+    // ECS health checks will restart the container if this is a hard failure.
+    console.error('[Redis] Failed to connect — falling back to in-memory adapter:', err.message);
+  }
+}
+connectRedisAdapter();
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
 const metrics = {

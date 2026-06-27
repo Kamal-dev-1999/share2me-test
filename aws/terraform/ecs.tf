@@ -10,6 +10,43 @@ resource "aws_ecs_cluster" "main" {
   tags = { Name = "${var.project_name}-cluster" }
 }
 
+# ─── ECS Capacity Provider ────────────────────────────────────────────────────
+# Connects the ECS cluster to the EC2 Auto Scaling Group so ECS can
+# automatically provision new EC2 instances when tasks need to scale.
+# This implements the plan's recommendation: Task 1 on Instance 1,
+# Task 2 on a NEW Instance 2 (keeping each instance within its 1GB RAM limit).
+
+resource "aws_ecs_capacity_provider" "ec2" {
+  name = "${var.project_name}-ec2-cp"
+
+  auto_scaling_group_provider {
+    auto_scaling_group_arn = aws_autoscaling_group.ecs_host.arn
+
+    managed_scaling {
+      status                    = "ENABLED"
+      target_capacity           = 80  # Aim to keep EC2 instances at 80% utilization
+      minimum_scaling_step_size = 1
+      maximum_scaling_step_size = 1   # Add only 1 instance at a time (controlled scaling)
+    }
+
+    # Prevent ECS from terminating the EC2 instance during scale-in if tasks are still running
+    managed_termination_protection = "ENABLED"
+  }
+
+  tags = { Name = "${var.project_name}-capacity-provider" }
+}
+
+resource "aws_ecs_cluster_capacity_providers" "main" {
+  cluster_name       = aws_ecs_cluster.main.name
+  capacity_providers = [aws_ecs_capacity_provider.ec2.name]
+
+  default_capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.ec2.name
+    base              = 1   # Always keep 1 task running
+    weight            = 1
+  }
+}
+
 # ─── IAM: ECS Task Execution Role ─────────────────────────────────────────────
 # Allows ECS to pull images from ECR and write logs to CloudWatch
 
@@ -75,10 +112,11 @@ resource "aws_ecs_task_definition" "app" {
   requires_compatibilities = ["EC2"]
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
 
-  # Total resources per task: 512 CPU units + 512 MB RAM
-  # t2.micro has 1024 CPU units + 1024 MB RAM → fits exactly 1 task with headroom for ECS agent
-  cpu    = var.frontend_cpu + var.backend_cpu       # 512
-  memory = var.frontend_memory + var.backend_memory  # 512
+  # Total resources per task: 512 CPU (frontend+backend) + 128 CPU (redis) + memory to match
+  # t2.micro: 1024 CPU units, 993 MB usable RAM (ECS agent takes ~30MB)
+  # Per-task allocation: 640 CPU + 640 MB → safely fits 1 task; 2nd task goes to a new EC2
+  cpu    = var.frontend_cpu + var.backend_cpu + 128  # 640
+  memory = var.frontend_memory + var.backend_memory + 128  # 640
 
   container_definitions = jsonencode([
     # ── Frontend Container ────────────────────────────────────────────────────
@@ -136,7 +174,9 @@ resource "aws_ecs_task_definition" "app" {
       environment = [
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "8000" },
-        { name = "ALLOWED_ORIGINS", value = var.allowed_origins }
+        { name = "ALLOWED_ORIGINS", value = var.allowed_origins },
+        # Redis runs as a sidecar in the same task — reachable via localhost
+        { name = "REDIS_URL", value = "redis://localhost:6379" }
       ]
 
       secrets = [
@@ -164,6 +204,49 @@ resource "aws_ecs_task_definition" "app" {
           "awslogs-stream-prefix" = "backend"
         }
       }
+    },
+
+    # ── Redis Sidecar Container ───────────────────────────────────────────────
+    # Plan Step 2: Redis adapter for Socket.io multi-container state sharing.
+    # Runs alongside frontend+backend in the same task (shares localhost networking).
+    # The backend connects to redis://localhost:6379 — no network hops.
+    {
+      name      = "redis"
+      image     = "redis:7-alpine"  # Official image, ~30MB
+      essential = false             # Task keeps running even if Redis briefly restarts
+      cpu       = 128
+      memory    = 128
+
+      portMappings = [{
+        containerPort = 6379
+        hostPort      = 6379
+        protocol      = "tcp"
+      }]
+
+      command = [
+        "redis-server",
+        "--maxmemory", "96mb",          # Hard cap: prevents OOM on t2.micro
+        "--maxmemory-policy", "allkeys-lru", # Evict oldest keys when full
+        "--save", "",                    # Disable persistence — ephemeral signaling data only
+        "--appendonly", "no"
+      ]
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "redis-cli ping || exit 1"]
+        interval    = 15
+        timeout     = 5
+        retries     = 3
+        startPeriod = 10
+      }
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.app.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "redis"
+        }
+      }
     }
   ])
 
@@ -179,7 +262,7 @@ resource "aws_ecs_service" "app" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = var.ecs_task_desired_count
-  launch_type     = "EC2"
+  # NOTE: launch_type is intentionally omitted — capacity_provider_strategy manages placement
 
   # ALB target group bindings — connect the service to both load balancer listeners
   load_balancer {
@@ -198,9 +281,18 @@ resource "aws_ecs_service" "app" {
   deployment_minimum_healthy_percent = 50
   deployment_maximum_percent         = 200
 
+  # Use the capacity provider instead of hardcoding launch_type = "EC2"
+  # This allows ECS managed scaling to provision EC2 instances automatically.
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.ec2.name
+    base              = 1
+    weight            = 1
+  }
+
   depends_on = [
     aws_lb_listener.http,
-    aws_iam_role_policy_attachment.ecs_task_execution
+    aws_iam_role_policy_attachment.ecs_task_execution,
+    aws_ecs_cluster_capacity_providers.main
   ]
 
   tags = { Name = "${var.project_name}-service" }

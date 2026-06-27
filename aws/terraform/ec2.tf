@@ -95,7 +95,7 @@ resource "aws_autoscaling_group" "ecs_host" {
   name                = "${var.project_name}-ecs-asg"
   vpc_zone_identifier = aws_subnet.public[*].id
   min_size            = 1
-  max_size            = 1 # ⚠️ Keep at 1 to stay on Free Tier. Set to 2 for 2 full tasks.
+  max_size            = 2 # Allows ECS Capacity Provider to add a 2nd instance for Task 2
   desired_capacity    = 1
 
   launch_template {
