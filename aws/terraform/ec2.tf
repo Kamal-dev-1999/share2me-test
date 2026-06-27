@@ -11,34 +11,37 @@ data "aws_ssm_parameter" "ecs_ami" {
 # This script runs once on first boot to register the EC2 instance with our
 # ECS cluster. The ECS agent reads ECS_CLUSTER from this file.
 # We also tune kernel params for high WebSocket concurrency.
+#
+# NOTE: The heredoc must NOT be indented — base64encode encodes whitespace
+# literally, so leading spaces would be written literally into the executed script.
 
 locals {
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    set -e
+  user_data = base64encode(templatestring(<<-USERDATA
+#!/bin/bash
+set -e
 
-    # Register with ECS cluster
-    echo "ECS_CLUSTER=${aws_ecs_cluster.main.name}" >> /etc/ecs/ecs.config
+# Register with ECS cluster
+echo "ECS_CLUSTER=${cluster_name}" >> /etc/ecs/ecs.config
 
-    # Increase open file descriptors for 2000+ concurrent WebSocket connections
-    cat >> /etc/security/limits.conf <<LIMITS
-    *    soft nofile 65535
-    *    hard nofile 65535
-    root soft nofile 65535
-    root hard nofile 65535
-    LIMITS
+# Increase open file descriptors for 2000+ concurrent WebSocket connections
+cat >> /etc/security/limits.conf << LIMITS
+*    soft nofile 65535
+*    hard nofile 65535
+root soft nofile 65535
+root hard nofile 65535
+LIMITS
 
-    # Tune TCP for high connection counts
-    cat >> /etc/sysctl.conf <<SYSCTL
-    net.core.somaxconn = 65535
-    net.ipv4.tcp_max_syn_backlog = 65535
-    net.ipv4.ip_local_port_range = 1024 65535
-    SYSCTL
-    sysctl -p
+# Tune TCP for high connection counts
+cat >> /etc/sysctl.conf << SYSCTL
+net.core.somaxconn = 65535
+net.ipv4.tcp_max_syn_backlog = 65535
+net.ipv4.ip_local_port_range = 1024 65535
+SYSCTL
+sysctl -p
 
-    echo "ECS instance initialization complete."
-  EOF
-  )
+echo "ECS instance initialization complete."
+USERDATA
+  , { cluster_name = aws_ecs_cluster.main.name }))
 }
 
 # ─── Launch Template ──────────────────────────────────────────────────────────
@@ -58,19 +61,12 @@ resource "aws_launch_template" "ecs_host" {
 
   user_data = local.user_data
 
-  # Enable detailed monitoring within Free Tier limits
   monitoring {
     enabled = false # Set to true only if you want per-minute CloudWatch metrics (has cost)
   }
 
-  dynamic "key_name" {
-    for_each = var.ec2_key_pair_name != "" ? [var.ec2_key_pair_name] : []
-    content {
-      # key_name is set via the launch template key_name attribute
-    }
-  }
-
-  # Use key_name directly (cleaner than dynamic block for a simple string)
+  # Only set key_name if a key pair name was provided — skip SSH access if not needed.
+  # Bug fix: dynamic "key_name" is invalid HCL — key_name is a string attribute, not a block.
   key_name = var.ec2_key_pair_name != "" ? var.ec2_key_pair_name : null
 
   tag_specifications {
@@ -87,9 +83,9 @@ resource "aws_launch_template" "ecs_host" {
 }
 
 # ─── Auto Scaling Group for EC2 Host ──────────────────────────────────────────
-# Manages the underlying EC2 instance that runs ECS tasks.
-# Min=1, Max=1 keeps us on the Free Tier (1 instance only).
-# If you need to scale tasks to 2 on separate instances, set max_size=2.
+# Manages the underlying EC2 instance(s) that run ECS tasks.
+# max_size=2 allows the ECS Capacity Provider to spin up a second EC2 instance
+# to host Task 2 during peak load — each instance stays within its 1GB RAM limit.
 
 resource "aws_autoscaling_group" "ecs_host" {
   name                = "${var.project_name}-ecs-asg"
@@ -127,6 +123,6 @@ resource "aws_autoscaling_group" "ecs_host" {
 
   lifecycle {
     create_before_destroy = true
-    ignore_changes        = [desired_capacity] # Let ECS manage desired count
+    ignore_changes        = [desired_capacity] # Let ECS Capacity Provider manage desired count
   }
 }
