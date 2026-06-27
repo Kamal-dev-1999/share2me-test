@@ -51,15 +51,16 @@ variable "ec2_key_pair_name" {
 
 # ─── ECS ──────────────────────────────────────────────────────────────────────
 variable "ecs_task_desired_count" {
-  description = "Default number of ECS tasks to run"
+  description = "Number of ECS tasks to run (fixed at 1 — Caddy uses host ports 80/443)"
   type        = number
   default     = 1
 }
 
-variable "ecs_task_max_count" {
-  description = "Maximum number of ECS tasks when scaling up"
-  type        = number
-  default     = 2
+# ─── Application ──────────────────────────────────────────────────────────────
+variable "acme_email" {
+  description = "Email address for Let's Encrypt expiry notifications (Caddy ACME)"
+  type        = string
+  default     = "admin@share2.me"
 }
 
 variable "frontend_image_tag" {

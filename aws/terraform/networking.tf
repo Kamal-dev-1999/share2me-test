@@ -14,16 +14,17 @@ resource "aws_internet_gateway" "main" {
   tags = { Name = "${var.project_name}-igw" }
 }
 
-# ─── Public Subnets (one per AZ for ALB cross-AZ requirement) ─────────────────
-resource "aws_subnet" "public" {
-  count = length(var.public_subnet_cidrs)
+# ─── Public Subnet ────────────────────────────────────────────────────────────
+# We only need 1 subnet now — no ALB multi-AZ requirement.
+# Using a single AZ keeps the EC2 instance co-located with its EBS root volume.
 
+resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = var.availability_zones[count.index]
+  cidr_block              = var.public_subnet_cidrs[0]
+  availability_zone       = var.availability_zones[0]
   map_public_ip_on_launch = true
 
-  tags = { Name = "${var.project_name}-public-${count.index + 1}" }
+  tags = { Name = "${var.project_name}-public" }
 }
 
 # ─── Route Table ──────────────────────────────────────────────────────────────
@@ -39,20 +40,21 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  count = length(aws_subnet.public)
-
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public.id
 }
 
-# ─── Security Group: ALB ──────────────────────────────────────────────────────
-resource "aws_security_group" "alb" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Allow HTTP and HTTPS from the internet"
+# ─── Security Group: EC2 ECS Host ─────────────────────────────────────────────
+# Traffic now arrives directly on the EC2 instance — no ALB in front.
+# Caddy handles TLS on port 443, and uses port 80 for Let's Encrypt ACME challenges.
+
+resource "aws_security_group" "ecs_host" {
+  name        = "${var.project_name}-ecs-host-sg"
+  description = "Allow HTTP/HTTPS from internet for Caddy, SSH for management"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP from internet"
+    description = "HTTP — required for Let's Encrypt ACME HTTP-01 challenge"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -60,57 +62,24 @@ resource "aws_security_group" "alb" {
   }
 
   ingress {
-    description = "HTTPS from internet"
+    description = "HTTPS — Caddy terminates TLS and proxies to containers"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    description = "All outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "${var.project_name}-alb-sg" }
-}
-
-# ─── Security Group: EC2 ECS Host ─────────────────────────────────────────────
-resource "aws_security_group" "ecs_host" {
-  name        = "${var.project_name}-ecs-host-sg"
-  description = "Allow traffic only from ALB + SSH for management"
-  vpc_id      = aws_vpc.main.id
-
+  # ⚠️ Restrict SSH to your own IP in production: ["YOUR_IP/32"]
   ingress {
-    description     = "Frontend traffic from ALB"
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  ingress {
-    description     = "Backend traffic from ALB"
-    from_port       = 8000
-    to_port         = 8000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  # Restrict SSH to your own IP in production — update this CIDR!
-  ingress {
-    description = "SSH management (restrict to your IP)"
+    description = "SSH management"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # ⚠️ Change to your own IP: ["YOUR_IP/32"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    description = "All outbound (for pulling images, fetching TURN creds)"
+    description = "All outbound (ECR pulls, ACME challenges, TURN API, npm etc.)"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"

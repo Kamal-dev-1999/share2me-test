@@ -1,0 +1,58 @@
+# ─── Share2Me Caddyfile ───────────────────────────────────────────────────────
+# This file is a REFERENCE COPY only.
+#
+# The LIVE version is generated dynamically by the EC2 user-data script (ec2.tf)
+# at /etc/caddy/Caddyfile on the host, then bind-mounted read-only into the
+# Caddy container at /etc/caddy/Caddyfile.
+#
+# To change the Caddyfile in production:
+#   1. Edit the templatestring in ec2.tf
+#   2. Run: terraform apply  (triggers an instance refresh via the ASG)
+#   OR
+#   1. SSH into the EC2 instance
+#   2. Edit /etc/caddy/Caddyfile directly
+#   3. Restart the Caddy container:
+#        aws ecs update-service --cluster share2me-cluster --service share2me-service --force-new-deployment
+# ─────────────────────────────────────────────────────────────────────────────
+
+{
+  # Your email for Let's Encrypt expiry notifications
+  email admin@share2.me
+
+  # To test with Let's Encrypt staging CA (avoids rate limits during development):
+  # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# ── Frontend: Next.js app ─────────────────────────────────────────────────────
+share2.me, www.share2.me {
+  reverse_proxy localhost:3000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
+
+  # HSTS + security headers
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}
+
+# ── Backend: Socket.io signaling server ───────────────────────────────────────
+api.share2.me {
+  reverse_proxy localhost:8000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+
+    # WebSocket keepalive — required for Socket.io long-lived connections
+    transport http {
+      keepalive     30s
+      keepalive_idle_conns 100
+    }
+  }
+}

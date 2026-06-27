@@ -4,33 +4,30 @@ resource "aws_ecs_cluster" "main" {
 
   setting {
     name  = "containerInsights"
-    value = "disabled" # Keep disabled to avoid CloudWatch Insights charges
+    value = "disabled"
   }
 
   tags = { Name = "${var.project_name}-cluster" }
 }
 
 # ─── ECS Capacity Provider ────────────────────────────────────────────────────
-# Connects the ECS cluster to the EC2 Auto Scaling Group so ECS can
-# automatically provision new EC2 instances when tasks need to scale.
-# This implements the plan's recommendation: Task 1 on Instance 1,
-# Task 2 on a NEW Instance 2 (keeping each instance within its 1GB RAM limit).
+# Connects ECS to the ASG so ECS can monitor capacity.
+# Since Caddy binds host ports 80/443, only 1 task can run per EC2 instance.
+# Task-level auto-scaling is therefore removed — scaling is at the infra level.
 
 resource "aws_ecs_capacity_provider" "ec2" {
   name = "${var.project_name}-ec2-cp"
 
   auto_scaling_group_provider {
-    auto_scaling_group_arn = aws_autoscaling_group.ecs_host.arn
+    auto_scaling_group_arn         = aws_autoscaling_group.ecs_host.arn
+    managed_termination_protection = "DISABLED" # Only 1 instance — protection not applicable
 
     managed_scaling {
       status                    = "ENABLED"
-      target_capacity           = 80  # Aim to keep EC2 instances at 80% utilization
+      target_capacity           = 100
       minimum_scaling_step_size = 1
-      maximum_scaling_step_size = 1   # Add only 1 instance at a time (controlled scaling)
+      maximum_scaling_step_size = 1
     }
-
-    # Prevent ECS from terminating the EC2 instance during scale-in if tasks are still running
-    managed_termination_protection = "ENABLED"
   }
 
   tags = { Name = "${var.project_name}-capacity-provider" }
@@ -42,14 +39,12 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 
   default_capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name
-    base              = 1   # Always keep 1 task running
+    base              = 1
     weight            = 1
   }
 }
 
 # ─── IAM: ECS Task Execution Role ─────────────────────────────────────────────
-# Allows ECS to pull images from ECR and write logs to CloudWatch
-
 resource "aws_iam_role" "ecs_task_execution" {
   name = "${var.project_name}-ecs-task-execution-role"
 
@@ -69,8 +64,6 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
 }
 
 # ─── IAM: ECS EC2 Instance Role ───────────────────────────────────────────────
-# Allows the EC2 instance to register with the ECS cluster
-
 resource "aws_iam_role" "ecs_instance" {
   name = "${var.project_name}-ecs-instance-role"
 
@@ -97,29 +90,99 @@ resource "aws_iam_instance_profile" "ecs_instance" {
 # ─── CloudWatch Log Group ─────────────────────────────────────────────────────
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/ecs/${var.project_name}"
-  retention_in_days = 7 # Minimize storage costs; Free Tier has 5GB
+  retention_in_days = 7
 
   tags = { Name = "${var.project_name}-logs" }
 }
 
 # ─── ECS Task Definition ──────────────────────────────────────────────────────
-# Each task = 1 frontend container + 1 backend container running together.
-# They share localhost networking (bridge mode on EC2) via the task's network namespace.
+# Task contains 4 containers, all sharing the same network namespace (bridge mode):
+#
+#   ┌─────────────────────────────────────────────────────┐
+#   │  ECS Task (bridge network)                          │
+#   │                                                     │
+#   │  [caddy :80/:443]  ──▶ localhost:3000 [frontend]   │
+#   │                    ──▶ localhost:8000 [backend]     │
+#   │  [redis :6379]          (used by backend adapter)  │
+#   └─────────────────────────────────────────────────────┘
+#
+# CPU/Memory budget on t2.micro (1024 CPU, ~970 MB usable):
+#   frontend : 256 CPU + 256 MB
+#   backend  : 256 CPU + 256 MB
+#   redis    : 128 CPU + 128 MB
+#   caddy    :  64 CPU +  64 MB
+#   ─────────────────────────────
+#   total    : 704 CPU + 704 MB  ✓ (270 MB headroom for ECS agent + OS)
 
 resource "aws_ecs_task_definition" "app" {
   family                   = "${var.project_name}-task"
-  network_mode             = "bridge" # Required for EC2 launch type (not Fargate)
+  network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
 
-  # Total resources per task: 512 CPU (frontend+backend) + 128 CPU (redis) + memory to match
-  # t2.micro: 1024 CPU units, 993 MB usable RAM (ECS agent takes ~30MB)
-  # Per-task allocation: 640 CPU + 640 MB → safely fits 1 task; 2nd task goes to a new EC2
-  cpu    = var.frontend_cpu + var.backend_cpu + 128  # 640
-  memory = var.frontend_memory + var.backend_memory + 128  # 640
+  cpu    = 704
+  memory = 704
+
+  # Bind-mount the Caddyfile and Caddy data dir from the EC2 host.
+  # The Caddyfile is written by user-data (ec2.tf) before containers start.
+  # The caddy-data dir persists TLS certificates across container restarts
+  # so Let's Encrypt rate limits are never hit.
+  volume {
+    name      = "caddy-config"
+    host_path = "/etc/caddy"
+  }
+
+  volume {
+    name      = "caddy-data"
+    host_path = "/var/lib/caddy-data"
+  }
 
   container_definitions = jsonencode([
-    # ── Frontend Container ────────────────────────────────────────────────────
+
+    # ── Caddy (reverse proxy + TLS termination) ───────────────────────────────
+    {
+      name      = "caddy"
+      image     = "caddy:2-alpine"
+      essential = true
+      cpu       = 64
+      memory    = 64
+
+      portMappings = [
+        { containerPort = 80,  hostPort = 80,  protocol = "tcp" },
+        { containerPort = 443, hostPort = 443, protocol = "tcp" }
+      ]
+
+      mountPoints = [
+        { sourceVolume = "caddy-config", containerPath = "/etc/caddy",         readOnly = true  },
+        { sourceVolume = "caddy-data",   containerPath = "/data",              readOnly = false }
+      ]
+
+      # Caddy won't start until the frontend and backend are healthy.
+      # dependsOn ensures correct startup order.
+      dependsOn = [
+        { containerName = "frontend", condition = "HEALTHY" },
+        { containerName = "backend",  condition = "HEALTHY" }
+      ]
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 30
+      }
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.app.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "caddy"
+        }
+      }
+    },
+
+    # ── Frontend (Next.js) ────────────────────────────────────────────────────
     {
       name      = "frontend"
       image     = "${aws_ecr_repository.frontend.repository_url}:${var.frontend_image_tag}"
@@ -127,24 +190,21 @@ resource "aws_ecs_task_definition" "app" {
       cpu       = var.frontend_cpu
       memory    = var.frontend_memory
 
-      portMappings = [{
-        containerPort = 3000
-        hostPort      = 3000
-        protocol      = "tcp"
-      }]
+      # No hostPort needed — Caddy reaches it via localhost within the task
+      portMappings = [{ containerPort = 3000, protocol = "tcp" }]
 
       environment = [
-        { name = "NODE_ENV", value = "production" },
-        { name = "NEXT_PUBLIC_SIGNAL_URL", value = "https://${var.backend_domain}" },
-        { name = "PORT", value = "3000" }
+        { name = "NODE_ENV",                   value = "production" },
+        { name = "NEXT_PUBLIC_SIGNAL_URL",     value = "https://${var.backend_domain}" },
+        { name = "PORT",                       value = "3000" }
       ]
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+        command     = ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
         interval    = 30
         timeout     = 10
         retries     = 3
-        startPeriod = 60 # Next.js needs time to start
+        startPeriod = 60
       }
 
       logConfiguration = {
@@ -157,7 +217,7 @@ resource "aws_ecs_task_definition" "app" {
       }
     },
 
-    # ── Backend Container ─────────────────────────────────────────────────────
+    # ── Backend (Socket.io signaling) ─────────────────────────────────────────
     {
       name      = "backend"
       image     = "${aws_ecr_repository.backend.repository_url}:${var.backend_image_tag}"
@@ -165,36 +225,30 @@ resource "aws_ecs_task_definition" "app" {
       cpu       = var.backend_cpu
       memory    = var.backend_memory
 
-      portMappings = [{
-        containerPort = 8000
-        hostPort      = 8000
-        protocol      = "tcp"
-      }]
+      portMappings = [{ containerPort = 8000, protocol = "tcp" }]
 
       environment = [
-        { name = "NODE_ENV", value = "production" },
-        { name = "PORT", value = "8000" },
+        { name = "NODE_ENV",       value = "production" },
+        { name = "PORT",           value = "8000" },
         { name = "ALLOWED_ORIGINS", value = var.allowed_origins },
-        # Redis runs as a sidecar in the same task — reachable via localhost
-        { name = "REDIS_URL", value = "redis://localhost:6379" }
+        { name = "REDIS_URL",      value = "redis://localhost:6379" }
       ]
 
-      secrets = [
-        # Sensitive values are pulled from SSM Parameter Store at runtime
-        # Run: aws ssm put-parameter --name "/share2me/prod/METERED_API_KEY" --value "..." --type SecureString
-        {
-          name      = "METERED_API_KEY"
-          valueFrom = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/share2me/prod/METERED_API_KEY"
-        }
-      ]
+      secrets = [{
+        name      = "METERED_API_KEY"
+        valueFrom = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/share2me/prod/METERED_API_KEY"
+      }]
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+        command     = ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
         startPeriod = 30
       }
+
+      # Backend depends on Redis being healthy before starting
+      dependsOn = [{ containerName = "redis", condition = "HEALTHY" }]
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -206,29 +260,22 @@ resource "aws_ecs_task_definition" "app" {
       }
     },
 
-    # ── Redis Sidecar Container ───────────────────────────────────────────────
-    # Plan Step 2: Redis adapter for Socket.io multi-container state sharing.
-    # Runs alongside frontend+backend in the same task (shares localhost networking).
-    # The backend connects to redis://localhost:6379 — no network hops.
+    # ── Redis (Socket.io adapter state store) ─────────────────────────────────
     {
       name      = "redis"
-      image     = "redis:7-alpine"  # Official image, ~30MB
-      essential = false             # Task keeps running even if Redis briefly restarts
+      image     = "redis:7-alpine"
+      essential = false
       cpu       = 128
       memory    = 128
 
-      portMappings = [{
-        containerPort = 6379
-        hostPort      = 6379
-        protocol      = "tcp"
-      }]
+      portMappings = [{ containerPort = 6379, protocol = "tcp" }]
 
       command = [
         "redis-server",
-        "--maxmemory", "96mb",          # Hard cap: prevents OOM on t2.micro
-        "--maxmemory-policy", "allkeys-lru", # Evict oldest keys when full
-        "--save", "",                    # Disable persistence — ephemeral signaling data only
-        "--appendonly", "no"
+        "--maxmemory",        "96mb",
+        "--maxmemory-policy", "allkeys-lru",
+        "--save",             "",
+        "--appendonly",       "no"
       ]
 
       healthCheck = {
@@ -253,7 +300,6 @@ resource "aws_ecs_task_definition" "app" {
   tags = { Name = "${var.project_name}-task-definition" }
 }
 
-# Required to get the AWS account ID for SSM ARN construction
 data "aws_caller_identity" "current" {}
 
 # ─── ECS Service ──────────────────────────────────────────────────────────────
@@ -261,36 +307,21 @@ resource "aws_ecs_service" "app" {
   name            = "${var.project_name}-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = var.ecs_task_desired_count
-  # NOTE: launch_type is intentionally omitted — capacity_provider_strategy manages placement
+  desired_count   = 1
 
-  # ALB target group bindings — connect the service to both load balancer listeners
-  load_balancer {
-    target_group_arn = aws_lb_target_group.frontend.arn
-    container_name   = "frontend"
-    container_port   = 3000
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.backend.arn
-    container_name   = "backend"
-    container_port   = 8000
-  }
-
-  # Rolling deployment — ensures zero downtime by starting new task before killing old
-  deployment_minimum_healthy_percent = 50
-  deployment_maximum_percent         = 200
-
-  # Use the capacity provider instead of hardcoding launch_type = "EC2"
-  # This allows ECS managed scaling to provision EC2 instances automatically.
+  # capacity_provider_strategy replaces launch_type
   capacity_provider_strategy {
     capacity_provider = aws_ecs_capacity_provider.ec2.name
     base              = 1
     weight            = 1
   }
 
+  # Rolling deployment — ECS starts the new task before stopping the old one.
+  # With 1 desired task: max_percent=200 allows a 2nd task briefly during deploy.
+  deployment_minimum_healthy_percent = 0   # Allow full stop when replacing
+  deployment_maximum_percent         = 100 # Don't run 2 tasks simultaneously (port conflicts)
+
   depends_on = [
-    aws_lb_listener.http,
     aws_iam_role_policy_attachment.ecs_task_execution,
     aws_ecs_cluster_capacity_providers.main
   ]
@@ -298,88 +329,8 @@ resource "aws_ecs_service" "app" {
   tags = { Name = "${var.project_name}-service" }
 }
 
-# ─── Auto Scaling ─────────────────────────────────────────────────────────────
-resource "aws_appautoscaling_target" "ecs_service" {
-  max_capacity       = var.ecs_task_max_count
-  min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-# Scale OUT when CPU > 70% for 2 consecutive minutes
-resource "aws_appautoscaling_policy" "scale_out" {
-  name               = "${var.project_name}-scale-out"
-  policy_type        = "StepScaling"
-  resource_id        = aws_appautoscaling_target.ecs_service.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs_service.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs_service.service_namespace
-
-  step_scaling_policy_configuration {
-    adjustment_type         = "ChangeInCapacity"
-    cooldown                = 120
-    metric_aggregation_type = "Average"
-
-    step_adjustment {
-      metric_interval_lower_bound = 0
-      scaling_adjustment          = 1
-    }
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "high_cpu" {
-  alarm_name          = "${var.project_name}-high-cpu"
-  comparison_operator = "GreaterThanOrEqualToThreshold"
-  evaluation_periods  = 2
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ECS"
-  period              = 60
-  statistic           = "Average"
-  threshold           = 70
-  alarm_description   = "Trigger scale-out when ECS service CPU > 70%"
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.app.name
-  }
-
-  alarm_actions = [aws_appautoscaling_policy.scale_out.arn]
-}
-
-# Scale IN when CPU < 30% for 5 consecutive minutes (conservative to avoid thrashing)
-resource "aws_appautoscaling_policy" "scale_in" {
-  name               = "${var.project_name}-scale-in"
-  policy_type        = "StepScaling"
-  resource_id        = aws_appautoscaling_target.ecs_service.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs_service.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs_service.service_namespace
-
-  step_scaling_policy_configuration {
-    adjustment_type         = "ChangeInCapacity"
-    cooldown                = 300
-    metric_aggregation_type = "Average"
-
-    step_adjustment {
-      metric_interval_upper_bound = 0
-      scaling_adjustment          = -1
-    }
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "low_cpu" {
-  alarm_name          = "${var.project_name}-low-cpu"
-  comparison_operator = "LessThanOrEqualToThreshold"
-  evaluation_periods  = 5
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ECS"
-  period              = 60
-  statistic           = "Average"
-  threshold           = 30
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.app.name
-  }
-
-  alarm_actions = [aws_appautoscaling_policy.scale_in.arn]
-}
+# NOTE: ECS task-level auto-scaling is intentionally omitted.
+# Caddy binds host ports 80 and 443. A second task on the same EC2 instance
+# would fail to start because those ports are already taken.
+# The single-instance design handles 2000+ concurrent WebSocket users comfortably
+# (see the ulimit/sysctl tuning in ec2.tf user-data).

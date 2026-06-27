@@ -1,12 +1,7 @@
-# ─── ALB DNS Name ─────────────────────────────────────────────────────────────
-output "alb_dns_name" {
-  description = "The DNS name of the Application Load Balancer. Point your domain CNAME records here."
-  value       = aws_lb.main.dns_name
-}
-
-output "alb_zone_id" {
-  description = "The hosted zone ID of the ALB, needed for Route 53 alias records."
-  value       = aws_lb.main.zone_id
+# ─── Elastic IP ───────────────────────────────────────────────────────────────
+output "elastic_ip" {
+  description = "Static public IP of the EC2 instance. Point your domain A records HERE (not CNAME)."
+  value       = aws_eip.ecs_host.public_ip
 }
 
 # ─── ECR Repository URLs ──────────────────────────────────────────────────────
@@ -20,7 +15,7 @@ output "backend_ecr_url" {
   value       = aws_ecr_repository.backend.repository_url
 }
 
-# ─── ECS Cluster ──────────────────────────────────────────────────────────────
+# ─── ECS ──────────────────────────────────────────────────────────────────────
 output "ecs_cluster_name" {
   description = "Name of the ECS cluster."
   value       = aws_ecs_cluster.main.name
@@ -31,42 +26,40 @@ output "ecs_service_name" {
   value       = aws_ecs_service.app.name
 }
 
-# ─── TLS Certificate ──────────────────────────────────────────────────────────
-output "acm_certificate_domain_validation_options" {
-  description = "DNS records you must add to your domain registrar to validate the ACM certificate."
-  value       = aws_acm_certificate.main.domain_validation_options
-}
-
-# ─── Quick Setup Guide ────────────────────────────────────────────────────────
+# ─── Post-Deploy Checklist ────────────────────────────────────────────────────
 output "next_steps" {
-  description = "Post-apply checklist."
+  description = "Step-by-step post-apply setup guide."
   value = <<-EOT
-    ── Post-Deploy Checklist ───────────────────────────────────────
-    1. ACM DNS Validation:
-       Add the CNAME records from 'acm_certificate_domain_validation_options'
-       to your domain registrar to validate SSL.
+    ── Post-Deploy Checklist ──────────────────────────────────────────
+    1. Point DNS A records to the Elastic IP:
+         share2.me     A → ${aws_eip.ecs_host.public_ip}
+         www.share2.me A → ${aws_eip.ecs_host.public_ip}
+         api.share2.me A → ${aws_eip.ecs_host.public_ip}
 
-    2. Domain DNS:
-       Point your domain records to the ALB:
-         share2.me     CNAME → ${aws_lb.main.dns_name}
-         api.share2.me CNAME → ${aws_lb.main.dns_name}
+       ⚠️  DNS must propagate BEFORE the Caddy container starts.
+          Caddy requests TLS certs from Let's Encrypt on first boot,
+          which requires the domain to resolve to this IP.
 
-    3. Build & Push Docker Images:
-       Run: ./aws/scripts/deploy.sh
+    2. Set SSM secrets:
+         aws ssm put-parameter \
+           --name "/share2me/prod/METERED_API_KEY" \
+           --value "your-key" \
+           --type SecureString \
+           --overwrite \
+           --region ${var.aws_region}
 
-    4. SSM Secrets:
-       Update the METERED_API_KEY in SSM Parameter Store:
-       aws ssm put-parameter \
-         --name "/share2me/prod/METERED_API_KEY" \
-         --value "your-actual-key" \
-         --type SecureString \
-         --overwrite
+    3. Build & push Docker images:
+         bash aws/scripts/deploy.sh
 
-    5. Force ECS Deployment:
-       aws ecs update-service \
-         --cluster ${aws_ecs_cluster.main.name} \
-         --service ${aws_ecs_service.app.name} \
-         --force-new-deployment
-    ────────────────────────────────────────────────────────────────
+    4. Verify Caddy TLS (may take 1-2 min on first boot):
+         curl -I https://${var.frontend_domain}
+         curl -I https://${var.backend_domain}/health
+
+    5. Force ECS deployment after any code change:
+         aws ecs update-service \
+           --cluster ${aws_ecs_cluster.main.name} \
+           --service ${aws_ecs_service.app.name} \
+           --force-new-deployment
+    ───────────────────────────────────────────────────────────────────
   EOT
 }
