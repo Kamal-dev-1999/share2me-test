@@ -1,0 +1,19 @@
+# ─── Frontend .dockerignore ───────────────────────────────────────────────────
+# Prevents large or sensitive files from being sent to the Docker build context.
+# This dramatically speeds up builds.
+
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env*
+!.env.example
+Dockerfile
+.dockerignore
+
+# Next.js build cache
+.next/cache
+
+# Vercel config (not needed in Docker)
+.vercel
