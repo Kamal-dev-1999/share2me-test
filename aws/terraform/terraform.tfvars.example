@@ -1,0 +1,35 @@
+# ─── terraform.tfvars.example ─────────────────────────────────────────────────
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars to git — it contains sensitive data.
+# The .gitignore already excludes *.tfvars files.
+
+aws_region   = "ap-south-1"
+environment  = "prod"
+project_name = "share2me"
+
+# ─── Networking ───────────────────────────────────────────────────────────────
+vpc_cidr            = "10.0.0.0/16"
+public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
+availability_zones  = ["ap-south-1a", "ap-south-1b"]
+
+# ─── EC2 ──────────────────────────────────────────────────────────────────────
+ec2_instance_type = "t2.micro"       # Free Tier eligible
+ec2_key_pair_name = "share2me-key"   # Create this in EC2 > Key Pairs first
+
+# ─── ECS Scaling ──────────────────────────────────────────────────────────────
+ecs_task_desired_count = 1
+ecs_task_max_count     = 2
+
+# ─── Container Resources (must total ≤ 768 MB to fit on t2.micro with ECS agent)
+frontend_cpu    = 256
+frontend_memory = 256
+backend_cpu     = 256
+backend_memory  = 256
+
+# ─── Application ──────────────────────────────────────────────────────────────
+frontend_domain  = "share2.me"
+backend_domain   = "api.share2.me"
+allowed_origins  = "https://share2.me,https://www.share2.me"
+
+# ─── Secrets (set this properly, do not leave as empty string) ────────────────
+metered_api_key = ""   # Or set via: TF_VAR_metered_api_key=xxx terraform apply
