@@ -196,6 +196,7 @@ resource "aws_ecs_task_definition" "app" {
       environment = [
         { name = "NODE_ENV",                   value = "production" },
         { name = "NEXT_PUBLIC_SIGNAL_URL",     value = "https://${var.backend_domain}" },
+        { name = "NEXT_PUBLIC_GA_ID",          value = var.google_analytics_id },
         { name = "PORT",                       value = "3000" }
       ]
 

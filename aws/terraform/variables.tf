@@ -125,3 +125,9 @@ variable "allowed_origins" {
   type        = string
   default     = "https://share2.me,https://www.share2.me"
 }
+
+variable "google_analytics_id" {
+  description = "Google Analytics Measurement ID (e.g., G-XXXXXXXXXX)"
+  type        = string
+  default     = ""
+}

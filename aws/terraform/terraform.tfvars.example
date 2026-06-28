@@ -34,4 +34,6 @@ allowed_origins = "https://share2.me,https://www.share2.me"
 acme_email = "your-email@example.com"
 
 # ─── Secrets (set via env var or SSM console, not committed here) ────────────
-metered_api_key = ""   # Or: TF_VAR_metered_api_key=xxx terraform apply
+metered_api_key = "af1492ea038e29515f10a8a03404c9ce3b34"   
+# Or: TF_VAR_metered_api_key=xxx terraform apply
+google_analytics_id = "G-8XDS75JXYK"
