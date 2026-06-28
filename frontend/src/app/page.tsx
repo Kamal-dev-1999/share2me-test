@@ -5,6 +5,7 @@ import { TopNav }       from "@/components/TopNav";
 import { HeroSection }  from "@/components/HeroSection";
 import { SendFlow }     from "@/components/SendFlow";
 import { ReceiveFlow }  from "@/components/ReceiveFlow";
+import { SeoContent }   from "@/components/SeoContent";
 import { useSocket }    from "@/hooks/useSocket";
 import { useTransfer }  from "@/hooks/useTransfer";
 import Link from "next/link";
@@ -110,6 +111,9 @@ function HomeContent() {
           </div>
         </div>
       </section>
+
+      {/* SEO Optimized Content Section */}
+      <SeoContent />
 
       {/* Footer */}
       <footer className="w-full border-t border-border bg-background py-12">
