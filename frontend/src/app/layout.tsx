@@ -9,11 +9,18 @@ import { SplashScreen } from "@/components/SplashScreen";
 export const metadata: Metadata = {
   metadataBase: new URL('https://share2.me'),
   title: {
-    default: "Share2Me — Secure P2P File Transfer in Browser",
+    default: "Share2Me — Secure P2P File Transfer & Send Large Files Free",
     template: "%s | Share2Me"
   },
-  description: "Send large files instantly between devices using secure peer-to-peer (P2P) WebRTC technology. No file size limits, no sign-ups, and no cloud storage middleman.",
-  keywords: ["file sharing", "P2P file transfer", "WebRTC file sharing", "secure file transfer", "share files between devices", "peer to peer file sharing", "send large files free"],
+  description: "Send large files and text clipboard data instantly between any device using secure, end-to-end encrypted (AES-GCM-256) peer-to-peer (P2P) WebRTC. Zero file limits, no sign-ups, and zero cloud storage.",
+  keywords: [
+    "file sharing", "P2P file transfer", "WebRTC file sharing", "secure file transfer",
+    "share files between devices", "peer to peer file sharing", "send large files free",
+    "secure file transfer online", "send big files free", "online text sharing",
+    "private text share", "secure clipboard share", "encrypted file sharing",
+    "no limit file transfer", "cross platform file sharing", "iphone to pc transfer free",
+    "how to send 10gb file free", "direct browser file share", "secure send text online"
+  ],
   authors: [{ name: "Share2Me" }],
   creator: "Share2Me",
   publisher: "Share2Me",
@@ -21,8 +28,8 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: "Share2Me — Secure P2P File Transfer",
-    description: "Send large files instantly between devices using secure peer-to-peer (P2P) WebRTC technology. No limits, no sign-ups.",
+    title: "Share2Me — Secure P2P File Transfer & Send Large Files Free",
+    description: "Send large files and text clipboard data instantly between any device using secure, end-to-end encrypted (AES-GCM-256) P2P WebRTC. Zero limits, no sign-ups.",
     url: 'https://share2.me',
     siteName: 'Share2Me',
     locale: 'en_US',
@@ -30,8 +37,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Share2Me — Secure P2P File Transfer",
-    description: "Send large files instantly between devices using secure peer-to-peer (P2P) WebRTC technology. No limits, no sign-ups.",
+    title: "Share2Me — Secure P2P File Transfer & Send Large Files Free",
+    description: "Send large files and text clipboard data instantly between any device using secure, end-to-end encrypted (AES-GCM-256) P2P WebRTC. Zero limits, no sign-ups.",
   },
   robots: {
     index: true,
@@ -63,17 +70,68 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
-              "@type": "WebApplication",
-              "name": "Share2Me",
-              "url": "https://share2.me",
-              "description": "Secure, unlimited P2P file sharing directly in your browser. No cloud storage, no sign-ups required.",
-              "applicationCategory": "UtilitiesApplication",
-              "operatingSystem": "All",
-              "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD"
-              }
+              "@graph": [
+                {
+                  "@type": "WebApplication",
+                  "@id": "https://share2.me/#webapp",
+                  "name": "Share2Me",
+                  "url": "https://share2.me",
+                  "description": "Secure, unlimited P2P file sharing and text sharing directly in your browser. No cloud storage, no sign-ups required.",
+                  "applicationCategory": "UtilitiesApplication",
+                  "operatingSystem": "All",
+                  "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                  }
+                },
+                {
+                  "@type": "FAQPage",
+                  "@id": "https://share2.me/#faq",
+                  "mainEntity": [
+                    {
+                      "@type": "Question",
+                      "name": "What is the maximum file size limit on Share2Me?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "There are absolutely no file size limits on Share2Me. Because the transfer is established directly peer-to-peer (P2P) between the sender and receiver browsers via WebRTC, the data does not pass through or store on any intermediate cloud server."
+                      }
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "Is my data secure when transferring files and text?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "Yes, completely secure. All transfers are end-to-end encrypted using military-grade AES-GCM-256 encryption. The encryption key is derived locally on your device via ephemeral ECDH (P-256) key exchange, meaning the raw key never leaves your browser and cannot be read by anyone, including the signaling server."
+                      }
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "Do both devices need to be online at the same time?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "Yes. Because Share2Me uses direct WebRTC peer-to-peer tunnels to transfer data, both the sending device and the receiving device must have the page open and be online concurrently to perform the transfer."
+                      }
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "Can I transfer files between different operating systems?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "Absolutely. Share2Me is entirely browser-native and cross-platform. It works seamlessly between iOS, Android, macOS, Windows, Linux, and any other operating system running a modern web browser, without needing any software installations."
+                      }
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "Can I send clipboard text and messages securely?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "Yes. Share2Me offers a dedicated Text Transfer mode. Copy-paste any text, passwords, or code snippets, and it will be encrypted and streamed securely through the same WebRTC pipeline, complete with a convenient 'Copy All' button for the receiver."
+                      }
+                    }
+                  ]
+                }
+              ]
             })
           }}
         />

@@ -69,6 +69,9 @@ export function TopNav() {
           <Link href="/about" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
             About Us
           </Link>
+          <Link href="/blog" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
+            Blog
+          </Link>
         </div>
 
         {/* Right cluster */}
@@ -116,6 +119,9 @@ export function TopNav() {
               </Link>
               <Link href="/about" onClick={() => setIsMenuOpen(false)} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all flex items-center gap-3">
                 About Us
+              </Link>
+              <Link href="/blog" onClick={() => setIsMenuOpen(false)} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all flex items-center gap-3">
+                Blog
               </Link>
             </motion.div>
           )}

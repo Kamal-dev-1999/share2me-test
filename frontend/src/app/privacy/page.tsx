@@ -2,8 +2,11 @@ import { TopNav } from "@/components/TopNav";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy | Share2Me",
-  description: "Share2Me Privacy Policy and Data Handling Practices",
+  title: "Privacy Policy — Safe P2P File Sharing | Share2Me",
+  description: "Read the Share2Me Privacy Policy. Learn about our secure, zero-knowledge peer-to-peer file sharing and text transfer architecture.",
+  alternates: {
+    canonical: "/privacy",
+  },
 };
 
 export default function PrivacyPage() {

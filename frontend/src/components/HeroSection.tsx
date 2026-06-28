@@ -59,6 +59,8 @@ export function HeroSection() {
               loop
               muted
               playsInline
+              aria-label="Secure WebRTC peer-to-peer file transfer looping animation"
+              title="Secure WebRTC P2P Transfer Animation"
               className="w-full h-auto object-contain mix-blend-screen contrast-125 translate-x-[6%]"
               style={{
                 maskImage: "linear-gradient(to left, transparent 0%, transparent 12%, black 25%), linear-gradient(to right, transparent 0%, black 10%), linear-gradient(to bottom, transparent 0%, black 10%), linear-gradient(to top, transparent 0%, black 10%)",
