@@ -12,7 +12,7 @@ export function SeoContent() {
           </h2>
           <p className="text-[16px] md:text-[18px] text-text-secondary leading-relaxed">
             Share2Me is a next-generation file sharing and text sharing platform that connects your devices directly. 
-            By utilizing modern WebRTC peer-to-peer technology, your data travels straight from your browser to the receiver's browser. 
+            By utilizing modern WebRTC peer-to-peer technology, your data travels straight from your browser to the receiver&apos;s browser. 
             No cloud storage, no file size limits, and no middlemen.
           </p>
         </div>
@@ -37,7 +37,7 @@ export function SeoContent() {
             </div>
             <h3 className="text-xl font-bold mb-3">End-to-End Encrypted</h3>
             <p className="text-text-secondary text-[15px] leading-relaxed">
-              Every file sharing and text sharing session is secured with military-grade AES-GCM encryption. We don't store your files, we can't see your data, and nobody else can intercept it.
+              Every file sharing and text sharing session is secured with military-grade AES-GCM encryption. We don&apos;t store your files, we can&apos;t see your data, and nobody else can intercept it.
             </p>
           </div>
 
