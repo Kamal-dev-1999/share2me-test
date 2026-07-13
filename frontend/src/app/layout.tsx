@@ -12,8 +12,9 @@ export const metadata: Metadata = {
     default: "Share2Me — Secure P2P File Transfer & Send Large Files Free",
     template: "%s | Share2Me"
   },
-  description: "Send large files and text clipboard data instantly between any device using secure, end-to-end encrypted (AES-GCM-256) peer-to-peer (P2P) WebRTC. Zero file limits, no sign-ups, and zero cloud storage.",
+  description: "Send large files and text clipboard data instantly between any device using Share2Me (also known as Share 2 Me, Share To, or Share2). Secure, end-to-end encrypted (AES-GCM-256) peer-to-peer (P2P) WebRTC. Zero file limits, no sign-ups, and zero cloud storage.",
   keywords: [
+    "share2", "share to", "share 2 me", "share2me", "share to me", "share-to-me",
     "file sharing", "P2P file transfer", "WebRTC file sharing", "secure file transfer",
     "share files between devices", "peer to peer file sharing", "send large files free",
     "secure file transfer online", "send big files free", "online text sharing",
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Share2Me — Secure P2P File Transfer & Send Large Files Free",
-    description: "Send large files and text clipboard data instantly between any device using secure, end-to-end encrypted (AES-GCM-256) P2P WebRTC. Zero limits, no sign-ups.",
+    description: "Send large files and text clipboard data instantly between any device using Share2Me (also known as Share 2 Me, Share To, or Share2) secure, end-to-end encrypted (AES-GCM-256) P2P WebRTC.",
     url: 'https://share2.me',
     siteName: 'Share2Me',
     locale: 'en_US',
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: "Share2Me — Secure P2P File Transfer & Send Large Files Free",
-    description: "Send large files and text clipboard data instantly between any device using secure, end-to-end encrypted (AES-GCM-256) P2P WebRTC. Zero limits, no sign-ups.",
+    description: "Send large files and text clipboard data instantly between any device using Share2Me (also known as Share 2 Me, Share To, or Share2) secure, end-to-end encrypted (AES-GCM-256) P2P WebRTC.",
   },
   robots: {
     index: true,
@@ -72,9 +73,40 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@graph": [
                 {
+                  "@type": "WebSite",
+                  "@id": "https://share2.me/#website",
+                  "url": "https://share2.me",
+                  "name": "Share2Me",
+                  "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
+                  "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": {
+                      "@type": "EntryPoint",
+                      "urlTemplate": "https://share2.me/?q={search_term_string}"
+                    },
+                    "query-input": "required name=search_term_string"
+                  }
+                },
+                {
+                  "@type": "Organization",
+                  "@id": "https://share2.me/#organization",
+                  "name": "Share2Me",
+                  "url": "https://share2.me",
+                  "logo": "https://share2.me/logo.png",
+                  "brand": {
+                    "@type": "Brand",
+                    "name": "Share2Me",
+                    "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"]
+                  },
+                  "sameAs": [
+                    "https://github.com/share2me"
+                  ]
+                },
+                {
                   "@type": "WebApplication",
                   "@id": "https://share2.me/#webapp",
                   "name": "Share2Me",
+                  "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
                   "url": "https://share2.me",
                   "description": "Secure, unlimited P2P file sharing and text sharing directly in your browser. No cloud storage, no sign-ups required.",
                   "applicationCategory": "UtilitiesApplication",
@@ -84,6 +116,28 @@ export default function RootLayout({
                     "price": "0",
                     "priceCurrency": "USD"
                   }
+                },
+                {
+                  "@type": "SoftwareApplication",
+                  "@id": "https://share2.me/#softwareapp",
+                  "name": "Share2Me",
+                  "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
+                  "url": "https://share2.me",
+                  "applicationCategory": "UtilitiesApplication",
+                  "operatingSystem": "All",
+                  "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                  },
+                  "featureList": [
+                    "Peer-to-Peer file transfer",
+                    "End-to-End Encryption (AES-GCM-256)",
+                    "Ephemeral key exchange (ECDH P-256)",
+                    "No file size limit",
+                    "Text clipboard sharing",
+                    "Cross-platform WebRTC streaming"
+                  ]
                 },
                 {
                   "@type": "FAQPage",
@@ -136,14 +190,18 @@ export default function RootLayout({
           }}
         />
         <Script async src="https://www.googletagmanager.com/gtag/js?id=G-8XDS75JXYK" strategy="afterInteractive" />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-8XDS75JXYK');
-          `}
-        </Script>
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-8XDS75JXYK');
+            `
+          }}
+        />
       </head>
       <body className="min-h-screen bg-background text-text-primary antialiased">
         <SplashScreen />

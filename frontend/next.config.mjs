@@ -8,7 +8,13 @@ const nextConfig = {
   images: {
     // Allow data: URIs (used for QR code base64 images)
     dangerouslyAllowSVG: true,
-    remotePatterns: [],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/**',
+      }
+    ],
     // data: URLs are generated locally by qrcode package — safe to allow
     unoptimized: true,
   },

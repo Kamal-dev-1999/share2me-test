@@ -4,7 +4,8 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
-      allow: '/',
+      allow: ['/', '/p2p', '/g2p', '/about', '/blog', '/how-it-works', '/privacy', '/terms'],
+      disallow: ['/p2p/*', '/g2p/*'],
     },
     sitemap: 'https://share2.me/sitemap.xml',
   };

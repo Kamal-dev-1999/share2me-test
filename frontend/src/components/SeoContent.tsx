@@ -1,42 +1,7 @@
 "use client";
-import { useState } from "react";
-import { Shield, Zap, Lock, HardDrive, Wifi, Smartphone, ChevronDown, HelpCircle } from "lucide-react";
-
-interface FAQItem {
-  q: string;
-  a: string;
-}
-
-const FAQ_ITEMS: FAQItem[] = [
-  {
-    q: "What is the maximum file size limit on Share2Me?",
-    a: "There are absolutely no file size limits on Share2Me. Because the transfer is established directly peer-to-peer (P2P) between the sender and receiver browsers via WebRTC, the data does not pass through or store on any intermediate cloud server."
-  },
-  {
-    q: "Is my data secure when transferring files and text?",
-    a: "Yes, completely secure. All transfers are end-to-end encrypted using military-grade AES-GCM-256 encryption. The encryption key is derived locally on your device via ephemeral ECDH (P-256) key exchange, meaning the raw key never leaves your browser and cannot be read by anyone, including the signaling server."
-  },
-  {
-    q: "Do both devices need to be online at the same time?",
-    a: "Yes. Because Share2Me uses direct WebRTC peer-to-peer tunnels to transfer data, both the sending device and the receiving device must have the page open and be online concurrently to perform the transfer."
-  },
-  {
-    q: "Can I transfer files between different operating systems?",
-    a: "Absolutely. Share2Me is entirely browser-native and cross-platform. It works seamlessly between iOS, Android, macOS, Windows, Linux, and any other operating system running a modern web browser, without needing any software installations."
-  },
-  {
-    q: "Can I send clipboard text and messages securely?",
-    a: "Yes. Share2Me offers a dedicated Text Transfer mode. Copy-paste any text, passwords, or code snippets, and it will be encrypted and streamed securely through the same WebRTC pipeline, complete with a convenient 'Copy All' button for the receiver."
-  }
-];
+import { Shield, Zap, Lock, HardDrive, Wifi, Smartphone } from "lucide-react";
 
 export function SeoContent() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const toggleFAQ = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
-
   return (
     <section className="w-full max-w-[1440px] mx-auto px-6 lg:px-8 pb-24 text-text-primary">
       <div className="flex flex-col gap-16">
@@ -47,7 +12,7 @@ export function SeoContent() {
             The Secure, Zero-Cloud Way to Share Large Files & Text Online
           </h2>
           <p className="text-[16px] md:text-[18px] text-text-secondary leading-relaxed">
-            Share2Me is a next-generation peer-to-peer (P2P) file sharing and text sharing platform that connects devices directly in the browser. 
+            Share2Me (also commonly searched as Share 2 Me, Share To, or Share2) is a next-generation peer-to-peer (P2P) file sharing and text sharing platform that connects devices directly in the browser. 
             By utilizing modern WebRTC technology, your files and text clipboard data travel straight from your browser to the receiver&apos;s browser. 
             Enjoy unlimited file transfers, zero sign-ups, and military-grade encryption without the cloud storage middleman.
           </p>
@@ -101,7 +66,7 @@ export function SeoContent() {
                   Traditional file sharing websites force you to upload your sensitive data to their cloud servers. Then, the receiver has to download it from that server. This wastes time, compromises your privacy, and imposes strict file size limits.
                 </p>
                 <p>
-                  Share2Me uses a technology called <strong>WebRTC</strong>. When you enter a 6-digit code, our signaling server introduces the two devices to each other. Once connected, a secure, direct tunnel is created. 
+                  Share2Me (also known as Share 2 Me, Share To, or Share2) uses a technology called <strong>WebRTC</strong>. When you enter a 6-digit code, our signaling server introduces the two devices to each other. Once connected, a secure, direct tunnel is created. 
                 </p>
                 <ul className="list-disc pl-5 space-y-2 mt-4 text-text-primary">
                   <li><strong>Fastest Transfer Speeds:</strong> Share files over your local WiFi network instantly at maximum bandwidth.</li>
@@ -125,53 +90,6 @@ export function SeoContent() {
                  <span className="font-semibold text-text-primary">Works on all Desktop & Mobile Browsers</span>
                </div>
             </div>
-          </div>
-        </div>
-
-        {/* Premium Interactive FAQ Accordion Component */}
-        <div className="mt-8">
-          <div className="text-center max-w-2xl mx-auto mb-10 space-y-4">
-            <h2 className="text-2xl md:text-3xl font-display font-bold">Frequently Asked Questions</h2>
-            <p className="text-text-secondary text-sm md:text-base">
-              Got questions about browser-native P2P file transfers? We have answers.
-            </p>
-          </div>
-
-          <div className="max-w-3xl mx-auto space-y-4">
-            {FAQ_ITEMS.map((item, idx) => {
-              const isOpen = openIndex === idx;
-              return (
-                <div
-                  key={idx}
-                  className="bg-background-elevated border border-border rounded-[16px] overflow-hidden transition-all duration-300"
-                >
-                  <button
-                    onClick={() => toggleFAQ(idx)}
-                    className="w-full flex items-center justify-between p-6 text-left hover:bg-border/20 transition-all focus:outline-none"
-                    aria-expanded={isOpen}
-                  >
-                    <div className="flex items-center gap-4">
-                      <HelpCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                      <span className="font-bold text-text-primary text-[15px] md:text-[16px]">{item.q}</span>
-                    </div>
-                    <ChevronDown
-                      className={`w-5 h-5 text-text-tertiary transition-transform duration-300 flex-shrink-0 ${
-                        isOpen ? "transform rotate-180 text-primary" : ""
-                      }`}
-                    />
-                  </button>
-                  <div
-                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                      isOpen ? "max-h-[300px] border-t border-border" : "max-h-0"
-                    }`}
-                  >
-                    <div className="p-6 text-[14px] md:text-[15px] text-text-secondary leading-relaxed bg-background/30">
-                      {item.a}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
 

@@ -1,62 +1,37 @@
 "use client";
 import { TopNav } from "@/components/TopNav";
 import Link from "next/link";
-import { Shield, Zap, Lock, BookOpen, Clock, ArrowRight } from "lucide-react";
+import { Shield, Zap, Lock, BookOpen, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-
-interface BlogCard {
-  title: string;
-  excerpt: string;
-  slug: string;
-  readTime: string;
-  category: string;
-  date: string;
-  icon: React.ComponentType<{ className?: string }>;
-  glowColor: string;
-  borderColor: string;
-  hoverBg: string;
-}
-
-const ARTICLES: BlogCard[] = [
-  {
-    title: "How to Transfer Files Peer-to-Peer in the Browser",
-    excerpt: "Discover how WebRTC technology enables direct browser-to-browser data transfer with zero server storage, yielding unmatched transfer speeds and total privacy.",
-    slug: "p2p-file-transfer-browser-guide",
-    readTime: "6 min read",
-    category: "WebRTC",
-    date: "June 28, 2026",
-    icon: Zap,
-    glowColor: "shadow-[0_0_15px_rgba(252,213,53,0.15)]",
-    borderColor: "group-hover:border-primary/50",
-    hoverBg: "hover:bg-primary/5",
-  },
-  {
-    title: "End-to-End Encryption in Web Apps via Web Crypto API",
-    excerpt: "Learn how to use native in-browser cryptographic tools (AES-GCM-256 and ECDH P-256 key exchange) to encrypt file chunks before they touch the wire.",
-    slug: "end-to-end-encryption-web-crypto-api",
-    readTime: "8 min read",
-    category: "Cryptography",
-    date: "June 25, 2026",
-    icon: Lock,
-    glowColor: "shadow-[0_0_15px_rgba(185,103,255,0.15)]",
-    borderColor: "group-hover:border-[#B967FF]/50",
-    hoverBg: "hover:bg-[#B967FF]/5",
-  },
-  {
-    title: "WebRTC vs Cloud Storage: Which is Best for File Transfers?",
-    excerpt: "A deep dive comparing P2P data channels against standard cloud services (Google Drive, Dropbox) in terms of security, performance, limits, and cost.",
-    slug: "webrtc-vs-cloud-storage-file-transfer",
-    readTime: "5 min read",
-    category: "Architecture",
-    date: "June 20, 2026",
-    icon: Shield,
-    glowColor: "shadow-[0_0_15px_rgba(45,212,191,0.15)]",
-    borderColor: "group-hover:border-[#2dd4bf]/50",
-    hoverBg: "hover:bg-[#2dd4bf]/5",
-  }
-];
+import { DATABASE } from "./db";
 
 export default function BlogIndexClient() {
+  const getCategoryIcon = (category: string) => {
+    const cat = category.toLowerCase();
+    if (cat.includes("webrtc") || cat.includes("tech")) return Zap;
+    if (cat.includes("cryptography") || cat.includes("security")) return Lock;
+    if (cat.includes("comparison")) return Shield;
+    return BookOpen;
+  };
+
+  const getCategoryGlow = (category: string) => {
+    const cat = category.toLowerCase();
+    if (cat.includes("webrtc") || cat.includes("tech")) return "shadow-[0_0_15px_rgba(252,213,53,0.15)]";
+    if (cat.includes("cryptography") || cat.includes("security")) return "shadow-[0_0_15px_rgba(185,103,255,0.15)]";
+    return "shadow-[0_0_15px_rgba(45,212,191,0.15)]";
+  };
+
+  const articlesList = Object.entries(DATABASE).map(([slug, article]) => ({
+    slug,
+    title: article.title,
+    excerpt: article.intro.substring(0, 150) + "...",
+    category: article.category,
+    readTime: article.readTime,
+    date: article.date,
+    icon: getCategoryIcon(article.category),
+    glowColor: getCategoryGlow(article.category)
+  }));
+
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden text-text-primary">
       {/* Glow Backdrops */}
@@ -97,8 +72,8 @@ export default function BlogIndexClient() {
 
         {/* Articles Feed */}
         <section className="mb-32">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {ARTICLES.map((article, i) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {articlesList.map((article, i) => {
               const Icon = article.icon;
               return (
                 <motion.div
@@ -107,7 +82,7 @@ export default function BlogIndexClient() {
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                  transition={{ duration: 0.5, delay: i * 0.05 }}
                   className="group flex flex-col justify-between bg-background-card/50 backdrop-blur-xl rounded-[32px] border border-border p-8 hover:border-primary/50 transition-all duration-300 shadow-lg"
                 >
                   <div>
@@ -116,10 +91,6 @@ export default function BlogIndexClient() {
                       <span className="bg-background-elevated border border-border px-3 py-1.5 rounded-full font-bold uppercase tracking-wider text-text-secondary">
                         {article.category}
                       </span>
-                      <div className="flex items-center gap-1.5 font-medium">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>{article.readTime}</span>
-                      </div>
                     </div>
 
                     {/* Icon Display */}
