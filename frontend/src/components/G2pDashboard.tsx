@@ -3,8 +3,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Copy, Check, Search, Download, Trash2, Calendar,
   ArrowUpDown, User, Mail, FileText, FileImage, Film,
-  Music, FolderArchive, Settings, LogOut, Volume2, VolumeX,
-  FileCheck, Activity, ChevronDown
+  FolderArchive, Settings, LogOut, Volume2, VolumeX,
+  Inbox, QrCode, ChevronDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -22,7 +22,7 @@ interface UploadedFile {
   name: string;
   size: number;
   type: string;
-  dataUrl?: string; // for small images
+  dataUrl?: string;
 }
 
 interface UploadRecord {
@@ -34,6 +34,152 @@ interface UploadRecord {
   uploadedAt: string;
 }
 
+type TabMode = "inbox" | "share";
+
+function getFileIcon(type: string) {
+  if (type.startsWith("image/")) return FileImage;
+  if (type.startsWith("video/")) return Film;
+  if (type.includes("zip") || type.includes("rar")) return FolderArchive;
+  return FileText;
+}
+
+function formatSize(bytes: number) {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+function triggerDownload(file: UploadedFile) {
+  const url = file.dataUrl || URL.createObjectURL(new Blob([`Mock content: ${file.name}`], { type: "text/plain" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.name;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// -------------------------------------------------------------
+// Expandable Upload Record Component
+// -------------------------------------------------------------
+function UploadRecordItem({
+  record,
+  onDelete
+}: {
+  record: UploadRecord;
+  onDelete: (id: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="bg-background-card border border-border rounded-2xl p-5 hover:border-primary/30 transition-colors shadow-sm overflow-hidden"
+    >
+      {/* HEADER (Always Visible) */}
+      <div 
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-lg font-bold text-primary shadow-glow shrink-0 transition-transform group-hover:scale-105">
+            {record.senderName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-semibold text-text-primary group-hover:text-primary transition-colors">{record.senderName}</span>
+              <span className="px-2 py-0.5 rounded bg-background border border-border text-[10px] font-bold text-text-secondary tracking-wider uppercase">
+                {record.files.length} file{record.files.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="text-xs font-medium text-text-tertiary mt-1 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5" />
+              {new Date(record.uploadedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3 ml-16 sm:ml-0" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={(e) => { e.stopPropagation(); record.files.forEach(f => triggerDownload(f)); }}
+            className="px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-background border border-primary/20 hover:border-primary text-sm font-bold transition-all flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> <span className="hidden sm:inline">Download All</span>
+          </button>
+          
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(record.uploadId); }}
+            className="p-2.5 rounded-xl border border-border text-text-tertiary hover:text-status-error hover:bg-status-error/10 hover:border-status-error/30 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          
+          <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
+          
+          <button className="p-2 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-background-elevated transition-colors">
+             <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* EXPANDED CONTENT (Message & File List) */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="pt-6 mt-5 border-t border-border">
+              {record.message && (
+                <div className="mb-5 pl-4 border-l-2 border-primary/40 text-sm text-text-secondary leading-relaxed italic bg-background/50 py-2 rounded-r-lg">
+                  "{record.message}"
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {record.files.map((file, idx) => {
+                  const Icon = getFileIcon(file.type);
+                  return (
+                    <div
+                      key={idx}
+                      onClick={(e) => { e.stopPropagation(); triggerDownload(file); }}
+                      className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-background hover:bg-background-elevated hover:border-primary/40 cursor-pointer transition-all group"
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-background-elevated border border-border flex items-center justify-center shrink-0 group-hover:border-primary/30 transition-colors">
+                          <Icon className="w-5 h-5 text-text-tertiary group-hover:text-primary transition-colors" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium text-text-primary truncate group-hover:text-primary transition-colors">{file.name}</span>
+                          <span className="text-xs text-text-tertiary mt-1">{formatSize(file.size)}</span>
+                        </div>
+                      </div>
+                      <div className="w-9 h-9 rounded-full bg-background border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3 shadow-sm">
+                        <Download className="w-4 h-4 text-text-secondary group-hover:text-primary" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// -------------------------------------------------------------
+// Main Dashboard Component
+// -------------------------------------------------------------
 export default function G2pDashboard({
   user,
   onLogout
@@ -41,20 +187,14 @@ export default function G2pDashboard({
   user: UserProfile;
   onLogout: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<TabMode>("inbox");
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
   const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest");
   const [copied, setCopied] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [usernameEdit, setUsernameEdit] = useState(user.username);
-  const [isEditingUsername, setIsEditingUsername] = useState(false);
-  const [usernameError, setUsernameError] = useState("");
   const audioContextRef = useRef<AudioContext | null>(null);
-  const [activeTab, setActiveTab] = useState<"portal" | "history" | "settings">("portal");
-  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Play synthetic clean notification chime
   const playChime = useCallback(() => {
     if (!soundEnabled) return;
     try {
@@ -62,69 +202,48 @@ export default function G2pDashboard({
         audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
+      const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-
-      osc1.type = "sine";
-      osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
-
-      osc2.type = "sine";
-      osc2.frequency.setValueAtTime(293.66, ctx.currentTime); // D4
-      osc2.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15); // A4
-
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-
-      osc1.connect(gain);
-      osc2.connect(gain);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.connect(gain);
       gain.connect(ctx.destination);
-
-      osc1.start();
-      osc2.start();
-      osc1.stop(ctx.currentTime + 0.6);
-      osc2.stop(ctx.currentTime + 0.6);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
     } catch (e) {
-      console.warn("Chime failed:", e);
+      console.warn("Chime failed", e);
     }
   }, [soundEnabled]);
 
-  // Load uploads from mock DB in local storage
   const loadUploads = useCallback(() => {
     const allUploads: UploadRecord[] = JSON.parse(localStorage.getItem("share2me_mock_uploads") || "[]");
     const filtered = allUploads.filter(u => u.receiverUserId === user.userId);
-    
     setUploads(prev => {
-      if (prev.length > 0 && filtered.length > prev.length) {
-        playChime();
-      }
+      if (prev.length > 0 && filtered.length > prev.length) playChime();
       return filtered;
     });
   }, [user.userId, playChime]);
 
   useEffect(() => {
     loadUploads();
-
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "share2me_mock_uploads") {
-        loadUploads();
-      }
+      if (e.key === "share2me_mock_uploads") loadUploads();
     };
     window.addEventListener("storage", handleStorageChange);
-    const interval = setInterval(loadUploads, 1500);
-
+    const interval = setInterval(loadUploads, 2000);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       clearInterval(interval);
     };
-  }, [user.userId, loadUploads]);
+  }, [loadUploads]);
 
   const shareLink = typeof window !== "undefined"
     ? `${window.location.origin}/g2p/${user.shareCode}`
     : `https://share2.me/g2p/${user.shareCode}`;
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=fcd535&bgcolor=181a20&data=${encodeURIComponent(shareLink)}`;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=fcd535&bgcolor=1e2329&data=${encodeURIComponent(shareLink)}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(user.shareCode);
@@ -132,553 +251,190 @@ export default function G2pDashboard({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleUpdateUsername = () => {
-    const trimmed = usernameEdit.trim();
-    if (!trimmed) {
-      setUsernameError("Username cannot be empty");
-      return;
-    }
-    if (trimmed.length < 3) {
-      setUsernameError("Username must be at least 3 characters");
-      return;
-    }
-    
-    const users: UserProfile[] = JSON.parse(localStorage.getItem("share2me_mock_users") || "[]");
-    const updatedUsers = users.map(u => {
-      if (u.userId === user.userId) {
-        return { ...u, username: trimmed };
-      }
-      return u;
-    });
-    localStorage.setItem("share2me_mock_users", JSON.stringify(updatedUsers));
-    
-    const currentSession = JSON.parse(localStorage.getItem("share2me_current_user") || "{}");
-    currentSession.username = trimmed;
-    localStorage.setItem("share2me_current_user", JSON.stringify(currentSession));
-    
-    setIsEditingUsername(false);
-    setUsernameError("");
-    window.dispatchEvent(new Event("share2me_user_updated"));
-  };
-
   const handleDeleteUpload = (uploadId: string) => {
     const allUploads: UploadRecord[] = JSON.parse(localStorage.getItem("share2me_mock_uploads") || "[]");
-    const filtered = allUploads.filter(u => u.uploadId !== uploadId);
-    localStorage.setItem("share2me_mock_uploads", JSON.stringify(filtered));
+    localStorage.setItem("share2me_mock_uploads", JSON.stringify(allUploads.filter(u => u.uploadId !== uploadId)));
     loadUploads();
   };
 
-  const getFileIcon = (type: string) => {
-    if (type.startsWith("image/")) return FileImage;
-    if (type.startsWith("video/")) return Film;
-    if (type.startsWith("audio/")) return Music;
-    if (type.includes("zip") || type.includes("rar") || type.includes("tar") || type.includes("compressed")) return FolderArchive;
-    return FileText;
-  };
-
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const triggerDownload = (file: UploadedFile) => {
-    if (file.dataUrl) {
-      const link = document.createElement("a");
-      link.href = file.dataUrl;
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      const dummyContent = `Mock file content for: ${file.name}\nSize: ${file.size} bytes\nType: ${file.type}`;
-      const blob = new Blob([dummyContent], { type: "text/plain" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
   const processedUploads = uploads
-    .filter(u => {
-      const matchQuery = u.senderName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         (u.message && u.message.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      if (!dateFilter) return matchQuery;
-      
-      const uploadDate = new Date(u.uploadedAt).toISOString().split("T")[0];
-      return matchQuery && uploadDate === dateFilter;
-    })
+    .filter(u => u.senderName.toLowerCase().includes(searchQuery.toLowerCase()) || (u.message && u.message.toLowerCase().includes(searchQuery.toLowerCase())))
     .sort((a, b) => {
       const timeA = new Date(a.uploadedAt).getTime();
       const timeB = new Date(b.uploadedAt).getTime();
       return sortOrder === "latest" ? timeB - timeA : timeA - timeB;
     });
 
-  const totalBytesReceived = uploads.reduce((acc, curr) => {
-    return acc + curr.files.reduce((fAcc, f) => fAcc + f.size, 0);
-  }, 0);
-
   return (
-    <div className="space-y-6 text-text-primary font-sans antialiased bg-[#0b0e11] rounded-[24px] border border-[#2f3336] overflow-hidden shadow-2xl p-4 sm:p-6 lg:p-8">
+    <div className="flex gap-4 sm:gap-6 text-text-primary font-sans relative">
       
-      {/* 1. Header / Navigation Strip */}
-      <div className="flex flex-col sm:flex-row items-center justify-between border-b border-[#2f3336] pb-6 gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center">
-            <Activity className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold font-display tracking-tight text-text-primary">G2P Portal Workspace</h2>
-            <p className="text-xs text-text-tertiary">Real-time Node: Online</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* Sound Preferences */}
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#2f3336] bg-[#181a20] hover:bg-[#20232a] text-xs font-bold text-text-secondary transition-colors"
-          >
-            {soundEnabled ? (
-              <>
-                <Volume2 className="w-3.5 h-3.5 text-primary" />
-                <span>Audio Alert On</span>
-              </>
-            ) : (
-              <>
-                <VolumeX className="w-3.5 h-3.5 text-text-tertiary" />
-                <span>Alert Muted</span>
-              </>
-            )}
-          </button>
-
-          {/* Logout */}
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-status-error/20 bg-status-error/5 hover:bg-status-error/15 text-xs font-bold text-status-error transition-all"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Logout</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Navigation Dropdown (Matches User's Screenshot) */}
-      <div className="lg:hidden relative z-40 mb-2">
+      {/* LEFT FLOATING NAVIGATION PILL */}
+      <div className="sticky top-24 shrink-0 flex flex-col items-center gap-3 bg-background-elevated/90 backdrop-blur-md border border-border rounded-full p-2.5 shadow-xl h-fit z-20">
+        
+        {/* Inbox Tab */}
         <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="w-full bg-[#181a20] border border-[#2f3336] rounded-xl px-4 py-3 flex items-center justify-between text-sm font-bold text-[#eaecef] active:scale-[0.99] transition-all"
+          onClick={() => setActiveTab("inbox")}
+          title="Inbox"
+          className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${
+            activeTab === "inbox" ? "bg-primary text-background shadow-glow" : "text-text-tertiary hover:bg-background-card hover:text-primary"
+          }`}
         >
-          <div className="flex items-center gap-2.5">
-            {activeTab === "portal" && <FileCheck className="w-4 h-4 text-primary" />}
-            {activeTab === "history" && <Activity className="w-4 h-4 text-primary" />}
-            {activeTab === "settings" && <User className="w-4 h-4 text-primary" />}
-            <span className="capitalize">{activeTab === "portal" ? "Deposit Portal" : activeTab === "history" ? "Deposit History" : "Account Settings"}</span>
-          </div>
-          <ChevronDown className={`w-4 h-4 text-[#848e9c] transition-transform duration-200 ${menuOpen ? "rotate-180" : ""}`} />
+          <Inbox className="w-5 h-5" />
+          {uploads.length > 0 && activeTab !== "inbox" && (
+            <span className="absolute top-0 right-0 w-3 h-3 bg-primary border-2 border-background-elevated rounded-full"></span>
+          )}
         </button>
 
-        <AnimatePresence>
-          {menuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="absolute top-full left-0 right-0 mt-2 bg-[#181a20] border border-[#2f3336] rounded-xl shadow-xl overflow-hidden py-1 z-50"
-            >
-              <button
-                onClick={() => { setActiveTab("portal"); setMenuOpen(false); }}
-                className={`w-full px-4 py-3 flex items-center gap-3 text-xs font-semibold hover:bg-[#20232a] text-left transition-colors ${activeTab === "portal" ? "text-primary bg-[#20232a]/30" : "text-[#848e9c]"}`}
-              >
-                <FileCheck className="w-4 h-4" />
-                <span>Deposit Portal</span>
-              </button>
+        {/* Share/QR Tab */}
+        <button
+          onClick={() => setActiveTab("share")}
+          title="Share Portal"
+          className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${
+            activeTab === "share" ? "bg-primary text-background shadow-glow" : "text-text-tertiary hover:bg-background-card hover:text-primary"
+          }`}
+        >
+          <QrCode className="w-5 h-5" />
+        </button>
 
-              <button
-                onClick={() => { setActiveTab("history"); setMenuOpen(false); }}
-                className={`w-full px-4 py-3 flex items-center gap-3 text-xs font-semibold hover:bg-[#20232a] text-left transition-colors ${activeTab === "history" ? "text-primary bg-[#20232a]/30" : "text-[#848e9c]"}`}
-              >
-                <Activity className="w-4 h-4" />
-                <span>Deposit History</span>
-              </button>
+        <div className="w-6 h-px bg-border my-1" />
 
-              <button
-                onClick={() => { setActiveTab("settings"); setMenuOpen(false); }}
-                className={`w-full px-4 py-3 flex items-center gap-3 text-xs font-semibold hover:bg-[#20232a] text-left transition-colors ${activeTab === "settings" ? "text-primary bg-[#20232a]/30" : "text-[#848e9c]"}`}
-              >
-                <User className="w-4 h-4" />
-                <span>Account Settings</span>
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Settings / Utilities */}
+        <button
+          onClick={() => setSoundEnabled(!soundEnabled)}
+          title={soundEnabled ? "Mute Alerts" : "Enable Alerts"}
+          className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 text-text-tertiary hover:bg-background-card hover:text-primary"
+        >
+          {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+        </button>
+
+        <button
+          onClick={onLogout}
+          title="Logout"
+          className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 text-status-error hover:bg-status-error/10 hover:shadow-[0_0_15px_rgba(246,70,93,0.2)]"
+        >
+          <LogOut className="w-4 h-4 ml-1" />
+        </button>
       </div>
 
-      {/* 2. Top Summary & Sharing Portal Panel */}
-      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 pt-2 lg:pt-4">
-        
-        {/* Left Card: Account Info */}
-        <div className={`bg-[#181a20] border border-[#2f3336] rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden shadow-sm ${activeTab === "settings" ? "flex" : "hidden"} lg:flex`}>
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              {user.profilePhoto ? (
-                <img
-                  src={user.profilePhoto}
-                  alt={user.username}
-                  className="w-14 h-14 rounded-xl object-cover border border-[#2f3336] shadow"
-                />
-              ) : (
-                <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                  <User className="w-6 h-6 text-primary" />
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 min-w-0">
+        <AnimatePresence mode="wait">
+          
+          {/* --- INBOX VIEW --- */}
+          {activeTab === "inbox" && (
+            <motion.div
+              key="inbox"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="bg-background-card border border-border rounded-2xl flex flex-col overflow-hidden shadow-sm h-full min-h-[500px]"
+            >
+              <div className="p-6 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-background-card">
+                <div className="flex items-center gap-3 text-text-primary font-semibold">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Inbox className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg leading-tight">Received Files</h2>
+                    <p className="text-xs text-text-tertiary font-normal mt-0.5">{uploads.length} total transfers</p>
+                  </div>
                 </div>
-              )}
-              
-              <div className="flex-1 min-w-0">
-                {isEditingUsername ? (
-                  <div className="space-y-1.5">
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        value={usernameEdit}
-                        onChange={(e) => setUsernameEdit(e.target.value)}
-                        className="bg-[#0b0e11] border border-[#2f3336] rounded-lg px-2.5 py-1 text-xs text-text-primary focus:outline-none focus:border-primary/50 w-full"
-                        placeholder="Choose username"
+                
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-56">
+                    <Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search sender or message..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-background border border-border focus:border-primary/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setSortOrder(prev => prev === "latest" ? "oldest" : "latest")}
+                    className="bg-background border border-border hover:bg-background-elevated hover:text-primary text-sm font-medium text-text-secondary px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 shrink-0"
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                    <span className="hidden sm:inline">{sortOrder === "latest" ? "Latest First" : "Oldest First"}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-background">
+                <div className="space-y-4">
+                  <AnimatePresence mode="popLayout">
+                    {processedUploads.map((record) => (
+                      <UploadRecordItem 
+                        key={record.uploadId} 
+                        record={record} 
+                        onDelete={handleDeleteUpload} 
                       />
-                      <button
-                        onClick={handleUpdateUsername}
-                        className="bg-primary text-background hover:bg-opacity-95 font-bold rounded-lg px-2 py-1 text-[10px] transition-colors"
+                    ))}
+                  </AnimatePresence>
+
+                  {processedUploads.length === 0 && (
+                    <div className="flex flex-col items-center justify-center text-center py-24 px-4">
+                      <div className="w-20 h-20 rounded-3xl bg-background-elevated border border-border flex items-center justify-center mb-6">
+                        <Inbox className="w-10 h-10 text-text-tertiary" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-text-primary mb-3">Your inbox is empty</h3>
+                      <p className="text-sm text-text-tertiary max-w-sm leading-relaxed">
+                        No one has sent you files yet. Share your portal code with others so they can drop files securely into your inbox.
+                      </p>
+                      <button 
+                        onClick={() => setActiveTab("share")}
+                        className="mt-8 text-primary font-medium hover:text-primary-hover flex items-center gap-2"
                       >
-                        Save
+                        View your Share Portal <ArrowUpDown className="w-4 h-4 rotate-90" />
                       </button>
                     </div>
-                    {usernameError && <p className="text-status-error text-[10px] font-semibold">{usernameError}</p>}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 group">
-                    <h2 className="text-base font-bold text-text-primary truncate">{user.username}</h2>
-                    <button
-                      onClick={() => setIsEditingUsername(true)}
-                      className="text-text-tertiary hover:text-primary p-0.5 rounded transition-colors"
-                      title="Edit username"
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-                
-                <div className="flex items-center gap-1 text-[11px] text-text-tertiary mt-0.5">
-                  <Mail className="w-3 h-3" />
-                  <span className="truncate">{user.email}</span>
+                  )}
                 </div>
               </div>
-            </div>
+            </motion.div>
+          )}
 
-            <div className="space-y-2.5 pt-4 border-t border-[#2f3336] text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-text-tertiary">Registered Email</span>
-                <span className="text-text-secondary truncate max-w-[150px]">{user.email}</span>
+          {/* --- SHARE PORTAL VIEW --- */}
+          {activeTab === "share" && (
+            <motion.div
+              key="share"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="bg-background-card border border-border rounded-2xl p-8 flex flex-col items-center text-center shadow-sm relative overflow-hidden h-full min-h-[500px] justify-center"
+            >
+              <div className="absolute top-[-20%] left-[-20%] w-full h-full bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
+              
+              <div className="w-20 h-20 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center mb-8 relative z-10 shadow-glow">
+                <QrCode className="w-10 h-10 text-primary" />
               </div>
-              <div className="flex justify-between">
-                <span className="text-text-tertiary">Account Node ID</span>
-                <span className="text-text-secondary font-mono">{user.userId}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-tertiary">Registration Date</span>
-                <span className="text-text-secondary">{new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Right 2 Columns: Deposit Portal */}
-        <div className={`lg:col-span-2 bg-[#181a20] border border-[#2f3336] rounded-2xl p-6 flex flex-col md:flex-row gap-6 items-center shadow-sm relative ${activeTab === "portal" ? "flex" : "hidden"} lg:flex`}>
-          
-          {/* QR Code */}
-          <div className="w-40 h-40 bg-[#0b0e11] border border-[#2f3336] rounded-xl p-2.5 flex items-center justify-center shrink-0 shadow-inner group">
-            <img
-              src={qrImageUrl}
-              alt="Receiver QR Code"
-              className="w-full h-full object-contain"
-            />
-          </div>
-
-          {/* Share links and text */}
-          <div className="flex-1 space-y-4 w-full text-center md:text-left">
-            <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md border border-primary/20 bg-primary/5 text-[10px] text-primary font-bold tracking-wider uppercase mb-2">
-                <FileCheck className="w-3 h-3" />
-                Deposit Portal Ready
-              </div>
-              <h3 className="text-lg font-bold text-text-primary mb-1.5">Direct Share Code & QR</h3>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                Provide your custom Share Code or QR code. Anyone can deposit documents, images, zip files, or text messages directly to your dashboard.
+              <h2 className="text-2xl font-semibold text-text-primary mb-3 relative z-10">Your Share Portal</h2>
+              <p className="text-sm text-text-tertiary mb-10 max-w-md relative z-10 leading-relaxed">
+                Scan the QR code or share your unique code. Anyone with this code can upload files directly to your inbox, even if you are offline.
               </p>
-            </div>
 
-            {/* Simulated Coin/Network selectors for Binance authenticity */}
-            <div className="grid grid-cols-2 gap-3 text-[11px] bg-[#0b0e11] border border-[#2f3336] rounded-xl p-2.5">
-              <div className="space-y-0.5">
-                <span className="text-text-tertiary block">Asset Coin</span>
-                <span className="text-text-primary font-bold flex items-center gap-1.5 font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  FILE (Data Payload)
-                </span>
-              </div>
-              <div className="space-y-0.5">
-                <span className="text-text-tertiary block font-mono">Network protocol</span>
-                <span className="text-text-primary font-bold">WebRTC Signal Tunnel</span>
-              </div>
-            </div>
-
-            {/* Link Box */}
-            <div className="flex flex-col sm:flex-row gap-2.5">
-              <div className="flex-1 bg-[#0b0e11] border border-[#2f3336] rounded-xl px-3.5 py-2.5 font-mono text-xs text-text-primary flex items-center justify-between shadow-inner overflow-hidden select-all">
-                <span className="truncate mr-2 font-bold tracking-wider">{user.shareCode}</span>
-                <span className="text-[9px] font-extrabold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded font-sans uppercase tracking-wider shrink-0 select-none">
-                  DEPOSIT ADDRESS
-                </span>
+              <div className="w-full max-w-sm bg-background rounded-2xl border border-border p-6 flex justify-center mb-8 relative z-10 shadow-xl">
+                <img src={qrImageUrl} alt="QR Code" className="w-56 h-56 rounded-xl shadow-glow" />
               </div>
               
-              <button
-                onClick={copyToClipboard}
-                className="bg-primary text-background hover:bg-opacity-90 font-bold px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm shrink-0 active:scale-[0.98] text-xs sm:text-sm"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    <span>Copy Code</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 3. Binance Asset Metrics / Status Widgets */}
-      <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 ${activeTab === "history" ? "grid" : "hidden"} lg:grid`}>
-        
-        {/* Metric 1 */}
-        <div className="bg-[#181a20] border border-[#2f3336] rounded-xl p-4 space-y-1">
-          <span className="text-[10px] text-text-tertiary font-bold tracking-wider uppercase font-mono">Total Deposits</span>
-          <div className="text-xl font-bold font-mono text-text-primary">
-            {uploads.length} <span className="text-xs text-text-secondary font-sans font-medium">uploads</span>
-          </div>
-        </div>
-
-        {/* Metric 2 */}
-        <div className="bg-[#181a20] border border-[#2f3336] rounded-xl p-4 space-y-1">
-          <span className="text-[10px] text-text-tertiary font-bold tracking-wider uppercase font-mono">Payload Size</span>
-          <div className="text-xl font-bold font-mono text-text-primary">
-            {formatSize(totalBytesReceived)}
-          </div>
-        </div>
-
-        {/* Metric 3 */}
-        <div className="bg-[#181a20] border border-[#2f3336] rounded-xl p-4 space-y-1">
-          <span className="text-[10px] text-text-tertiary font-bold tracking-wider uppercase font-mono">Node Status</span>
-          <div className="text-xl font-bold text-status-success flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-status-success animate-pulse" />
-            <span className="text-sm font-sans font-bold">Active</span>
-          </div>
-        </div>
-
-        {/* Metric 4 */}
-        <div className="bg-[#181a20] border border-[#2f3336] rounded-xl p-4 space-y-1">
-          <span className="text-[10px] text-text-tertiary font-bold tracking-wider uppercase font-mono">Transfer Type</span>
-          <div className="text-xl font-bold font-mono text-text-primary">
-            G2P <span className="text-[10px] text-text-tertiary font-sans font-medium">(Portal)</span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 4. Binance Transaction History Table */}
-      <div className={`bg-[#181a20] border border-[#2f3336] rounded-2xl overflow-hidden shadow-sm pt-4 ${activeTab === "history" ? "block" : "hidden"} lg:block`}>
-        
-        {/* Table Header Filter controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 pb-4 border-b border-[#2f3336]">
-          <div>
-            <h3 className="text-base font-bold text-text-primary">Deposit History</h3>
-            <p className="text-[11px] text-text-tertiary mt-0.5">Real-time socket updates for incoming payloads.</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3.5">
-            {/* Search Bar */}
-            <div className="relative bg-[#0b0e11] border border-[#2f3336] rounded-lg shadow-sm focus-within:border-primary/50 transition-colors w-full md:w-52">
-              <Search className="w-3.5 h-3.5 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search sender..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none rounded-lg pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder-text-tertiary focus:outline-none w-full"
-              />
-            </div>
-
-            {/* Date Filter */}
-            <div className="relative bg-[#0b0e11] border border-[#2f3336] rounded-lg shadow-sm flex items-center px-3 w-full sm:w-auto">
-              <Calendar className="w-3.5 h-3.5 text-text-tertiary mr-1.5" />
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="bg-transparent border-none py-1.5 text-[11px] text-text-primary placeholder-text-tertiary focus:outline-none cursor-pointer"
-              />
-              {dateFilter && (
+              <div className="w-full max-w-sm flex items-center bg-background border border-border focus-within:border-primary/50 rounded-xl p-2 pl-6 relative z-10 transition-colors shadow-sm">
+                <span className="flex-1 text-lg font-bold tracking-[0.2em] text-primary text-left uppercase">{user.shareCode}</span>
                 <button
-                  onClick={() => setDateFilter("")}
-                  className="text-[10px] font-bold text-text-tertiary hover:text-status-error ml-1.5"
+                  onClick={copyToClipboard}
+                  className="bg-primary text-background hover:bg-primary-hover px-6 py-3 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-glow"
                 >
-                  Clear
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Copied" : "Copy Code"}
                 </button>
-              )}
-            </div>
+              </div>
+            </motion.div>
+          )}
 
-            {/* Sort Toggle */}
-            <button
-              onClick={() => setSortOrder(prev => prev === "latest" ? "oldest" : "latest")}
-              className="bg-[#0b0e11] border border-[#2f3336] hover:bg-[#20232a] text-[11px] font-bold text-text-secondary hover:text-text-primary px-3 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-sm w-full sm:w-auto active:scale-[0.98]"
-            >
-              <ArrowUpDown className="w-3 h-3" />
-              <span>Sort: {sortOrder === "latest" ? "Latest" : "Oldest"}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Transaction Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-[#2f3336] text-[10px] text-text-tertiary font-bold tracking-wider uppercase font-mono bg-[#0b0e11]/30 bg-opacity-40">
-                <th className="px-6 py-4">Sender Address</th>
-                <th className="px-6 py-4">Timestamp</th>
-                <th className="px-6 py-4">Uploaded Files</th>
-                <th className="px-6 py-4">Message / Notes</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            
-            <tbody className="divide-y divide-[#2f3336]/60 text-xs">
-              <AnimatePresence mode="popLayout">
-                {processedUploads.map((record) => (
-                  <motion.tr
-                    key={record.uploadId}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="hover:bg-[#20232a]/30 transition-colors group"
-                  >
-                    {/* Sender Address */}
-                    <td className="px-6 py-4 font-mono text-text-primary font-bold">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-sans text-xs text-primary font-extrabold select-none">
-                          {record.senderName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-sans font-bold">{record.senderName}</span>
-                          <span className="text-[9px] text-text-tertiary leading-none font-mono mt-0.5">{record.uploadId}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Timestamp */}
-                    <td className="px-6 py-4 font-mono text-text-secondary">
-                      <div className="flex flex-col">
-                        <span>{new Date(record.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                        <span className="text-[10px] text-text-tertiary mt-0.5">{new Date(record.uploadedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
-                      </div>
-                    </td>
-
-                    {/* Uploaded Files list */}
-                    <td className="px-6 py-4 max-w-xs">
-                      <div className="flex flex-wrap gap-1.5">
-                        {record.files.map((file, fIdx) => {
-                          const Icon = getFileIcon(file.type);
-                          return (
-                            <div
-                              key={fIdx}
-                              onClick={() => triggerDownload(file)}
-                              className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-[#0b0e11] border border-[#2f3336] hover:border-primary/40 cursor-pointer transition-colors max-w-full group/file"
-                              title={`Download ${file.name}`}
-                            >
-                              <Icon className="w-3 h-3 text-primary shrink-0" />
-                              <span className="truncate max-w-[120px] font-semibold text-text-secondary group-hover/file:text-primary">{file.name}</span>
-                              <span className="text-[9px] text-text-tertiary font-mono shrink-0">{formatSize(file.size)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </td>
-
-                    {/* Message / Notes */}
-                    <td className="px-6 py-4 max-w-xs">
-                      {record.message ? (
-                        <p className="text-text-secondary leading-relaxed truncate max-w-[200px]" title={record.message}>
-                          {record.message}
-                        </p>
-                      ) : (
-                        <span className="text-text-tertiary font-mono italic">--</span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-6 py-4 text-right">
-                      <div className="inline-flex items-center gap-3">
-                        {/* Download All */}
-                        <button
-                          onClick={() => record.files.forEach(f => triggerDownload(f))}
-                          className="p-1.5 rounded-lg border border-[#2f3336] hover:border-primary bg-[#0b0e11] text-text-secondary hover:text-primary transition-all"
-                          title="Download all files in deposit"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                        
-                        {/* Delete */}
-                        <button
-                          onClick={() => handleDeleteUpload(record.uploadId)}
-                          className="p-1.5 rounded-lg border border-[#2f3336]/60 hover:border-status-error/40 bg-[#0b0e11] text-text-tertiary hover:text-status-error transition-all"
-                          title="Delete deposit record"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
-
-              {processedUploads.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center text-text-tertiary">
-                    <div className="w-12 h-12 bg-[#0b0e11] border border-[#2f3336] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-inner">
-                      <FileText className="w-6 h-6 text-text-tertiary" />
-                    </div>
-                    <h4 className="font-bold text-text-primary mb-1">No transaction records found</h4>
-                    <p className="text-[11px] text-text-secondary max-w-xs mx-auto">
-                      {searchQuery || dateFilter 
-                        ? "Try adjusting filters or checking spelling." 
-                        : "Deposited payloads will show up here instantly once sent."}
-                    </p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        </AnimatePresence>
       </div>
 
     </div>
