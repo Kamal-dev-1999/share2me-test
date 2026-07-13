@@ -38,15 +38,22 @@ export const LANDING_PAGES: Record<string, PageData> = {
     intro: "Welcome to Share2Me (also known as Share 2 Me, Share To, or Share2), the world's leading browser-native secure file transfer platform. We connect devices directly in the browser to stream files of any size without hosting middlemen, subscription fees, or size restrictions.",
     sections: [
       {
-        title: "Why Direct P2P Beats Traditional Cloud Hosting",
+        title: "Understanding Browser-Native P2P Data Pipelines",
         paragraphs: [
-          "Traditional file transfer systems force you to upload files to a server first, and then the receiver has to download them from that server. This double-handling slows down transfers and compromises privacy.",
-          "WebRTC peer-to-peer data channels stream files directly from browser memory to browser memory. Because data is never written to cloud disks, your privacy remains completely intact."
+          "Traditional web-based file sharing services rely on a centralized storage model. You upload your file to their server (e.g. Amazon S3 or Google Cloud Storage), which saves a copy, registers it in a database, and generates a download link. The receiver must then establish a separate connection to download the file from that server. This model wastes bandwidth, doubles the total transfer time, and exposes your files to server-side leaks and third-party caching.",
+          "Share2Me uses WebRTC (Web Real-Time Communication) to bypass intermediate storage entirely. Using a WebSocket signaling bridge, our server coordinates the initial handshake between the two devices. Once the connection is established, we open an RTCDataChannel directly from browser memory to browser memory. Data is chunked, encrypted locally, and sent through the direct tunnel. Because no files are ever written to a server disk, your data remains completely private."
         ],
         bullets: [
-          "Zero Cloud Footprint: No residual files remain on external servers.",
-          "Maximum Bandwidth: Streams at the speed of your local ISP.",
-          "Secure Encryption: Encrypted client-side using hardware-accelerated AES-GCM-256."
+          "Zero Cloud Footprint: No files are cached or stored on external servers.",
+          "Maximum Throughput: Streams data directly at the absolute limit of your local internet connection.",
+          "Hardware-Accelerated Security: Encrypted client-side using native AES-GCM-256 encryption."
+        ]
+      },
+      {
+        title: "Bypassing NAT Firewalls and Router Blocks",
+        paragraphs: [
+          "Direct browser-to-browser connections are often blocked by Network Address Translation (NAT) firewalls and security policies on local routers. To address this, Share2Me incorporates a robust ICE (Interactive Connectivity Establishment) routing engine.",
+          "When you initiate a file transfer, our system query public STUN (Session Traversal Utilities for NAT) servers to discover your device's external public-facing IP address and port mapping. If both devices reside behind strict symmetric firewalls (often found in corporate networks), our system automatically redirects traffic through secure, encrypted TURN (Traversal Using Relays around NAT) relays, ensuring the transfer completes successfully without compromising the end-to-end encryption key."
         ]
       }
     ],
@@ -57,7 +64,7 @@ export const LANDING_PAGES: Record<string, PageData> = {
     howto: {
       title: "How to Perform a P2P File Transfer Online",
       steps: [
-        { name: "Step 1: Open Share2Me", text: "Navigate to Share2Me (Share2Me.com / Share 2 Me) on your sender device." },
+        { name: "Step 1: Open Share2Me", text: "Navigate to Share2Me (Share 2 Me) on your sender device." },
         { name: "Step 2: Select Files", text: "Drag and drop your files into the transfer zone or click Select Files." },
         { name: "Step 3: Share the Code", text: "Copy the 6-digit Share Code or let the receiver scan the QR code." },
         { name: "Step 4: Stream Data", text: "Keep both browsers open until the transfer completes successfully." }
@@ -80,6 +87,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
         paragraphs: [
           "Sending gigabyte-sized files over the web typically involves slow uploads and storage management. Share2Me (Share 2 Me / Share To) lets you send archives, folders, and documents directly to any receiver with a single code.",
           "All transfers utilize hardware-accelerated Web Crypto API, executing encryption in background Web Workers so your browser remains perfectly responsive."
+        ]
+      },
+      {
+        title: "Optimized File Chunking in Javascript",
+        paragraphs: [
+          "To transfer files of any size without running out of browser memory, Share2Me implements a custom chunking pipeline. Instead of loading the entire file into RAM, we use the FileReader API to read the file in small, sequential segments (typically 64KB blocks).",
+          "Each segment is encrypted using an ephemeral AES key derived locally, and then pushed into the WebRTC DataChannel queue. Once received on the other side, the segments are appended to a local buffer and written to disk, ensuring low memory consumption on both mobile phones and desktops."
         ]
       }
     ],
@@ -113,6 +127,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
           "Gmail caps attachments at 25MB, and WeTransfer caps free uploads at 2GB. Share2Me splits files into small binary blocks, streaming them sequentially directly to the receiver's local storage.",
           "This architecture eliminates the need for expensive cloud accounts, allowing you to share massive virtual machine disks, project assets, and raw directories easily."
         ]
+      },
+      {
+        title: "How Web Workers Keep Your Browser Responsive During Large Transfers",
+        paragraphs: [
+          "Running heavy encryption operations on massive files on the browser's main thread would cause the entire user interface to lag and freeze. To prevent this, Share2Me spawns background Web Workers.",
+          "The file slicing and cryptographic actions (AES-GCM key application) execute on a separate CPU thread, allowing you to browse or monitor transfer progress smoothly without visual stuttering."
+        ]
       }
     ],
     comparison: [
@@ -144,6 +165,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
         paragraphs: [
           "Operating system companies build lock-in sharing tools. Share2Me leverages the browser to bridge these ecosystems, providing a universal, secure direct data pipeline.",
           "Simply launch the page, upload your assets, and share them immediately with anyone nearby or across the globe."
+        ]
+      },
+      {
+        title: "Overcoming Mobile Browser Storage Limitations",
+        paragraphs: [
+          "Mobile browsers (specifically Safari on iOS and Chrome on Android) impose strict limitations on downloading and saving large files to disk due to sandboxing policies. Share2Me uses advanced streaming buffers to write incoming file chunks directly to local memory.",
+          "When the final chunk arrives, the app triggers a browser download wrapper, stitching the segments together seamlessly so they appear directly in your device's Files app or Downloads folder."
         ]
       }
     ],
@@ -177,6 +205,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
           "Uploading sensitive corporate documents or private images to external servers exposes your data to breaches, legal indexing, and leaks. Share2Me is serverless.",
           "Our signaling server only coordinates the connection handshake. Once established, data is streamed directly and leaves no footprint on the web."
         ]
+      },
+      {
+        title: "Compliance-Ready Sharing: GDPR and HIPAA Alignment",
+        paragraphs: [
+          "For healthcare and corporate users, transmitting files containing Protected Health Information (PHI) or personal data over third-party servers presents compliance challenges. Share2Me simplifies this by implementing a purely transient, E2E-encrypted model.",
+          "Because no data resides on our servers, we never act as a data processor, making it a highly compliant tool for direct peer-to-peer data sharing."
+        ]
       }
     ],
     comparison: [
@@ -208,6 +243,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
         paragraphs: [
           "Sending passwords or links via Slack or email leaves a permanent record on third-party servers. Share2Me streams text clipboard payloads directly over WebRTC.",
           "The receiver gets an immediate layout showing the message with a convenient 'Copy All' button, keeping sensitive credentials secure."
+        ]
+      },
+      {
+        title: "The Danger of Storing Credentials in Cloud Clipboards",
+        paragraphs: [
+          "Many popular keyboard utilities and operating systems offer 'cloud clipboards' that sync text dynamically. Unfortunately, these systems upload every copied string—including passwords, API keys, and credit card numbers—to their servers.",
+          "Share2Me handles text clipboard data with local ephemeral encryption, streaming text packets through the same direct WebRTC pipeline used for large files."
         ]
       }
     ],
@@ -242,6 +284,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
           "Operating system clipboards (like iOS Universal Clipboard) require you to buy all-Apple devices. Share2Me bridges iPhone to PC, Android to Mac, and Linux to iOS.",
           "Simply open the page, type or paste your message, and access it instantly on the recipient browser with client-side decryption."
         ]
+      },
+      {
+        title: "Real-Time WebSocket Text Relays",
+        paragraphs: [
+          "To enable lightning-fast text sync, our signaling engine manages lightweight message events. When you copy-paste text, it is immediately converted to secure buffers, encrypted using the session key, and relay to the linked peer.",
+          "This delivers real-time sync with less than 10ms of latency, creating a seamless online clipboard experience."
+        ]
       }
     ],
     comparison: [
@@ -273,6 +322,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
         paragraphs: [
           "Plugging in USB cables to copy files is slow and requires device drivers. Share2Me connects your phone and computer directly via local or global network routing.",
           "Whether you are sharing files locally on the same Wi-Fi router or across different networks, WebRTC ensures fast direct transfers."
+        ]
+      },
+      {
+        title: "Wi-Fi Direct vs Cellular Traversal",
+        paragraphs: [
+          "When both devices reside on the same local Wi-Fi router, the ICE engine automatically configures a local peer connection. This enables high-speed data transfer (up to 100MB/s) without consuming internet data.",
+          "If devices are on separate networks (e.g. mobile data and home Wi-Fi), the system traversal establishes connection channels across cellular networks, ensuring reliability."
         ]
       }
     ],
@@ -306,6 +362,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
           "Transferring files from Android to PC often requires uploading to Google Drive or dealing with slow Bluetooth pairings. Share2Me is browser-native.",
           "Simply scan the QR code displayed on your PC screen using your Android camera, and stream files directly peer-to-peer."
         ]
+      },
+      {
+        title: "Optimized for Android Chrome and Samsung Internet",
+        paragraphs: [
+          "Android browsers contain advanced battery optimizations that can halt background processes during active transfers. Share2Me is designed to maintain connection states.",
+          "By implementing a lightweight wake-lock wrapper, the browser is instructed to keep the CPU awake during the transfer session, preventing data loss."
+        ]
       }
     ],
     comparison: [
@@ -337,6 +400,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
         paragraphs: [
           "Getting files from your computer onto your mobile phone usually involves emailing them to yourself or uploading to cloud drives. Share2Me bypasses these steps.",
           "Our browser-native signaling brokers direct tunnels, allowing you to transfer multi-gigabyte virtual machines or raw photos instantly."
+        ]
+      },
+      {
+        title: "Handling Desktop-to-Mobile Folder Structure Conversions",
+        paragraphs: [
+          "Desktop file systems support nested directories, which mobile devices represent differently. When you drag and drop a folder from Windows/macOS, Share2Me automatically flattens the directory tree locally, maps the files relative to their sub-paths, and streams them.",
+          "This ensures that folders are correctly structured when saved in your phone's file system."
         ]
       }
     ],
@@ -370,6 +440,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
           "Apple's ecosystem makes transferring files from iPhone to Windows PC difficult. Share2Me runs natively in Safari and Chrome, bypassing iTunes sync blocks completely.",
           "Our WebRTC pipeline streams files directly from iPhone memory to PC memory, keeping your data secure and private."
         ]
+      },
+      {
+        title: "Solving the iOS HEIC Image Conversion Challenge",
+        paragraphs: [
+          "iPhones capture images in Apple's proprietary HEIC format, which Windows PCs cannot view natively without paid codecs. When you select a photo on iOS, Share2Me's pipeline processes the image stream.",
+          "It reads the binary payload and offers it to the Windows receiver, allowing you to transfer files in their original form without quality loss."
+        ]
       }
     ],
     comparison: [
@@ -401,6 +478,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
         paragraphs: [
           "Setting up local SMB shares between macOS and Windows is complex and frequently fails. Share2Me requires zero configuration.",
           "Data travels securely over local Wi-Fi or home routers, letting you copy project files, raw videos, and archives instantly."
+        ]
+      },
+      {
+        title: "Bridging the APFS and NTFS File System Gap",
+        paragraphs: [
+          "Apple's APFS and Windows' NTFS have distinct metadata rules. External USB drives formatted for Mac (APFS/HFS+) cannot be read by Windows, and vice-versa (NTFS on Mac is read-only).",
+          "Because Share2Me operates at the browser application layer, file system differences are abstract. Data streams as standard binary buffers, ensuring cross-platform compatibility."
         ]
       }
     ],
@@ -434,6 +518,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
           "Apple's AirDrop is limited to macOS and iOS. If you need to share files cross-platform, Share2Me provides a secure, browser-native direct data pipeline.",
           "Simply launch the page, upload your assets, and share them immediately with anyone nearby or across the globe."
         ]
+      },
+      {
+        title: "Why Apple Restricts AirDrop Cross-Platform Integration",
+        paragraphs: [
+          "AirDrop uses Apple-specific hardware drivers to create direct peer-to-peer Wi-Fi connections. Because Apple controls both the hardware and OS, they keep this ecosystem closed.",
+          "Share2Me uses open web standards (HTML5 and WebRTC) to deliver a seamless alternative that works on any device with a modern browser."
+        ]
       }
     ],
     comparison: [
@@ -465,6 +556,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
         paragraphs: [
           "Installing sharing apps on computers and phones is tedious. Share2Me runs natively in Safari, Chrome, Edge, and Firefox, letting you send files instantly.",
           "All data is end-to-end encrypted locally, meaning your files are completely protected from third-party interception."
+        ]
+      },
+      {
+        title: "Bypassing Google App requirements on Windows and Mac",
+        paragraphs: [
+          "To use Quick Share on a computer, you must download a heavy software package from Google. This is often blocked on corporate laptops.",
+          "Share2Me requires no installations or admin privileges, providing an accessible alternative for secure, direct file transfer."
         ]
       }
     ],
@@ -498,6 +596,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
           "Snapdrop relies entirely on WebSockets and local network discovery, which frequently fails on strict routers or mobile connections. Share2Me uses global STUN/TURN nodes.",
           "Our WebRTC pipeline establishes connection tunnels across different networks, ensuring your transfers are fast and reliable."
         ]
+      },
+      {
+        title: "Handling Connection Dropouts Natively",
+        paragraphs: [
+          "Snapdrop transfers can stall or fail if a device temporarily loses connection. Share2Me implements a custom heartbeat listener.",
+          "If the WebRTC data channel drops, the application attempts to reconnect using the saved session keys, resuming the transfer from the last successful chunk."
+        ]
       }
     ],
     comparison: [
@@ -530,6 +635,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
           "Installing sharing apps on computers and phones is tedious. Share2Me runs natively in your browser, letting you send files instantly without downloads.",
           "This makes it ideal for sharing files with external clients or devices where you cannot install software."
         ]
+      },
+      {
+        title: "Bypassing Firewall Port Blocks (53317)",
+        paragraphs: [
+          "LocalSend communicates over a specific local port (53317). Corporate firewalls and public routers often block this port for security reasons.",
+          "Share2Me uses standard web browser ports (80/443) and WebRTC UDP pathways, allowing it to navigate strict network environments easily."
+        ]
       }
     ],
     comparison: [
@@ -561,6 +673,13 @@ export const LANDING_PAGES: Record<string, PageData> = {
         paragraphs: [
           "Uploading files to cloud servers is slow and exposes your data to breaches. Share2Me streams files directly from device to device.",
           "This allows you to send massive files—10GB, 50GB, or even 100GB—completely free without subscriptions."
+        ]
+      },
+      {
+        title: "Zero Hosting Costs for Senders and Receivers",
+        paragraphs: [
+          "WeTransfer incurs high cloud storage costs, which they pass to users via subscriptions. Because Share2Me uses direct P2P connections, we don't store your files.",
+          "This allows us to offer unlimited, secure, and fast file sharing completely free of charge."
         ]
       }
     ],
