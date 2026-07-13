@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { TopNav }       from "@/components/TopNav";
 import { SeoContent }   from "@/components/SeoContent";
 import Link from "next/link";
-import { ArrowRight, Lock, Zap, HardDrive, Shield, Globe, ChevronDown, FileText, FileImage, QrCode, Download } from "lucide-react";
+import { ArrowRight, Lock, Zap, HardDrive, Shield, Globe, ChevronDown, FileText, FileImage, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 function HomeContent() {
@@ -290,7 +290,7 @@ function HomeContent() {
               </div>
               <h3 className="text-lg font-semibold text-text-primary mb-2">Privacy First</h3>
               <p className="text-sm text-text-secondary leading-relaxed">
-                We don't track your data. P2P transfers are completely anonymous and untraceable.
+                We don&apos;t track your data. P2P transfers are completely anonymous and untraceable.
               </p>
             </div>
           </div>

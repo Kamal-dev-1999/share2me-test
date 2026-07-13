@@ -2,8 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Copy, Check, Search, Download, Trash2, Calendar,
-  ArrowUpDown, User, Mail, FileText, FileImage, Film,
-  FolderArchive, Settings, LogOut, Volume2, VolumeX,
+  ArrowUpDown, FileText, FileImage, Film,
+  FolderArchive, LogOut, Volume2, VolumeX,
   Inbox, QrCode, ChevronDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -140,7 +140,7 @@ function UploadRecordItem({
             <div className="pt-6 mt-5 border-t border-border">
               {record.message && (
                 <div className="mb-5 pl-4 border-l-2 border-primary/40 text-sm text-text-secondary leading-relaxed italic bg-background/50 py-2 rounded-r-lg">
-                  "{record.message}"
+                  &quot;{record.message}&quot;
                 </div>
               )}
 
@@ -418,6 +418,7 @@ export default function G2pDashboard({
               </p>
 
               <div className="w-full max-w-sm bg-background rounded-2xl border border-border p-6 flex justify-center mb-8 relative z-10 shadow-xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={qrImageUrl} alt="QR Code" className="w-56 h-56 rounded-xl shadow-glow" />
               </div>
               

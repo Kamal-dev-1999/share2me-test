@@ -63,7 +63,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
         </div>
         <h2 className="text-xl font-semibold text-text-primary mb-2">Portal Not Found</h2>
         <p className="text-sm text-text-tertiary mb-8 text-center max-w-sm">
-          The Share Code "{code}" is invalid or has expired.
+          The Share Code &quot;{code}&quot; is invalid or has expired.
         </p>
         <Link href="/" className="bg-primary text-background font-bold px-6 py-3 rounded-xl hover:bg-primary-hover transition-colors shadow-glow">
           Return Home
@@ -114,6 +114,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
           processedFiles.push({ name: file.name, size: file.size, type: file.type, dataUrl: await readFileAsDataUrl(file) });
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const existing: any[] = JSON.parse(localStorage.getItem("share2me_mock_uploads") || "[]");
         existing.push({
           uploadId: "upl_" + Math.random().toString(36).substr(2, 9),
@@ -160,7 +161,10 @@ export default function G2pSenderPortal({ params }: PageProps) {
             >
               <div className="flex items-center gap-4 mb-8 pb-8 border-b border-border">
                 {receiver.profilePhoto ? (
-                  <img src={receiver.profilePhoto} className="w-14 h-14 rounded-full object-cover border border-primary/20" alt="" />
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={receiver.profilePhoto} className="w-14 h-14 rounded-full object-cover border border-primary/20" alt="" />
+                  </>
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-bold text-primary">
                     {receiver.username.charAt(0).toUpperCase()}
@@ -269,7 +273,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
               </div>
               <h2 className="text-2xl font-bold text-text-primary mb-3">Transfer Complete</h2>
               <p className="text-text-secondary text-sm mb-8 max-w-sm mx-auto leading-relaxed">
-                Your files have been securely delivered to <strong>{receiver.username}</strong>'s inbox.
+                Your files have been securely delivered to <strong>{receiver.username}</strong>&apos;s inbox.
               </p>
               
               <div className="flex flex-col gap-3">

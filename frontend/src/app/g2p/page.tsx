@@ -84,6 +84,7 @@ function G2PContent() {
         console.warn("Google button failed to render:", err);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleInitialized, g2pUser]);
 
   const decodeJwt = (token: string) => {
@@ -97,7 +98,7 @@ function G2PContent() {
           .join("")
       );
       return JSON.parse(jsonPayload);
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -270,7 +271,7 @@ function G2PContent() {
                           <Send className="w-5 h-5 text-primary" />
                         </div>
                         <h3 className="font-semibold text-text-primary text-lg">Send files instead?</h3>
-                        <p className="text-sm text-text-secondary mt-1">Enter a receiver's Share Code to open their portal.</p>
+                        <p className="text-sm text-text-secondary mt-1">Enter a receiver&apos;s Share Code to open their portal.</p>
                       </div>
 
                       <form
