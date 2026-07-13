@@ -100,6 +100,7 @@ function HomeContent() {
                   className="flex items-center bg-background-elevated border border-border focus-within:border-primary/50 focus-within:ring-4 ring-primary/10 rounded-2xl p-1.5 transition-all shadow-xl relative"
                 >
                   <input
+                    suppressHydrationWarning
                     type="text"
                     name="heroShareCode"
                     placeholder="Enter Share Code..."
@@ -107,6 +108,7 @@ function HomeContent() {
                     className="flex-1 bg-transparent !bg-transparent border-none text-base font-bold text-text-primary placeholder-text-tertiary px-5 py-3.5 focus:outline-none focus:ring-0 w-full uppercase tracking-widest min-w-0"
                   />
                   <button
+                    suppressHydrationWarning
                     type="submit"
                     className="bg-primary text-background hover:bg-primary-hover font-bold text-sm px-8 py-3.5 rounded-xl transition-all shrink-0 shadow-glow"
                   >
@@ -303,6 +305,7 @@ function HomeContent() {
             {FAQS.map((faq, idx) => (
               <div key={idx} className="w-full">
                 <button
+                  suppressHydrationWarning
                   onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
                   className="w-full py-5 flex items-center justify-between text-sm font-medium text-text-primary hover:text-primary transition-colors text-left"
                 >

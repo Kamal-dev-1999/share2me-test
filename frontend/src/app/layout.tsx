@@ -64,7 +64,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
@@ -203,7 +203,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-background text-text-primary antialiased">
+      <body className="min-h-screen bg-background text-text-primary antialiased" suppressHydrationWarning>
         <SplashScreen />
         {children}
         <Analytics />
