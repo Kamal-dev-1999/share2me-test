@@ -369,4 +369,125 @@ export const DATABASE: Record<string, ArticleContent> = {
     ],
     conclusion: "While cloud storage remains useful for long-term file backups, WebRTC is superior for instant, secure point-to-point transfers. Share2Me leverages WebRTC to deliver private, fast, and cost-effective file sharing directly in your browser."
   }
+,
+  "how-to-collect-resumes-online": {
+    title: "How to Collect Resumes Online Securely: Guide for HR and Recruiters",
+    category: "Recruitment",
+    readTime: "8 min read",
+    date: "July 12, 2026",
+    intro: "Email has been the default method for collecting job applications and resumes for decades. However, it presents severe challenges: inbox clutter, attachment file size limits, and security vulnerabilities (such as malware in PDF/Word attachments). This guide details the best practices to collect resumes online securely using dedicated candidate upload portals, ensuring GDPR/EEOC compliance and a smooth onboarding pipeline.",
+    sections: [
+      {
+        heading: "1. The Risks of Collecting Resumes Via Email",
+        content: "Recruiting teams receiving hundreds of resumes daily are highly vulnerable to phishing attacks and malware. Since candidates submit PDF or DOCX files, attackers can disguise malicious payloads as resumes. Furthermore, email storage is not encrypted at rest, which violates modern candidate privacy protocols.",
+        bullets: [
+          "Security Vulnerability: Malicious PDFs/Word documents can compromise recruiter systems.",
+          "Inbox Clutter: Heavy resume attachments quickly exceed email storage quotas."
+        ]
+      },
+      {
+        heading: "2. Setting Up a Candidate Resume Upload Portal",
+        content: "Using a dedicated candidate document upload portal eliminates email risks. Recruiters generate a secure request link (e.g. Share2Me G2P) and place it on their careers page or Job post. Candidates drop their CVs directly onto the portal, which streams them to the recruiter's system using secure WebRTC connections. This keeps files organized and isolates potential attachments from the company email network.",
+        bullets: [
+          "Zero Cloud Cache: Resumes are streamed directly to the recruiter's dashboard.",
+          "Frictionless Onboarding: Applicants upload portfolios and CVs without account sign-ups."
+        ]
+      },
+      {
+        heading: "3. Ensuring GDPR and Equal Opportunity Compliance",
+        content: "Candidate data is highly sensitive and falls under strict GDPR and EEOC regulations. Share2Me's client-side E2EE ensures that candidate CVs and onboarding forms are encrypted locally using AES-GCM-256 before leaving their browsers, meaning candidate data remains protected from intermediate cloud leaks."
+      }
+    ],
+    conclusion: "Transitioning to a dedicated candidate resume upload portal protects your HR inbox from security threats while offering a professional, fast, and compliant experience for job applicants."
+  },
+  "how-to-receive-files-without-email": {
+    title: "How to Receive Files Online Without Email: Zero-Registration Portals",
+    category: "Security",
+    readTime: "6 min read",
+    date: "July 10, 2026",
+    intro: "Sending or receiving files often requires entering sender and receiver email addresses. This process is slow, exposes users to spam lists, and limits attachment sizes to 25MB. In this guide, we explore how to receive files online without email registration or accounts, utilizing web-native P2P handshakes and custom upload portals.",
+    sections: [
+      {
+        heading: "1. Why Email is Inefficient for Large File Sharing",
+        content: "Email protocols (SMTP) were not designed for transferring megabyte or gigabyte files. Attachments are encoded using Base64, which increases the file size by 33%, wasting bandwidth. Furthermore, mail servers enforce strict size caps (typically 25MB), forcing users to upload files to cloud drives first.",
+        bullets: [
+          "Size Limits: Strict 25MB email attachments force users to use cloud drives.",
+          "Bandwidth Waste: Base64 encoding increases file transfer sizes by 33%."
+        ]
+      },
+      {
+        heading: "2. Ephemeral Session Handshakes (OTC Codes)",
+        content: "Share2Me bypasses email entirely using One-Time Connection (OTC) codes. Senders upload files to generate a dynamic 6-digit PIN. Senders and receivers connect directly in their browsers by matching this PIN over WebSockets. Once connected, data streams peer-to-peer using WebRTC without email registration or logins.",
+        bullets: [
+          "No Registration: Share files instantly without accounts or logins.",
+          "Direct Connection: Data streams directly between browsers using WebRTC."
+        ]
+      },
+      {
+        heading: "3. Permanent G2P Upload Portals",
+        content: "If you regularly receive files from different users (like freelancers or clients), you can claim a permanent G2P Share Code. Senders click your custom link, drop their files, and they stream directly to your active browser dashboard, keeping transfers fast and inbox-free."
+      }
+    ],
+    conclusion: "By using P2P connection codes and G2P portals, businesses can receive large files online instantly without email constraints or registration friction."
+  },
+  "how-to-collect-documents-securely": {
+    title: "How to Collect Documents from Clients Securely: The Ultimate Guide",
+    category: "Security",
+    readTime: "9 min read",
+    date: "July 08, 2026",
+    intro: "Whether you are a lawyer collecting case files, an accountant gathering tax receipts, or a bank collecting loan applications, secure document collection is vital. Relying on insecure attachments or shared folders exposes client data to breaches. This guide covers how to collect documents from clients securely using browser-native E2EE, keeping your files protected and compliant.",
+    sections: [
+      {
+        heading: "1. Cryptographic Client-Side Encryption vs Server-Side Encryption",
+        content: "Most cloud drives encrypt files after they reach their server disks (encryption at rest), meaning the service provider holds the decryption keys. This exposes files to internal hacks. Share2Me encrypts documents locally in the client's browser using AES-GCM-256 before transmission, ensuring only you can decrypt and access the files.",
+        bullets: [
+          "Client-Side E2EE: Files are encrypted locally before leaving the device.",
+          "Zero Key Access: Only you hold the decryption keys, not the cloud provider."
+        ]
+      },
+      {
+        heading: "2. Complying with Regulatory Standards (HIPAA, GDPR, GLBA)",
+        content: "Healthcare, legal, and financial industries enforce strict compliance rules regarding document collection. By keeping decryption keys client-side and using direct browser-to-browser WebRTC streams, Share2Me avoids third-party data caching, simplifying compliance audits.",
+        bullets: [
+          "Regulatory Compliance: Ephemeral direct tunnels avoid cloud caching.",
+          "Sensitive Data: Protect tax documents, medical forms, and contracts."
+        ]
+      },
+      {
+        heading: "3. Eliminating User Account Obstacles",
+        content: "Asking clients to register or download companion software is a major source of friction. Share2Me runs in standard browsers, allowing clients to drop tax forms, contracts, or IDs securely without account setup."
+      }
+    ],
+    conclusion: "Securing your client document collection pipeline requires client-side encryption and frictionless portals. Share2Me delivers this, protecting your sensitive business documents."
+  },
+  "file-upload-portal-guide": {
+    title: "The Complete File Upload Portal Guide for Modern Businesses",
+    category: "Business",
+    readTime: "8 min read",
+    date: "July 05, 2026",
+    intro: "A professional file upload portal is a necessity for businesses that regularly collect large assets, code bases, or legal documents. Instead of setting up complex AWS S3 storage buckets or writing custom upload forms, modern workspaces use web-native peer-to-peer portals. This guide details how to build and implement a file upload portal for your business workflows.",
+    sections: [
+      {
+        heading: "1. The Components of a Professional Upload Portal",
+        content: "A functional file upload portal needs a clean drag-and-drop zone, file transfer progress indicators, and strong local encryption. Traditional portals require backend databases and server hosting. Share2Me's G2P engine handles this in the browser, allowing clients to submit files directly to your dashboard.",
+        bullets: [
+          "Drag-and-Drop Zone: Frictionless submission experience for users.",
+          "Encryption: Local AES-GCM-256 E2EE secures all submissions."
+        ]
+      },
+      {
+        heading: "2. Setting Up a Custom Upload Workspace",
+        content: "Simply sign in on Share2Me G2P and claim your custom Share Code. Senders click your link to access the upload form, allowing them to stream PDF forms, tax sheets, and video files directly to your dashboard in real-time.",
+        bullets: [
+          "Custom Share Code: Claim your custom workspace username.",
+          "Dynamic Stream: Receive files directly inside your browser memory."
+        ]
+      },
+      {
+        heading: "3. Bypassing Size Limitations and Cloud Costs",
+        content: "Traditional portals pass hosting costs to users. Because Share2Me uses direct P2P connections, files are streamed directly between browsers and are never saved on our servers, allowing you to collect massive archives completely free."
+      }
+    ],
+    conclusion: "By setting up a browser-native file upload portal, your business can collect large files and client documents securely without subscription fees or hosting overhead."
+  }
 };

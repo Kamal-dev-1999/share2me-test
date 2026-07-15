@@ -2,20 +2,24 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
-import { ArrowLeft, Zap, Sparkles } from "lucide-react";
+import { Zap, Sparkles } from "lucide-react";
 import { LANDING_PAGES } from "./data";
+import { TransferCalculator } from "@/components/TransferCalculator";
 
 interface PageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string[] }>;
 }
 
 export async function generateStaticParams() {
-  return Object.keys(LANDING_PAGES).map((slug) => ({ slug }));
+  return Object.keys(LANDING_PAGES).map((key) => ({
+    slug: key.split("/"),
+  }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const page = LANDING_PAGES[slug];
+  const slugPath = slug.join("/");
+  const page = LANDING_PAGES[slugPath];
 
   if (!page) {
     return {
@@ -28,12 +32,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description: page.metaDesc,
     keywords: [page.keyword, "file transfer", "send files online", "Share2Me", "Share 2 Me", "AirDrop alternative"],
     alternates: {
-      canonical: `/${slug}`,
+      canonical: `/${slugPath}`,
     },
     openGraph: {
       title: page.title,
       description: page.metaDesc,
-      url: `https://share2.me/${slug}`,
+      url: `https://share2.me/${slugPath}`,
       siteName: "Share2Me",
       type: "website",
     },
@@ -47,7 +51,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function NicheLandingPage({ params }: PageProps) {
   const { slug } = await params;
-  const page = LANDING_PAGES[slug];
+  const slugPath = slug.join("/");
+  const page = LANDING_PAGES[slugPath];
 
   if (!page) {
     notFound();
@@ -59,17 +64,17 @@ export default async function NicheLandingPage({ params }: PageProps) {
     "@graph": [
       {
         "@type": "WebPage",
-        "@id": `https://share2.me/${slug}#webpage`,
-        "url": `https://share2.me/${slug}`,
+        "@id": `https://share2.me/${slugPath}#webpage`,
+        "url": `https://share2.me/${slugPath}`,
         "name": page.title,
         "description": page.metaDesc,
         "breadcrumb": {
-          "@id": `https://share2.me/${slug}#breadcrumb`
+          "@id": `https://share2.me/${slugPath}#breadcrumb`
         }
       },
       {
         "@type": "BreadcrumbList",
-        "@id": `https://share2.me/${slug}#breadcrumb`,
+        "@id": `https://share2.me/${slugPath}#breadcrumb`,
         "itemListElement": [
           {
             "@type": "ListItem",
@@ -81,13 +86,13 @@ export default async function NicheLandingPage({ params }: PageProps) {
             "@type": "ListItem",
             "position": 2,
             "name": page.keyword,
-            "item": `https://share2.me/${slug}`
+            "item": `https://share2.me/${slugPath}`
           }
         ]
       },
       {
         "@type": "WebApplication",
-        "@id": `https://share2.me/${slug}#webapp`,
+        "@id": `https://share2.me/${slugPath}#webapp`,
         "name": "Share2Me",
         "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe"],
         "url": "https://share2.me",
@@ -102,7 +107,7 @@ export default async function NicheLandingPage({ params }: PageProps) {
       },
       {
         "@type": "HowTo",
-        "@id": `https://share2.me/${slug}#howto`,
+        "@id": `https://share2.me/${slugPath}#howto`,
         "name": page.howto.title,
         "description": `Step-by-step guide on how to perform ${page.keyword} transfers using Share2Me.`,
         "step": page.howto.steps.map((step, idx) => ({
@@ -114,7 +119,7 @@ export default async function NicheLandingPage({ params }: PageProps) {
       },
       {
         "@type": "FAQPage",
-        "@id": `https://share2.me/${slug}#faq`,
+        "@id": `https://share2.me/${slugPath}#faq`,
         "mainEntity": page.faqs.map((faq) => ({
           "@type": "Question",
           "name": faq.q,
@@ -142,14 +147,27 @@ export default async function NicheLandingPage({ params }: PageProps) {
 
       <main className="flex-1 w-full max-w-[900px] mx-auto px-6 py-16 relative z-10 pt-28">
         
-        {/* Back Link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-text-secondary hover:text-primary transition-colors text-sm font-bold mb-10 group"
-        >
-          <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" />
-          <span>Back to Home</span>
-        </Link>
+        {/* Breadcrumbs */}
+        <nav className="flex flex-wrap items-center gap-1.5 text-text-tertiary text-xs font-bold mb-8 uppercase tracking-wider select-none">
+          <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+          <span className="text-border">/</span>
+          <span className="text-text-secondary">Guides</span>
+          {slug.map((segment, index) => {
+            const isLast = index === slug.length - 1;
+            const path = "/" + slug.slice(0, index + 1).join("/");
+            const formattedSegment = segment.replace(/-/g, " ");
+            return (
+              <div key={index} className="flex items-center gap-1.5">
+                <span className="text-border">/</span>
+                {isLast ? (
+                  <span className="text-primary">{formattedSegment}</span>
+                ) : (
+                  <Link href={path} className="hover:text-primary transition-colors">{formattedSegment}</Link>
+                )}
+              </div>
+            );
+          })}
+        </nav>
 
         {/* Semantic Header */}
         <article className="space-y-12">
@@ -160,10 +178,30 @@ export default async function NicheLandingPage({ params }: PageProps) {
             <h1 className="text-4xl md:text-5xl font-display font-extrabold text-text-primary leading-[1.2] tracking-tight">
               {page.h1}
             </h1>
+            
+            {/* E-E-A-T Signals Author & Date Block */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-text-tertiary font-sans pt-2 border-t border-border/40">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">KY</div>
+                <span>Written by <strong className="text-text-secondary">Kamal Tripathi & Rishabh Yadav</strong></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-status-success/60" />
+                <span>Verified Expert Review</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span>Last Updated:</span>
+                <span className="text-text-secondary font-medium">July 15, 2026</span>
+              </div>
+            </div>
+
             <p className="text-[18px] text-text-secondary leading-relaxed font-sans border-l-2 border-primary pl-6 py-1">
               {page.intro}
             </p>
           </header>
+
+          {/* Interactive Calculator Widget */}
+          <TransferCalculator />
 
           {/* Article Paragraph Sections */}
           {page.sections.map((section, idx) => (
@@ -261,6 +299,25 @@ export default async function NicheLandingPage({ params }: PageProps) {
               ))}
             </div>
           </section>
+
+          {/* Related Articles & Internal Links */}
+          {page.links && page.links.length > 0 && (
+            <section className="space-y-6 pt-6 border-t border-border/40">
+              <h2 className="text-xl font-bold text-text-primary">Related Guides & Solutions</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {page.links.map((link, lIdx) => (
+                  <Link
+                    key={lIdx}
+                    href={link.url}
+                    className="p-4 rounded-[16px] bg-background-elevated border border-border/60 hover:border-primary/40 hover:text-primary transition-all text-sm font-semibold text-text-secondary flex items-center justify-between group"
+                  >
+                    <span>{link.label}</span>
+                    <span className="transform group-hover:translate-x-1 transition-transform text-primary">&rarr;</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* CTA Footer Block */}
           <footer className="border-t border-border pt-12 mt-16 text-center space-y-6">

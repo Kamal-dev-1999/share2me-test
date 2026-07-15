@@ -2,7 +2,7 @@
 import { TopNav } from "@/components/TopNav";
 import { TrustSection } from "@/components/TrustSection";
 import Link from "next/link";
-import { Star, Shield, Cpu, Code2, Heart, Rocket } from "lucide-react";
+import { Star, Shield, Cpu, Code2, Rocket } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function AboutPageClient() {
@@ -136,50 +136,108 @@ export default function AboutPageClient() {
           </motion.div>
         </section>
 
-        {/* Developer Section */}
+        {/* Developer Team Section */}
         <section className="mb-20">
           <motion.div 
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="bg-gradient-to-r from-background-card to-background-elevated rounded-[40px] border border-border overflow-hidden relative shadow-2xl"
+            className="flex items-center gap-4 mb-10"
           >
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 opacity-70" />
-            <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-[#B967FF]/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/3 opacity-70" />
-            
-            <div className="p-10 md:p-16 flex flex-col md:flex-row gap-12 items-center relative z-10">
-              <motion.div 
-                whileHover={{ scale: 1.05, rotate: -2 }}
-                className="w-40 h-40 md:w-48 md:h-48 rounded-[40px] bg-gradient-to-br from-background-elevated to-background border border-border flex items-center justify-center shrink-0 shadow-[0_20px_40px_rgba(0,0,0,0.4)] relative group cursor-default"
-              >
-                <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[40px]" />
-                <span className="text-6xl font-display font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40 group-hover:from-primary group-hover:to-white transition-all duration-500">K</span>
-              </motion.div>
-              
-              <div className="flex-1 text-center md:text-left">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-background/50 backdrop-blur-sm mb-6">
-                  <Code2 className="w-4 h-4 text-primary" />
-                  <span className="text-[13px] font-bold text-text-secondary tracking-widest uppercase">Lead Developer</span>
-                </div>
-                <h2 className="text-4xl md:text-5xl font-display font-bold text-text-primary mb-4">Kamal</h2>
-                <p className="text-[16px] md:text-[18px] text-text-secondary leading-relaxed max-w-2xl mb-8">
-                  A passionate full-stack developer dedicated to building secure, performant, and beautiful web applications. Share2Me was engineered to solve the complex problem of frictionless peer-to-peer data transfer in restrictive network environments.
-                </p>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-background-elevated to-background-card border border-border flex items-center justify-center shadow-soft">
+              <Code2 className="w-6 h-6 text-primary" />
+            </div>
+            <h2 className="text-3xl font-display font-bold text-text-primary">Development Team</h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Card 1: Kamal */}
+            <motion.div 
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="bg-gradient-to-br from-background-card to-background-elevated rounded-[40px] border border-border overflow-hidden relative shadow-2xl group"
+            >
+              <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[80px] -translate-y-1/3 translate-x-1/3 opacity-50" />
+              <div className="p-8 sm:p-12 flex flex-col sm:flex-row gap-8 items-center relative z-10">
+                <motion.div 
+                  whileHover={{ scale: 1.05, rotate: -2 }}
+                  className="w-32 h-32 rounded-[32px] bg-gradient-to-br from-background-elevated to-background border border-border flex items-center justify-center shrink-0 shadow-[0_15px_30px_rgba(0,0,0,0.4)] relative cursor-default"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[32px]" />
+                  <span className="text-5xl font-display font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40 group-hover:from-primary group-hover:to-white transition-all duration-500">K</span>
+                </motion.div>
                 
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
-                  <a href="https://github.com/Kamal-dev-1999" target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full bg-background-elevated border border-border flex items-center justify-center text-text-secondary hover:text-text-primary hover:border-primary hover:bg-primary/10 transition-all duration-300 shadow-lg hover:-translate-y-1">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                    </svg>
-                  </a>
-                  <div className="flex items-center gap-2 px-4 py-3 rounded-full bg-background-elevated border border-border text-[14px] font-medium text-text-secondary">
-                    Built with <Heart className="w-4 h-4 text-status-error fill-status-error/20" /> in India
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background/50 backdrop-blur-sm mb-4">
+                    <Code2 className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[11px] font-bold text-text-secondary tracking-widest uppercase">Lead Developer</span>
+                  </div>
+                  <h3 className="text-3xl font-display font-bold text-text-primary mb-3">Kamal</h3>
+                  <p className="text-[14px] text-text-secondary leading-relaxed mb-6">
+                    A passionate full-stack developer dedicated to building secure, performant, and beautiful web applications. Share2Me was engineered to solve the complex problem of frictionless peer-to-peer data transfer.
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
+                    <a href="https://github.com/Kamal-dev-1999" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-background-elevated border border-border flex items-center justify-center text-text-secondary hover:text-text-primary hover:border-primary hover:bg-primary/10 transition-all duration-300 shadow-md hover:-translate-y-1">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                      </svg>
+                    </a>
+                    <a href="https://www.linkedin.com/in/kamal-tripathi-45767b265/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-background-elevated border border-border flex items-center justify-center text-text-secondary hover:text-primary hover:border-primary hover:bg-primary/10 transition-all duration-300 shadow-md hover:-translate-y-1">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                        <rect x="2" y="9" width="4" height="12"></rect>
+                        <circle cx="4" cy="4" r="2"></circle>
+                      </svg>
+                    </a>
                   </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+
+            {/* Card 2: Rishabh Yadav */}
+            <motion.div 
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="bg-gradient-to-br from-background-card to-background-elevated rounded-[40px] border border-border overflow-hidden relative shadow-2xl group"
+            >
+              <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[#B967FF]/10 rounded-full blur-[80px] -translate-y-1/3 translate-x-1/3 opacity-50" />
+              <div className="p-8 sm:p-12 flex flex-col sm:flex-row gap-8 items-center relative z-10">
+                <motion.div 
+                  whileHover={{ scale: 1.05, rotate: 2 }}
+                  className="w-32 h-32 rounded-[32px] bg-gradient-to-br from-background-elevated to-background border border-border flex items-center justify-center shrink-0 shadow-[0_15px_30px_rgba(0,0,0,0.4)] relative cursor-default"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-tr from-[#B967FF]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[32px]" />
+                  <span className="text-5xl font-display font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40 group-hover:from-[#B967FF] group-hover:to-white transition-all duration-500">R</span>
+                </motion.div>
+                
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background/50 backdrop-blur-sm mb-4">
+                    <Code2 className="w-3.5 h-3.5 text-[#B967FF]" />
+                    <span className="text-[11px] font-bold text-text-secondary tracking-widest uppercase">Developer</span>
+                  </div>
+                  <h3 className="text-3xl font-display font-bold text-text-primary mb-3">Rishabh Yadav</h3>
+                  <p className="text-[14px] text-text-secondary leading-relaxed mb-6">
+                    A core developer specializing in real-time WebRTC connections, client-side encryption architectures, and designing high-fidelity, high-density dashboard layouts.
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
+                    <a href="https://www.linkedin.com/in/rishabh-yadav-6b4b71284/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-background-elevated border border-border flex items-center justify-center text-text-secondary hover:text-[#B967FF] hover:border-[#B967FF] hover:bg-[#B967FF]/10 transition-all duration-300 shadow-md hover:-translate-y-1">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                        <rect x="2" y="9" width="4" height="12"></rect>
+                        <circle cx="4" cy="4" r="2"></circle>
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </section>
 
       </main>

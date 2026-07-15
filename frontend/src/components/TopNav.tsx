@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Shield, Wifi, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function TopNav() {
@@ -76,17 +76,6 @@ export function TopNav() {
 
         {/* Right cluster */}
         <div className="ml-auto flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-background-elevated/50">
-              <Shield className="w-3.5 h-3.5 text-status-success" />
-              <span className="text-[12px] font-medium text-text-secondary">E2E Encrypted</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-background-elevated/50">
-              <Wifi className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[12px] font-medium text-text-secondary">P2P Only</span>
-            </div>
-          </div>
-
           {/* Mobile Menu Toggle Button */}
           <button 
             className="md:hidden p-2 -mr-2 text-text-secondary hover:text-text-primary transition-colors focus:outline-none"

@@ -1,6 +1,6 @@
 import { MetadataRoute } from 'next';
 import { DATABASE } from './blog/db';
-import { LANDING_PAGES } from './[slug]/data';
+import { LANDING_PAGES } from './[...slug]/data';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://share2.me';

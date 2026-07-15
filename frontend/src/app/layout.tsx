@@ -189,6 +189,12 @@ export default function RootLayout({
             })
           }}
         />
+      </head>
+      <body className="min-h-screen bg-background text-text-primary antialiased" suppressHydrationWarning>
+        <SplashScreen />
+        {children}
+        <Analytics />
+        <SpeedInsights />
         <Script async src="https://www.googletagmanager.com/gtag/js?id=G-8XDS75JXYK" strategy="afterInteractive" />
         <Script
           id="google-analytics"
@@ -202,12 +208,6 @@ export default function RootLayout({
             `
           }}
         />
-      </head>
-      <body className="min-h-screen bg-background text-text-primary antialiased" suppressHydrationWarning>
-        <SplashScreen />
-        {children}
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );

@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Upload, FileText, Loader2, Wifi,
-  ClipboardPaste, Type, FileUp, X, Shield, Activity, HardDrive, CheckCircle2
+  ClipboardPaste, Type, FileUp, X, Shield, Activity, HardDrive, CheckCircle2,
+  Copy, Check
 } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -100,6 +101,15 @@ export function SendFlow({
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    if (!otc) return;
+    navigator.clipboard.writeText(otc);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const [textInput, setTextInput] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -364,9 +374,19 @@ export function SendFlow({
             {otc && !isTransferring && !isDone && (
               <motion.div key="qr" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex flex-col items-center w-full">
                 {/* OTC Display */}
-                <div className="w-full bg-background border border-border rounded-[16px] p-5 mb-6 text-center">
-                  <span className="text-[11px] font-bold text-text-tertiary uppercase tracking-[0.1em]">Share this code</span>
-                  <div className="font-mono text-[40px] leading-tight font-bold text-primary tracking-[0.25em] mt-1">{otc}</div>
+                <div 
+                  onClick={copyToClipboard}
+                  className="w-full bg-background border border-border rounded-[16px] p-5 mb-6 text-center relative group cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all duration-200 select-none shadow-sm"
+                  title="Click to copy code"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-text-tertiary uppercase tracking-[0.1em]">Share this code</span>
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-tertiary group-hover:text-primary transition-colors duration-200">
+                      {copied ? <Check className="w-3.5 h-3.5 text-status-success" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copied ? "Copied" : "Copy"}</span>
+                    </div>
+                  </div>
+                  <div className="font-mono text-[40px] leading-tight font-bold text-primary tracking-[0.25em] mt-2 pr-[0.25em]">{otc}</div>
                 </div>
 
                 {/* QR Code */}
