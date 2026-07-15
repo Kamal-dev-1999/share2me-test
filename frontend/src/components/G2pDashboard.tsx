@@ -7,6 +7,7 @@ import {
   Inbox, QrCode, ChevronDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { io, Socket } from "socket.io-client";
 
 interface UserProfile {
   userId: string;
@@ -19,15 +20,15 @@ interface UserProfile {
 }
 
 interface UploadedFile {
+  id: string;
   name: string;
   size: number;
   type: string;
-  dataUrl?: string;
+  status: string;
 }
 
 interface UploadRecord {
   uploadId: string;
-  receiverUserId: string;
   senderName: string;
   message: string;
   files: UploadedFile[];
@@ -35,6 +36,8 @@ interface UploadRecord {
 }
 
 type TabMode = "inbox" | "share";
+
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
 
 function getFileIcon(type: string) {
   if (type.startsWith("image/")) return FileImage;
@@ -51,25 +54,17 @@ function formatSize(bytes: number) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
-function triggerDownload(file: UploadedFile) {
-  const url = file.dataUrl || URL.createObjectURL(new Blob([`Mock content: ${file.name}`], { type: "text/plain" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
 // -------------------------------------------------------------
 // Expandable Upload Record Component
 // -------------------------------------------------------------
 function UploadRecordItem({
   record,
-  onDelete
+  onDelete,
+  onDownload
 }: {
   record: UploadRecord;
   onDelete: (id: string) => void;
+  onDownload: (file: UploadedFile) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -106,7 +101,7 @@ function UploadRecordItem({
 
         <div className="flex items-center gap-2 sm:gap-3 ml-16 sm:ml-0" onClick={e => e.stopPropagation()}>
           <button
-            onClick={(e) => { e.stopPropagation(); record.files.forEach(f => triggerDownload(f)); }}
+            onClick={(e) => { e.stopPropagation(); record.files.forEach(f => onDownload(f)); }}
             className="px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-background border border-primary/20 hover:border-primary text-sm font-bold transition-all flex items-center gap-2"
           >
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Download All</span>
@@ -150,7 +145,7 @@ function UploadRecordItem({
                   return (
                     <div
                       key={idx}
-                      onClick={(e) => { e.stopPropagation(); triggerDownload(file); }}
+                      onClick={(e) => { e.stopPropagation(); onDownload(file); }}
                       className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-background hover:bg-background-elevated hover:border-primary/40 cursor-pointer transition-all group"
                     >
                       <div className="flex items-center gap-4 min-w-0">
@@ -193,7 +188,10 @@ export default function G2pDashboard({
   const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest");
   const [copied, setCopied] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  
   const audioContextRef = useRef<AudioContext | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
   const playChime = useCallback(() => {
     if (!soundEnabled) return;
@@ -217,27 +215,103 @@ export default function G2pDashboard({
     }
   }, [soundEnabled]);
 
-  const loadUploads = useCallback(() => {
-    const allUploads: UploadRecord[] = JSON.parse(localStorage.getItem("share2me_mock_uploads") || "[]");
-    const filtered = allUploads.filter(u => u.receiverUserId === user.userId);
-    setUploads(prev => {
-      if (prev.length > 0 && filtered.length > prev.length) playChime();
-      return filtered;
+  const loadUploads = useCallback(async (authToken: string) => {
+    try {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/requests`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUploads(prev => {
+          if (prev.length > 0 && data.length > prev.length) playChime();
+          return data;
+        });
+      }
+    } catch (e) {
+      console.error("Failed to load uploads", e);
+    }
+  }, [playChime]);
+
+  const connectSocket = useCallback((authToken: string) => {
+    const socket = io(EXPRESS_BACKEND_URL, {
+      transports: ["websocket", "polling"],
     });
-  }, [user.userId, playChime]);
+
+    socket.on("connect", () => {
+      socket.emit("g2p:join_vendor_room", { vendorId: user.userId, authToken });
+    });
+
+    socket.on("g2p:new_submission", () => {
+      loadUploads(authToken);
+      playChime();
+    });
+
+    socket.on("g2p:request_removed", ({ requestId }) => {
+      setUploads(prev => prev.filter(u => u.uploadId !== requestId));
+    });
+
+    socketRef.current = socket;
+  }, [user.userId, loadUploads, playChime]);
 
   useEffect(() => {
-    loadUploads();
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "share2me_mock_uploads") loadUploads();
-    };
-    window.addEventListener("storage", handleStorageChange);
-    const interval = setInterval(loadUploads, 2000);
+    let mounted = true;
+    
+    // Fetch token for API and Sockets
+    fetch("/api/g2p-token")
+      .then(res => res.json())
+      .then(data => {
+        if (!mounted) return;
+        if (data.token) {
+          setToken(data.token);
+          loadUploads(data.token);
+          connectSocket(data.token);
+        }
+      })
+      .catch(err => console.error("Failed to get token:", err));
+
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
+      mounted = false;
+      if (socketRef.current) socketRef.current.disconnect();
     };
-  }, [loadUploads]);
+  }, [connectSocket, loadUploads]);
+
+  const handleDeleteUpload = async (uploadId: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/requests/${uploadId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setUploads(prev => prev.filter(u => u.uploadId !== uploadId));
+      }
+    } catch (e) {
+      console.error("Failed to delete", e);
+    }
+  };
+
+  const handleDownload = async (file: UploadedFile) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/files/${file.id}/download`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const data = await res.json();
+      
+      const link = document.createElement("a");
+      link.href = data.url;
+      link.download = file.name;
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Error downloading file:", err);
+      alert("Could not download file.");
+    }
+  };
 
   const shareLink = typeof window !== "undefined"
     ? `${window.location.origin}/g2p/${user.shareCode}`
@@ -249,12 +323,6 @@ export default function G2pDashboard({
     navigator.clipboard.writeText(user.shareCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDeleteUpload = (uploadId: string) => {
-    const allUploads: UploadRecord[] = JSON.parse(localStorage.getItem("share2me_mock_uploads") || "[]");
-    localStorage.setItem("share2me_mock_uploads", JSON.stringify(allUploads.filter(u => u.uploadId !== uploadId)));
-    loadUploads();
   };
 
   const processedUploads = uploads
@@ -337,7 +405,7 @@ export default function G2pDashboard({
                   </div>
                   <div>
                     <h2 className="text-lg leading-tight">Received Files</h2>
-                    <p className="text-xs text-text-tertiary font-normal mt-0.5">{uploads.length} total transfers</p>
+                    <p className="text-xs text-text-tertiary font-normal mt-0.5">{uploads.length} active requests</p>
                   </div>
                 </div>
                 
@@ -370,6 +438,7 @@ export default function G2pDashboard({
                         key={record.uploadId} 
                         record={record} 
                         onDelete={handleDeleteUpload} 
+                        onDownload={handleDownload}
                       />
                     ))}
                   </AnimatePresence>

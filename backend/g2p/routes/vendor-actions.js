@@ -6,14 +6,98 @@ const { emitToVendor } = require('../socket');
 const { verifyVendorJWT } = require('../lib/auth');
 
 const router = express.Router();
+const crypto = require('crypto');
 
-// Middleware to verify vendor
+// Server-to-server endpoint for NextAuth to upsert the vendor during login
+router.post('/upsert', async (req, res) => {
+  // Simple shared-secret authorization for internal backend-to-backend communication
+  const authHeader = req.headers.authorization || '';
+  const secret = process.env.AUTH_JWT_SECRET || 'placeholder_jwt_secret';
+  
+  if (authHeader !== `Bearer ${secret}`) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  const { name, providerId } = req.body;
+  if (!name || !providerId) return res.status(400).json({ error: 'missing_fields' });
+
+  try {
+    // Check if exists first to avoid generating a new share2me_id if not needed
+    const existing = await query(`SELECT id, share2me_id FROM vendors WHERE auth_provider_id = $1`, [providerId]);
+    if (existing.rowCount > 0) {
+      // Update name just in case it changed
+      await query(`UPDATE vendors SET name = $1 WHERE auth_provider_id = $2`, [name, providerId]);
+      return res.json(existing.rows[0]);
+    }
+
+    // Generate unique 6-char share2me_id (e.g. "A8B2C9")
+    const share2me_id = crypto.randomBytes(3).toString('hex').toUpperCase();
+
+    const insertRes = await query(`
+      INSERT INTO vendors (name, auth_provider_id, share2me_id)
+      VALUES ($1, $2, $3)
+      RETURNING id, share2me_id
+    `, [name, providerId, share2me_id]);
+    
+    res.json(insertRes.rows[0]);
+  } catch (err) {
+    console.error('[G2P] Upsert vendor error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Middleware to verify vendor for all subsequent routes
 router.use(async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   const vendor = await verifyVendorJWT(token);
   if (!vendor) return res.status(401).json({ error: 'unauthorized' });
   req.vendorId = vendor.id;
   next();
+});
+
+// Get all active requests for this vendor
+router.get('/requests', async (req, res) => {
+  try {
+    const reqs = await query(`
+      SELECT r.id as request_id, r.status, r.created_at, r.device_metadata,
+             f.id as file_id, f.original_name, f.size_bytes, f.mime_type, f.status as file_status
+      FROM requests r
+      LEFT JOIN files f ON f.request_id = r.id
+      WHERE r.vendor_id = $1 AND r.deleted_at IS NULL
+    `, [req.vendorId]);
+    
+    // Group files by request
+    const requestsMap = new Map();
+    for (const row of reqs.rows) {
+      if (!requestsMap.has(row.request_id)) {
+        requestsMap.set(row.request_id, {
+          uploadId: row.request_id,
+          senderName: row.device_metadata?.senderName || 'Anonymous',
+          message: row.device_metadata?.message || '',
+          uploadedAt: row.created_at,
+          files: []
+        });
+      }
+      
+      // Only show received or downloaded files to the vendor
+      if (row.file_id && (row.file_status === 'received' || row.file_status === 'downloaded')) {
+        requestsMap.get(row.request_id).files.push({
+          id: row.file_id,
+          name: row.original_name,
+          size: parseInt(row.size_bytes, 10),
+          type: row.mime_type,
+          status: row.file_status
+        });
+      }
+    }
+    
+    // Filter out requests that have 0 fully received files (they might still be uploading)
+    const validRequests = Array.from(requestsMap.values()).filter(r => r.files.length > 0);
+    res.json(validRequests);
+  } catch (err) {
+    console.error('[G2P] Fetch requests error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
 });
 
 // Download a file

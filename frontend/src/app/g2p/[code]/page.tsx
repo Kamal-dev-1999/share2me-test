@@ -7,18 +7,12 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface UserProfile {
-  userId: string;
-  username: string;
-  shareCode: string;
-  profilePhoto: string;
-}
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
 
-interface UploadedFile {
+interface VendorProfile {
+  id: string;
   name: string;
-  size: number;
-  type: string;
-  dataUrl?: string;
+  accepting_requests: boolean;
 }
 
 interface PageProps {
@@ -27,7 +21,7 @@ interface PageProps {
 
 export default function G2pSenderPortal({ params }: PageProps) {
   const { code } = use(params);
-  const [receiver, setReceiver] = useState<UserProfile | null>(null);
+  const [receiver, setReceiver] = useState<VendorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [senderName, setSenderName] = useState("");
@@ -41,10 +35,16 @@ export default function G2pSenderPortal({ params }: PageProps) {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    const users: UserProfile[] = JSON.parse(localStorage.getItem("share2me_mock_users") || "[]");
-    const matched = users.find(u => u.shareCode.toLowerCase() === code.toLowerCase());
-    if (matched) setReceiver(matched);
-    setLoading(false);
+    fetch(`${EXPRESS_BACKEND_URL}/g2p/requests/vendor/${code}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.id) setReceiver(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch vendor", err);
+        setLoading(false);
+      });
   }, [code]);
 
   if (loading) {
@@ -82,54 +82,88 @@ export default function G2pSenderPortal({ params }: PageProps) {
     if (e.dataTransfer.files) setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
   };
 
-  const readFileAsDataUrl = (file: File): Promise<string | undefined> => {
-    return new Promise((resolve) => {
-      if (file.size > 500_000) return resolve(undefined);
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleSendFiles = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
     if (!senderName.trim()) return setErrorMsg("Please enter your name.");
     if (selectedFiles.length === 0) return setErrorMsg("Please attach at least one file.");
+    if (!receiver.accepting_requests) return setErrorMsg("This portal is currently not accepting files.");
 
     setUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(10); // Initial progress indicating we are contacting backend
 
-    const steps = 40;
-    let currentStep = 0;
-    const timer = setInterval(async () => {
-      currentStep++;
-      setUploadProgress(Math.min((currentStep / steps) * 100, 100));
+    try {
+      // 1. Create the Request Container (Safe transactional lock)
+      const reqRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId: receiver.id,
+          deviceMetadata: { senderName: senderName.trim(), message: message.trim() }
+        })
+      });
 
-      if (currentStep >= steps) {
-        clearInterval(timer);
-        const processedFiles: UploadedFile[] = [];
-        for (const file of selectedFiles) {
-          processedFiles.push({ name: file.name, size: file.size, type: file.type, dataUrl: await readFileAsDataUrl(file) });
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const existing: any[] = JSON.parse(localStorage.getItem("share2me_mock_uploads") || "[]");
-        existing.push({
-          uploadId: "upl_" + Math.random().toString(36).substr(2, 9),
-          receiverUserId: receiver.userId,
-          senderName: senderName.trim(),
-          message: message.trim(),
-          files: processedFiles,
-          uploadedAt: new Date().toISOString()
-        });
-        localStorage.setItem("share2me_mock_uploads", JSON.stringify(existing));
-
-        setUploading(false);
-        setUploadComplete(true);
+      if (!reqRes.ok) {
+        const errData = await reqRes.json();
+        throw new Error(errData.message || errData.error || "Failed to create request");
       }
-    }, 50);
+      
+      const { id: requestId, status_token: statusToken } = await reqRes.json();
+      setUploadProgress(20);
+
+      // 2. Upload Each File Directly to S3/R2
+      const totalFiles = selectedFiles.length;
+      let completedFiles = 0;
+
+      for (const file of selectedFiles) {
+        // A. Presign Upload URL
+        const preRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/files/presign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId,
+            statusToken,
+            filename: file.name,
+            contentType: file.type || 'application/octet-stream',
+            sizeBytes: file.size
+          })
+        });
+
+        if (!preRes.ok) {
+          const errData = await preRes.json();
+          throw new Error(errData.message || `Failed to initialize upload for ${file.name}`);
+        }
+        
+        const { fileId, uploadUrl } = await preRes.json();
+
+        // B. Direct S3 Upload (Bypassing our Express backend entirely!)
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type || 'application/octet-stream' }
+        });
+
+        if (!uploadRes.ok) throw new Error(`Cloudflare rejected upload for ${file.name}`);
+
+        // C. Complete & Verify Upload
+        await fetch(`${EXPRESS_BACKEND_URL}/g2p/files/${fileId}/complete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ statusToken })
+        });
+
+        completedFiles++;
+        setUploadProgress(20 + (completedFiles / totalFiles) * 80);
+      }
+
+      setUploadComplete(true);
+    } catch (err: any) {
+      console.error("Upload process error:", err);
+      setErrorMsg(err.message || "An error occurred during upload. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const formatSize = (bytes: number) => {
@@ -160,21 +194,21 @@ export default function G2pSenderPortal({ params }: PageProps) {
               className="bg-background-card border border-border rounded-3xl p-8 shadow-xl"
             >
               <div className="flex items-center gap-4 mb-8 pb-8 border-b border-border">
-                {receiver.profilePhoto ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={receiver.profilePhoto} className="w-14 h-14 rounded-full object-cover border border-primary/20" alt="" />
-                  </>
-                ) : (
-                  <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-bold text-primary">
-                    {receiver.username.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-bold text-primary">
+                  {receiver.name.charAt(0).toUpperCase()}
+                </div>
                 <div>
                   <p className="text-[10px] text-text-tertiary font-bold uppercase tracking-widest mb-0.5">SENDING TO</p>
-                  <h1 className="text-xl font-semibold text-text-primary leading-tight">{receiver.username}</h1>
+                  <h1 className="text-xl font-semibold text-text-primary leading-tight">{receiver.name}</h1>
                 </div>
               </div>
+
+              {!receiver.accepting_requests ? (
+                <div className="bg-status-error/10 border border-status-error/30 rounded-xl p-4 flex gap-3 mb-6">
+                  <AlertCircle className="w-5 h-5 text-status-error shrink-0" />
+                  <p className="text-sm text-status-error font-medium">This portal is currently paused and is not accepting new files right now.</p>
+                </div>
+              ) : null}
 
               <form onSubmit={handleSendFiles} className="space-y-6">
                 
@@ -186,14 +220,14 @@ export default function G2pSenderPortal({ params }: PageProps) {
                     onDrop={handleDrop}
                     className={`relative w-full border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all ${
                       isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-background"
-                    } ${uploading ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
+                    } ${uploading || !receiver.accepting_requests ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                   >
-                    <input type="file" multiple onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploading} />
+                    <input type="file" multiple onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploading || !receiver.accepting_requests} />
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
                       <Upload className="w-6 h-6 text-primary" />
                     </div>
                     <p className="text-sm font-bold text-text-primary mb-1">Click or drag files here</p>
-                    <p className="text-xs text-text-tertiary">No limits. Send anything.</p>
+                    <p className="text-xs text-text-tertiary">Files are sent directly via Cloudflare R2.</p>
                   </div>
 
                   {selectedFiles.length > 0 && (
@@ -226,7 +260,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                     <input
-                      type="text" required disabled={uploading} placeholder="Your Name"
+                      type="text" required disabled={uploading || !receiver.accepting_requests} placeholder="Your Name"
                       value={senderName} onChange={e => setSenderName(e.target.value)}
                       className="w-full bg-background border border-border focus:border-primary/50 rounded-xl pl-11 pr-4 py-3.5 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors"
                     />
@@ -235,7 +269,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
                   <div className="relative">
                     <MessageSquare className="absolute left-4 top-4 w-4 h-4 text-primary" />
                     <textarea
-                      placeholder="Add a message (optional)" disabled={uploading} rows={2}
+                      placeholder="Add a message (optional)" disabled={uploading || !receiver.accepting_requests} rows={2}
                       value={message} onChange={e => setMessage(e.target.value)}
                       className="w-full bg-background border border-border focus:border-primary/50 rounded-xl pl-11 pr-4 py-3.5 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors resize-none"
                     />
@@ -255,7 +289,11 @@ export default function G2pSenderPortal({ params }: PageProps) {
                     </div>
                   </div>
                 ) : (
-                  <button type="submit" className="w-full bg-primary text-background hover:bg-primary-hover font-bold py-3.5 rounded-xl transition-colors mt-4 shadow-glow">
+                  <button 
+                    type="submit" 
+                    disabled={!receiver.accepting_requests}
+                    className="w-full bg-primary text-background disabled:bg-background-elevated disabled:text-text-tertiary hover:bg-primary-hover font-bold py-3.5 rounded-xl transition-colors mt-4 shadow-glow"
+                  >
                     Transfer Files
                   </button>
                 )}
@@ -273,7 +311,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
               </div>
               <h2 className="text-2xl font-bold text-text-primary mb-3">Transfer Complete</h2>
               <p className="text-text-secondary text-sm mb-8 max-w-sm mx-auto leading-relaxed">
-                Your files have been securely delivered to <strong>{receiver.username}</strong>&apos;s inbox.
+                Your files have been securely delivered to <strong>{receiver.name}</strong>&apos;s inbox.
               </p>
               
               <div className="flex flex-col gap-3">

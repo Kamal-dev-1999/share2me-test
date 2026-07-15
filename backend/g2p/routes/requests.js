@@ -7,6 +7,24 @@ const router = express.Router();
 const requestCreateLimiter = new RateLimiter(60_000, 10); // 10 new requests/min per IP
 const statusPollLimiter = new RateLimiter(10_000, 3); // 3 polls / 10s per status_token
 
+// Look up vendor by share2me_id (public route for students)
+router.get('/vendor/:shareCode', async (req, res) => {
+  const { shareCode } = req.params;
+  try {
+    const vendorRes = await query(`
+      SELECT id, name, accepting_requests 
+      FROM vendors 
+      WHERE share2me_id = $1
+    `, [shareCode.toUpperCase()]);
+
+    if (vendorRes.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    res.json(vendorRes.rows[0]);
+  } catch (err) {
+    console.error('[G2P] Vendor lookup error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 // Create a new print request
 router.post('/', async (req, res) => {
   const ip = req.ip || req.connection.remoteAddress || 'unknown';
