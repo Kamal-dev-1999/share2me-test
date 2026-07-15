@@ -16,6 +16,8 @@ const { randomInt } = require('crypto');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const { createClient }      = require('redis');
 const { createAdapter }     = require('@socket.io/redis-adapter');
+const { otcToRoom, attachP2PSockets } = require('./p2p/socket');
+const RateLimiter = require('./lib/RateLimiter');
 
 const app    = express();
 const server = http.createServer(app);
@@ -90,6 +92,10 @@ let cachedMeteredIceServersAt = 0;
 const METERED_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
 // ─── HTTP Endpoints ───────────────────────────────────────────────────────────
+
+// Mount G2P module (Decoupled Phase 2)
+app.use('/g2p', require('./g2p/index').g2pRouter);
+
 app.get('/api/ice-servers', async (_req, res) => {
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -173,51 +179,9 @@ app.use('/', createProxyMiddleware({
   },
 }));
 
-// ─── In-memory state ──────────────────────────────────────────────────────────
-const otcToRoom = new Map(); // otc → { createdAt, metadata, ownerSocketId, ip }
+// ─── Shared State ─────────────────────────────────────────────────────────────
 const bannedIPs = new Map(); // ip  → unbanTimestamp
-
-// ─── O(1) Fixed-window Rate Limiter ──────────────────────────────────────────
-class RateLimiter {
-  constructor(windowMs, maxRequests) {
-    this.windowMs    = windowMs;
-    this.maxRequests = maxRequests;
-    this.buckets     = new Map();
-  }
-  isRateLimited(key) {
-    const now = Date.now();
-    const b   = this.buckets.get(key);
-    if (!b || now >= b.resetAt) { this.buckets.set(key, { count: 1, resetAt: now + this.windowMs }); return false; }
-    if (b.count >= this.maxRequests) return true;
-    b.count++;
-    return false;
-  }
-  prune() {
-    const now = Date.now();
-    for (const [k, b] of this.buckets.entries()) if (now >= b.resetAt) this.buckets.delete(k);
-  }
-}
-
-const connLimiter       = new RateLimiter(60_000, 10);
-const createRoomLimiter = new RateLimiter(60_000, 3);
-const joinRoomLimiter   = new RateLimiter(60_000, 10);
-const signalLimiter     = new RateLimiter(60_000, 1_000);
-
-// ─── OTC generation (6-digit, collision-safe) ────────────────────────────────
-function genUniqueOTC() {
-  for (let i = 0; i < 10; i++) {
-    const otc = String(randomInt(0, 1_000_000)).padStart(6, '0');
-    if (!otcToRoom.has(otc)) return otc;
-  }
-  throw new Error('OTC space exhausted');
-}
-
-// ─── Payload guard ────────────────────────────────────────────────────────────
-function checkPayloadSize(msg) {
-  if (!msg) return true;
-  try { return (typeof msg === 'string' ? msg : JSON.stringify(msg)).length <= 2 * 1024 * 1024; }
-  catch { return false; }
-}
+const connLimiter = new RateLimiter(60_000, 10);
 
 // ─── Connection middleware ────────────────────────────────────────────────────
 io.use((socket, next) => {
@@ -228,126 +192,18 @@ io.use((socket, next) => {
   next();
 });
 
-// ─── Socket events ────────────────────────────────────────────────────────────
-io.on('connection', (socket) => {
-  const ip = socket.handshake.address || 'unknown';
-  metrics.connectionsTotal++;
-  metrics.connectionsActive++;
+// ─── Attach P2P Module ────────────────────────────────────────────────────────
+attachP2PSockets(io, metrics, bannedIPs);
 
-  const nackTracker = new Map(); // `${otc}:${seq}` → retryCount
+// ─── Attach G2P Module ────────────────────────────────────────────────────────
+const { attachG2PSockets } = require('./g2p/socket');
+attachG2PSockets(io, metrics, bannedIPs);
 
-  // ── create_room ─────────────────────────────────────────────────────────────
-  socket.on('create_room', (cb) => {
-    try {
-      if (createRoomLimiter.isRateLimited(ip)) { metrics.rateLimitHits++; return cb?.({ error: 'rate_limited' }); }
-      const otc = genUniqueOTC();
-      otcToRoom.set(otc, { createdAt: Date.now(), metadata: null, ownerSocketId: socket.id, ip });
-      socket.join(otc);
-      socket.roomOTC = otc;
-      metrics.roomsCreated++;
-      cb?.({ otc });
-    } catch (err) { console.error('[create_room]', err.message); cb?.({ error: 'internal_error' }); }
-  });
-
-  // ── sender_ready: store metadata + relay to any already-joined receiver ──────
-  socket.on('sender_ready', ({ otc, metadata } = {}) => {
-    try {
-      if (!otc || !metadata) return;
-      if (!checkPayloadSize({ otc, metadata })) { metrics.oversizedPayloads++; socket.disconnect(true); return; }
-      const room = otcToRoom.get(otc);
-      if (!room) return;
-      if (room.ownerSocketId !== socket.id) return; // ownership check
-      room.metadata = metadata;
-      socket.to(otc).emit('metadata_relay', { metadata });
-    } catch (err) { console.error('[sender_ready]', err.message); }
-  });
-
-  // ── join_room: relay cached metadata to late-joining receiver ───────────────
-  socket.on('join_room', ({ otc } = {}, cb) => {
-    try {
-      const now      = Date.now();
-      const banUntil = bannedIPs.get(ip);
-      if (banUntil && now < banUntil) return cb?.({ error: 'rate_limited' });
-      if (joinRoomLimiter.isRateLimited(ip)) {
-        metrics.rateLimitHits++;
-        bannedIPs.set(ip, now + 5 * 60_000); // 5-min temp ban
-        return cb?.({ error: 'rate_limited' });
-      }
-      if (!otcToRoom.has(otc)) return cb?.({ error: 'not_found' });
-      socket.join(otc);
-      socket.roomOTC = otc;
-      cb?.({ ok: true });
-      const room = otcToRoom.get(otc);
-      if (room?.metadata) socket.emit('metadata_relay', { metadata: room.metadata });
-    } catch (err) { console.error('[join_room]', err.message); cb?.({ error: 'internal_error' }); }
-  });
-
-  // ── generic relay ────────────────────────────────────────────────────────────
-  const handleRelay = (eventName, msg) => {
-    if (!msg?.otc) return;
-    if (!checkPayloadSize(msg)) { metrics.oversizedPayloads++; socket.disconnect(true); return; }
-    if (signalLimiter.isRateLimited(socket.id)) { metrics.rateLimitHits++; socket.disconnect(true); return; }
-    socket.to(msg.otc).emit(eventName, msg);
-    metrics.signalsRelayed++;
-  };
-
-  socket.on('signal',       (msg) => handleRelay('signal', msg));
-  socket.on('receiver_pub', (msg) => handleRelay('receiver_pub', msg));
-  socket.on('wrapped_key',  (msg) => handleRelay('wrapped_key', msg));
-  socket.on('key_exchange', (msg) => handleRelay('key_exchange', msg));
-  socket.on('ack',          (msg) => handleRelay('ack', msg));
-
-  // ── nack: with per-chunk flood protection ────────────────────────────────────
-  socket.on('nack', (msg) => {
-    if (!msg?.otc || !Array.isArray(msg.missingSeqs)) return;
-    for (const seq of msg.missingSeqs) {
-      const key     = `${msg.otc}:${seq}`;
-      const retries = (nackTracker.get(key) || 0) + 1;
-      if (retries > 10) {
-        metrics.nackFloodsBlocked++;
-        console.warn(`[nack] Flood from ${socket.id}, chunk ${seq} requested ${retries}×`);
-        socket.disconnect(true);
-        return;
-      }
-      nackTracker.set(key, retries);
-    }
-    handleRelay('nack', msg);
-  });
-
-  // ── transfer_complete: notify peers + schedule room cleanup ─────────────────
-  socket.on('transfer_complete', (msg) => {
-    handleRelay('transfer_complete', msg);
-    if (!msg?.otc) return;
-    io.to(msg.otc).emit('room_closing', { otc: msg.otc, reason: 'transfer_complete' });
-    setTimeout(() => {
-      const socketsInRoom = io.sockets.adapter.rooms.get(msg.otc);
-      if (!socketsInRoom || socketsInRoom.size === 0) { otcToRoom.delete(msg.otc); metrics.roomsDestroyed++; }
-    }, 60_000);
-  });
-
-  // ── disconnect ───────────────────────────────────────────────────────────────
-  socket.on('disconnect', () => {
-    metrics.connectionsActive--;
-    nackTracker.clear();
-    const otc = socket.roomOTC;
-    if (!otc) return;
-    const room = io.sockets.adapter.rooms.get(otc);
-    if (!room || room.size === 0) { otcToRoom.delete(otc); metrics.roomsDestroyed++; }
-  });
-});
-
-// ─── GC Janitor (every 2 min) ─────────────────────────────────────────────────
+// ─── Global GC Janitor (every 2 min) ──────────────────────────────────────────
 setInterval(() => {
-  const now = Date.now(); let pruned = 0;
-  for (const [otc, room] of otcToRoom.entries()) {
-    const hasSockets  = (io.sockets.adapter.rooms.get(otc)?.size ?? 0) > 0;
-    const isExpired   = now - room.createdAt > 30 * 60_000;
-    const isAbandoned = !hasSockets && now - room.createdAt > 90_000;
-    if (isExpired || isAbandoned) { otcToRoom.delete(otc); metrics.roomsDestroyed++; pruned++; }
-  }
+  const now = Date.now();
   for (const [ip, until] of bannedIPs.entries()) if (now >= until) bannedIPs.delete(ip);
-  connLimiter.prune(); createRoomLimiter.prune(); joinRoomLimiter.prune(); signalLimiter.prune();
-  if (pruned > 0) console.log(`[GC] Pruned ${pruned} rooms. Active: ${otcToRoom.size}, Conns: ${metrics.connectionsActive}`);
+  connLimiter.prune();
 }, 2 * 60_000);
 
 // ─── Start ────────────────────────────────────────────────────────────────────

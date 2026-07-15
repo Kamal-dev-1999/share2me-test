@@ -2,6 +2,8 @@
 
 This is the single source of truth for building G2P, merging the architecture analysis, tool selection, flow design, codebase-accurate implementation details, full schema, and a phased execution plan.
 
+> **Revision note (2026-07-15):** Seven correctness issues identified during technical review have been incorporated directly into the relevant sections below. Changes are: SELECT FOR UPDATE on cap checks (§9), crash-safe download grace timer via DB field (§10), presigned URL expiry + pending_upload collision handling (§11), Auth.js JWT secret rotation coupling (§6c), socket namespace middleware isolation decision (§6a), cleanup worker concurrency guard (§10), and status poll rate-limit key changed to `status_token` (§6b).
+
 ---
 
 ## 1. What We're Building
@@ -157,7 +159,10 @@ This mirrors the "extract into its own module" pattern already recommended in th
 ### 6a. Socket layer
 Your `server.js` already has a connection middleware and room-join pattern — reuse it as-is, don't invent a new one.
 
-**Connection middleware (unchanged, already covers G2P too):**
+**Namespace decision (chosen: default namespace, `g2p:*` event prefix):**
+G2P socket events stay in the default `io` namespace (not a separate `io.of('/g2p')` namespace). This is a deliberate call: the existing `io.use()` connection middleware — which enforces IP bans and rate limiting — applies automatically to all events in the default namespace. Creating a separate namespace would require re-registering that middleware manually, which is an easy thing to forget and would silently bypass the IP ban list. Using prefixed events (`g2p:*`) inside the default namespace gives the same logical isolation with zero extra wiring.
+
+**Connection middleware (unchanged, automatically applies to all G2P events too):**
 ```js
 io.use((socket, next) => {
   const ip = socket.handshake.address || 'unknown';
@@ -176,6 +181,7 @@ io.use((socket, next) => {
 socket.on('g2p:join_vendor_room', ({ vendorId, authToken } = {}, cb) => {
   const vendor = verifyVendorJWT(authToken); // see §6c
   if (!vendor || vendor.id !== vendorId) return cb?.({ error: 'unauthorized' });
+  if (vendorJoinLimiter.isRateLimited(ip)) { metrics.rateLimitHits++; return cb?.({ error: 'rate_limited' }); }
   socket.join(`vendor:${vendorId}`);
   socket.vendorId = vendorId;
   cb?.({ ok: true });
@@ -198,12 +204,26 @@ Your `RateLimiter` class is already generic and reusable. G2P just needs its own
 const vendorJoinLimiter     = new RateLimiter(60_000, 30);  // 30 joins/min per IP
 const requestCreateLimiter  = new RateLimiter(60_000, 10);  // 10 new requests/min per IP
 const presignLimiter        = new RateLimiter(60_000, 40);  // 40 presign calls/min per IP (covers a 10-file batch + retries)
-const statusPollLimiter     = new RateLimiter(10_000, 3);   // 3 polls / 10s per IP
+const statusPollLimiter     = new RateLimiter(10_000, 3);   // 3 polls / 10s per status_token
 ```
 Gate new HTTP routes and socket events with these using the same `isRateLimited(ip)` check already used for `connLimiter`. Reuse `bannedIPs` as-is for abuse escalation (e.g., auto-ban an IP that repeatedly hits `requestCreateLimiter`).
 
+**Important — status poll rate-limit key is `status_token`, not IP:** University campuses and shared WiFi networks route hundreds of students through a single public IP (NAT). Rate-limiting the status poll on IP would cause 197 out of 200 students to be rejected while legitimately checking their own order. The `status_token` is already a random UUID (2^122 space — unguessable by brute force), so using it as the rate-limit key is both more accurate and more abuse-resistant:
+
+```js
+// In the status poll route handler:
+if (statusPollLimiter.isRateLimited(req.params.status_token)) {
+  return res.status(429).json({ error: 'too_many_requests' });
+}
+```
+
 ### 6c. Auth token verification
 Auth.js runs in the Next.js frontend, but the socket/API layer is a **separate Express process** — it must independently verify the JWT Auth.js issues (shared secret), on both REST calls and the `g2p:join_vendor_room` socket event. This is why `jose` (or `jsonwebtoken`) is a required new backend dependency (§8).
+
+**Secret rotation coupling — critical operational requirement:**
+The `AUTH_SECRET` used by Next.js/Auth.js to sign JWTs and the `AUTH_JWT_SECRET` used by the backend Express process to verify them **must always be the same value**. If they diverge (e.g., only one container's env vars are updated during a deployment), all vendor socket connections will fail silently with `unauthorized` errors. Enforce this:
+1. Store the value in **one** SSM Parameter Store entry (e.g., `/share2me/auth_secret`) and reference it in both the frontend and backend ECS task definitions — never duplicate the value.
+2. Add a JWT self-verification step to `/g2p/health`: sign a test token with the configured secret and verify it. If this fails, `/g2p/health` returns 500 — which will cause ECS health checks to catch the misconfiguration before traffic is routed to the broken container.
 
 ---
 
@@ -317,8 +337,20 @@ CREATE INDEX idx_files_request_id ON files(request_id);
 CREATE INDEX idx_files_status_pending ON files(status) WHERE status = 'pending_upload';
 ```
 
-**Aggregate caps enforced in application code, inside a single DB transaction with the insert (not as DB constraints, since they require `COUNT`/`SUM`):**
+**Aggregate caps enforced in application code, inside a single serialized DB transaction (not as DB constraints, since they require `COUNT`/`SUM`):**
+
+At `READ COMMITTED` isolation (Postgres default), a naive `SELECT COUNT + INSERT` transaction still allows two concurrent submissions to both read the same count (e.g. 99), both pass the cap check, and both insert — ending at 101 active requests. This race is not theoretical: a class of students hitting submit simultaneously will trigger it on the first busy day.
+
+**Fix: `SELECT ... FOR UPDATE` on the vendor row to serialize concurrent submissions per vendor:**
+
 ```sql
+-- STEP 1: Acquire a row-level lock on the vendor. All other transactions for
+-- this vendor_id will queue here until this transaction commits or rolls back.
+-- This serialises concurrent submissions from the same vendor without locking
+-- any other vendor's rows.
+SELECT id FROM vendors WHERE id = $1 FOR UPDATE;
+
+-- STEP 2 (now safe — no other transaction can race past this point for this vendor):
 -- 100 active requests / vendor
 SELECT COUNT(*) FROM requests
 WHERE vendor_id = $1 AND status NOT IN ('completed', 'expired') AND deleted_at IS NULL;
@@ -330,8 +362,11 @@ WHERE r.vendor_id = $1 AND r.deleted_at IS NULL AND f.status != 'deleted';
 
 -- 10 files / request, checked before each presigned URL
 SELECT COUNT(*) FROM files WHERE request_id = $1;
+
+-- STEP 3: Insert only if all checks pass, then COMMIT.
 ```
-Both aggregate checks and the insert must happen inside a single transaction to avoid a race where two files are presigned at the same instant and both pass the cap check before either commits.
+
+This entire block — `SELECT FOR UPDATE`, all cap checks, and the insert — must run inside a single transaction. The `FOR UPDATE` lock is released on commit, so contention is brief (a single fast DB write). Reject with a clear user-facing message on cap hit: `"This vendor's queue is full, try again shortly"` — never a silent failure.
 
 ---
 
@@ -341,11 +376,26 @@ All three triggers call the **same internal `deleteRequest(requestId, reason)` f
 
 | Trigger | Behavior |
 |---|---|
-| **Hard TTL (1 hour)** | Cleanup worker (every 5 min, same `setInterval` pattern as existing P2P room cleanup) finds `requests.expires_at < now` and calls `deleteRequest(id, 'expired')` |
-| **Download/print** | Vendor clicks download → backend serves a short-lived signed GET URL and starts a grace timer (recommend 10 minutes, not instant, to protect against paper jams/reprints). After grace period, `deleteRequest(id, 'downloaded')` fires automatically |
+| **Hard TTL (1 hour)** | Cleanup worker finds `requests.expires_at < now` and calls `deleteRequest(id, 'expired')` |
+| **Download/print** | Vendor clicks download → backend serves a short-lived signed GET URL and writes `files.downloaded_at = NOW()` to the DB. The cleanup worker finds rows where `status = 'downloaded' AND downloaded_at < NOW() - INTERVAL '10 minutes'` and calls `deleteRequest(id, 'downloaded')` — 10-min grace protects against paper jams/reprints |
 | **Manual vendor delete** | Dashboard "Delete" button calls the same function directly: `deleteRequest(id, 'manual')` |
 
-`deleteRequest()` does: delete R2 objects → delete/soft-delete DB rows → broadcast `g2p:request_removed` to the vendor socket room so all open dashboard tabs drop it from the queue immediately.
+`deleteRequest()` does: delete R2 objects → hard-delete DB rows (see soft-delete note below) → broadcast `g2p:request_removed` to the vendor socket room so all open dashboard tabs drop it from the queue immediately.
+
+**Why the grace timer is in the DB, not in-memory:** An in-memory `setTimeout` is lost on container restart (ECS task replacement, deployment rollout, OOM kill). Writing `downloaded_at` to the DB and letting the cleanup worker handle the 10-minute window makes the grace period crash-safe at zero extra infrastructure cost — the worker already runs every 5 minutes.
+
+**Deletion model — hard delete:** The `deleted_at` column on `requests` is retained for soft-delete *queries* (filtering out logically deleted rows), but once `deleteRequest()` runs, rows are physically removed from `requests` and `files` via `ON DELETE CASCADE`. Audit trails and GDPR compliance are explicitly out of scope for v1; hard delete keeps storage and query complexity minimal.
+
+**Cleanup worker concurrency guard:** At load (hundreds of requests expiring in one tick), the worker may take longer than 5 minutes, causing overlapping runs. Use a guard flag to prevent this:
+
+```js
+let cleanupRunning = false;
+setInterval(async () => {
+  if (cleanupRunning) return; // skip tick if previous run is still in progress
+  cleanupRunning = true;
+  try { await runG2PCleanup(); } finally { cleanupRunning = false; }
+}, 5 * 60_000);
+```
 
 **Backstop:** R2 lifecycle rule at 2 hours (double the TTL) — if the app-level cleanup worker ever crashes or falls behind, storage still self-heals and cost never leaks silently.
 
@@ -353,15 +403,27 @@ All three triggers call the **same internal `deleteRequest(requestId, reason)` f
 
 ## 11. Server-Side Upload Confirmation (Full Design)
 
-**Layer 1 — never trust the client's "done" call alone.** On `/files/:id/complete`, backend does a `HEAD` request against R2 to confirm the object exists and its size roughly matches what was declared at presign time. Only then does `file.status` flip to `received`. If the check fails, return an error and let the client retry with a fresh presigned URL.
+**Layer 1 — never trust the client's "done" call alone.** On `/files/:id/complete`, backend does a `HEAD` request against R2 to confirm the object exists and its size roughly matches what was declared at presign time. Only then does `file.status` flip to `received`. If the check fails, return an error and let the client retry.
+
+**Retry flow — clean up the stale `pending_upload` row before re-presigning:** When a presigned URL expires (student idles > 15 minutes) and the client calls `/complete`, the HEAD check will fail. Before issuing a fresh presigned URL, the backend must delete the stale `pending_upload` file row. If this is skipped, the stale row still counts toward the 10-files-per-request cap — the retry presign will fail the cap check even though no upload succeeded, and the student is blocked unnecessarily.
+
+```
+POST /files/presign fails (URL expired):
+  → backend deletes stale pending_upload file row
+  → issues a fresh presigned URL for the same file
+  → new pending_upload row created
+  → student uploads normally
+```
+
+Alternatively: the reconciliation worker (Layer 2) cleans `pending_upload` rows older than 10 minutes — ensure this interval is strictly less than the presigned URL TTL (15 min) so the cleanup always runs before a retry would be blocked.
 
 **Layer 2 — reconciliation for the "tab closed mid-upload" case.** The same cleanup worker also finds any `files` still `pending_upload` for more than ~10 minutes, and does the same `HEAD` check:
 - Object exists → upload actually succeeded but `/complete` never fired (closed tab, dropped network). Promote to `received` anyway.
-- Object doesn't exist → genuinely abandoned. Mark `deleted`; if the parent request ends up with zero received files, it expires normally via TTL.
+- Object doesn't exist → genuinely abandoned. Delete the row; if the parent request ends up with zero received files, it expires normally via TTL.
 
 This means a student closing their tab right after upload finishes still results in a correct outcome, with zero extra infrastructure — it's a second job the existing worker does.
 
-**Layer 3 (optional, future) — event-driven instead of polled.** Cloudflare R2 supports Event Notifications via Cloudflare Queues, pushing an "object created" event to a webhook instead of relying on polling. A good upgrade once real traffic justifies it; not necessary for MVP given the reconciliation pass is free and simple.
+**Layer 3 (optional, future) — event-driven instead of polled.** Cloudflare R2 supports Event Notifications via Cloudflare Queues, pushing an "object created" event to a webhook instead of relying on polling. A good upgrade once real traffic justifies it; not necessary for MVP.
 
 ---
 
@@ -412,9 +474,21 @@ This means a student closing their tab right after upload finishes still results
 
 ## 15. Observability
 
-- `/g2p/health` — DB reachable, R2 reachable, cleanup worker last-run timestamp
-- `/g2p/metrics` — active requests count, total active storage bytes, upload success/fail rate, average time-to-completion
+- `/g2p/health` — DB reachable, R2 reachable, cleanup worker last-run timestamp, **JWT self-verification check** (sign and verify a test token; failure here means `AUTH_JWT_SECRET` is misconfigured and vendor auth is broken)
+- `/g2p/metrics` — active requests count, total active storage bytes, upload success/fail rate, average time-to-completion, cleanup worker last-run time and last-pruned count
 - Same logging conventions as the existing backend (console-based, matching current repo convention)
+
+**JWT health check implementation:**
+```js
+// In /g2p/health handler:
+try {
+  const testToken = await new SignJWT({ test: true }).setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('1m').sign(jwtSecret);
+  await jwtVerify(testToken, jwtSecret);
+  jwtOk = true;
+} catch { jwtOk = false; }
+// Include jwtOk in the health response; return 503 if false.
+```
 
 ---
 
