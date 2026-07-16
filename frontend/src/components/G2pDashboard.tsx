@@ -192,6 +192,9 @@ export default function G2pDashboard({
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState(user.username);
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
+  const [nameUpdateStatus, setNameUpdateStatus] = useState<string | null>(null);
 
   const playChime = useCallback(() => {
     if (!soundEnabled) return;
@@ -231,6 +234,35 @@ export default function G2pDashboard({
       console.error("Failed to load uploads", e);
     }
   }, [playChime]);
+
+  const handleUpdateName = async () => {
+    if (!token || !displayName.trim()) return;
+    setIsUpdatingName(true);
+    setNameUpdateStatus(null);
+    try {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/name`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name: displayName.trim() })
+      });
+      if (res.ok) {
+        setNameUpdateStatus("Name updated successfully!");
+        user.username = displayName.trim();
+        setTimeout(() => setNameUpdateStatus(null), 3000);
+      } else {
+        const data = await res.json();
+        setNameUpdateStatus(data.error || "Failed to update name.");
+      }
+    } catch (e) {
+      console.error("Failed to update name", e);
+      setNameUpdateStatus("Network error occurred.");
+    } finally {
+      setIsUpdatingName(false);
+    }
+  };
 
   const connectSocket = useCallback((authToken: string) => {
     const socket = io(EXPRESS_BACKEND_URL, {
@@ -485,6 +517,34 @@ export default function G2pDashboard({
               <p className="text-sm text-text-tertiary mb-10 max-w-md relative z-10 leading-relaxed">
                 Scan the QR code or share your unique code. Anyone with this code can upload files directly to your inbox, even if you are offline.
               </p>
+
+              {/* Display Name Setting Box */}
+              <div className="w-full max-w-sm bg-background border border-border rounded-xl p-4 mb-6 relative z-10 shadow-sm flex flex-col items-start gap-2 text-left">
+                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Your Display Name</label>
+                <div className="flex gap-2 w-full">
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="flex-1 bg-background-elevated border border-border focus:border-primary/50 rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                  />
+                  <button
+                    onClick={handleUpdateName}
+                    disabled={isUpdatingName || !displayName.trim()}
+                    className="bg-primary hover:bg-primary-hover text-background px-4 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 shrink-0"
+                  >
+                    {isUpdatingName ? "Saving..." : "Save"}
+                  </button>
+                </div>
+                {nameUpdateStatus && (
+                  <p className={`text-[10px] font-medium mt-0.5 ${
+                    nameUpdateStatus.includes("successfully") ? "text-status-success" : "text-status-error"
+                  }`}>
+                    {nameUpdateStatus}
+                  </p>
+                )}
+              </div>
 
               <div className="w-full max-w-sm bg-background rounded-2xl border border-border p-6 flex justify-center mb-8 relative z-10 shadow-xl">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

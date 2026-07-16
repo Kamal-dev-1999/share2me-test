@@ -55,6 +55,20 @@ router.use(async (req, res, next) => {
   next();
 });
 
+// Update vendor's display name
+router.post('/name', async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'missing_name' });
+
+  try {
+    await query(`UPDATE vendors SET name = $1 WHERE id = $2`, [name.trim(), req.vendorId]);
+    res.json({ success: true, name: name.trim() });
+  } catch (err) {
+    console.error('[G2P] Update name error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 // Get all active requests for this vendor
 router.get('/requests', async (req, res) => {
   try {

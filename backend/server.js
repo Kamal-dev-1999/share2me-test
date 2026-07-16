@@ -1,5 +1,7 @@
 'use strict';
 
+require('dotenv').config();
+
 // ─── Process stability (before any require) ───────────────────────────────────
 process.on('unhandledRejection', (reason) => {
   console.error('[FATAL:unhandledRejection]', reason);

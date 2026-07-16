@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import Script from "next/script";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 import { SplashScreen } from "@/components/SplashScreen";
@@ -195,19 +195,7 @@ export default function RootLayout({
         {children}
         <Analytics />
         <SpeedInsights />
-        <Script async src="https://www.googletagmanager.com/gtag/js?id=G-8XDS75JXYK" strategy="afterInteractive" />
-        <Script
-          id="google-analytics"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-8XDS75JXYK');
-            `
-          }}
-        />
+        <GoogleAnalytics gaId="G-8XDS75JXYK" />
       </body>
     </html>
   );
