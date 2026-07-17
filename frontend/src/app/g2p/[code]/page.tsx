@@ -124,8 +124,8 @@ export default function G2pSenderPortal({ params }: PageProps) {
           body: JSON.stringify({
             requestId,
             statusToken,
-            filename: file.name,
-            contentType: file.type || 'application/octet-stream',
+            originalName: file.name,
+            mimeType: file.type || 'application/octet-stream',
             sizeBytes: file.size
           })
         });
@@ -135,23 +135,32 @@ export default function G2pSenderPortal({ params }: PageProps) {
           throw new Error(errData.message || `Failed to initialize upload for ${file.name}`);
         }
         
-        const { fileId, uploadUrl } = await preRes.json();
+        const { fileId, presignedUrl } = await preRes.json();
 
-        // B. Direct S3 Upload (Bypassing our Express backend entirely!)
-        const uploadRes = await fetch(uploadUrl, {
+        // B. Proxy Upload (Bypassing CORS entirely)
+        const proxyUrl = `${EXPRESS_BACKEND_URL}/g2p/files/${fileId}/upload`;
+        const uploadRes = await fetch(proxyUrl, {
           method: "PUT",
           body: file,
-          headers: { "Content-Type": file.type || 'application/octet-stream' }
+          headers: { 
+            "Content-Type": file.type || 'application/octet-stream',
+            "x-status-token": statusToken
+          }
         });
 
         if (!uploadRes.ok) throw new Error(`Cloudflare rejected upload for ${file.name}`);
 
         // C. Complete & Verify Upload
-        await fetch(`${EXPRESS_BACKEND_URL}/g2p/files/${fileId}/complete`, {
+        const completeRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/files/${fileId}/complete`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ statusToken })
         });
+        
+        if (!completeRes.ok) {
+          const errData = await completeRes.json();
+          throw new Error(errData.error || "Backend failed to verify the upload");
+        }
 
         completedFiles++;
         setUploadProgress(20 + (completedFiles / totalFiles) * 80);
@@ -160,7 +169,13 @@ export default function G2pSenderPortal({ params }: PageProps) {
       setUploadComplete(true);
     } catch (err: any) {
       console.error("Upload process error:", err);
-      setErrorMsg(err.message || "An error occurred during upload. Please try again.");
+      
+      // If it's a TypeError: Failed to fetch during the PUT request, it's a network/CORS issue
+      if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+        setErrorMsg("Network error: The backend server rejected the upload connection.");
+      } else {
+        setErrorMsg(err.message || "An error occurred during upload. Please try again.");
+      }
     } finally {
       setUploading(false);
     }

@@ -1,6 +1,14 @@
 const express = require('express');
+const cors = require('cors');
 
 const g2pRouter = express.Router();
+
+// Allow cross-origin requests from the Next.js frontend
+g2pRouter.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-status-token']
+}));
 
 // Parse JSON for G2P endpoints
 g2pRouter.use(express.json());

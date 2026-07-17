@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/g2p/.env' });
 
 // ─── Process stability (before any require) ───────────────────────────────────
 process.on('unhandledRejection', (reason) => {

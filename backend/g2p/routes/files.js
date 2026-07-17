@@ -134,12 +134,48 @@ router.post('/:fileId/complete', async (req, res) => {
     // 3. Mark as received
     await query(`UPDATE files SET status = 'received' WHERE id = $1`, [fileId]);
 
-    // TODO: Broadcast 'g2p:new_submission' to vendor socket room here.
+    // 4. Broadcast 'g2p:new_submission' to vendor socket room
+    const { emitToVendor } = require('../socket');
+    emitToVendor(fileRow.vendor_id, 'g2p:new_submission', { request_id: fileRow.request_id });
     
     res.json({ success: true });
   } catch (err) {
     console.error('[G2P] Complete upload error:', err);
     res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Proxy Upload (Bypasses Browser CORS / Adblockers)
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { s3, R2_BUCKET } = require('../lib/storage');
+
+router.put('/:fileId/upload', async (req, res) => {
+  const { fileId } = req.params;
+  const statusToken = req.headers['x-status-token'];
+
+  try {
+    const fileRes = await query(`
+      SELECT f.id, f.r2_key, f.size_bytes, f.mime_type, r.status_token 
+      FROM files f JOIN requests r ON f.request_id = r.id 
+      WHERE f.id = $1 AND f.status = 'pending_upload'
+    `, [fileId]);
+
+    if (fileRes.rowCount === 0) return res.status(404).json({ error: 'file_not_found' });
+    if (fileRes.rows[0].status_token !== statusToken) return res.status(403).json({ error: 'unauthorized' });
+
+    // Stream the incoming request directly to Cloudflare R2
+    await s3.send(new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: fileRes.rows[0].r2_key,
+      ContentType: fileRes.rows[0].mime_type,
+      ContentLength: parseInt(fileRes.rows[0].size_bytes, 10),
+      Body: req
+    }));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[G2P] Proxy upload error:', err);
+    res.status(500).json({ error: 'upload_failed' });
   }
 });
 
