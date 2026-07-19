@@ -64,9 +64,19 @@ function UploadRecordItem({
 }: {
   record: UploadRecord;
   onDelete: (id: string) => void;
-  onAction: (file: UploadedFile, action: 'preview' | 'download') => void;
+  onAction: (file: UploadedFile, action: 'preview' | 'download') => Promise<void>;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleDownloadAll = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    for (let i = 0; i < record.files.length; i++) {
+      await onAction(record.files[i], 'download');
+      if (i < record.files.length - 1) {
+        await new Promise(res => setTimeout(res, 600)); // 600ms delay to prevent browser blocking
+      }
+    }
+  };
 
   return (
     <motion.div
@@ -101,7 +111,7 @@ function UploadRecordItem({
 
         <div className="flex items-center gap-2 sm:gap-3 ml-16 sm:ml-0" onClick={e => e.stopPropagation()}>
           <button
-            onClick={(e) => { e.stopPropagation(); record.files.forEach(f => onAction(f, 'download')); }}
+            onClick={handleDownloadAll}
             className="px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-background border border-primary/20 hover:border-primary text-sm font-bold transition-all flex items-center gap-2"
           >
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Download All</span>
