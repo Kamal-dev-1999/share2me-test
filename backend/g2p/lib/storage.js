@@ -45,10 +45,14 @@ async function verifyObjectExistsAndSize(r2Key) {
 async function deleteObjects(r2Keys) {
   if (!r2Keys || r2Keys.length === 0) return;
   const objects = r2Keys.map(k => ({ Key: k }));
-  await s3.send(new DeleteObjectsCommand({
+  const response = await s3.send(new DeleteObjectsCommand({
     Bucket: R2_BUCKET,
     Delete: { Objects: objects, Quiet: true }
   }));
+  
+  if (response.Errors && response.Errors.length > 0) {
+    console.error('[R2 Deletion] Errors deleting some objects:', response.Errors);
+  }
 }
 
 module.exports = {

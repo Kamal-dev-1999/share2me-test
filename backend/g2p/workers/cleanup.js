@@ -9,9 +9,10 @@ async function runG2PCleanup() {
   cleanupRunning = true;
 
   try {
-    // Task A: Hard TTL (1 hour)
+    // Task A: Hard TTL (30 minutes)
+    // We check created_at to forcefully expire anything older than 30 minutes
     const expiredRes = await query(`
-      SELECT id FROM requests WHERE expires_at < NOW()
+      SELECT id FROM requests WHERE created_at < NOW() - INTERVAL '30 minutes'
     `);
     for (const row of expiredRes.rows) {
       await deleteRequest(row.id, 'expired');
@@ -53,7 +54,8 @@ async function runG2PCleanup() {
 }
 
 function startCleanupWorker() {
-  setInterval(runG2PCleanup, 5 * 60_000);
+  // Run every 2 minutes for production cleanup
+  setInterval(runG2PCleanup, 2 * 60_000);
 }
 
 module.exports = {
