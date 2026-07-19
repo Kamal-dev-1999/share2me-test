@@ -114,13 +114,14 @@ router.get('/requests', async (req, res) => {
   }
 });
 
-// Download a file
+// Download or Preview a file
 router.post('/files/:fileId/download', async (req, res) => {
   const { fileId } = req.params;
+  const { action = 'download' } = req.body; // 'preview' or 'download'
   
   try {
     const fileRes = await query(`
-      SELECT f.r2_key, r.vendor_id
+      SELECT f.r2_key, f.original_name, r.vendor_id
       FROM files f
       JOIN requests r ON f.request_id = r.id
       WHERE f.id = $1 AND f.status IN ('received', 'downloaded')
@@ -132,7 +133,7 @@ router.post('/files/:fileId/download', async (req, res) => {
     // Mark as downloaded and start grace timer
     await query(`UPDATE files SET status = 'downloaded', downloaded_at = NOW() WHERE id = $1`, [fileId]);
 
-    const url = await generatePresignedGetUrl(fileRes.rows[0].r2_key);
+    const url = await generatePresignedGetUrl(fileRes.rows[0].r2_key, fileRes.rows[0].original_name, action);
     
     emitToVendor(req.vendorId, 'g2p:file_downloaded', { fileId });
 

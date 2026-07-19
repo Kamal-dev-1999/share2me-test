@@ -4,7 +4,7 @@ import {
   Copy, Check, Search, Download, Trash2, Calendar,
   ArrowUpDown, FileText, FileImage, Film,
   FolderArchive, LogOut, Volume2, VolumeX,
-  Inbox, QrCode, ChevronDown
+  Inbox, QrCode, ChevronDown, Eye
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
@@ -60,11 +60,11 @@ function formatSize(bytes: number) {
 function UploadRecordItem({
   record,
   onDelete,
-  onDownload
+  onAction
 }: {
   record: UploadRecord;
   onDelete: (id: string) => void;
-  onDownload: (file: UploadedFile) => void;
+  onAction: (file: UploadedFile, action: 'preview' | 'download') => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -101,7 +101,7 @@ function UploadRecordItem({
 
         <div className="flex items-center gap-2 sm:gap-3 ml-16 sm:ml-0" onClick={e => e.stopPropagation()}>
           <button
-            onClick={(e) => { e.stopPropagation(); record.files.forEach(f => onDownload(f)); }}
+            onClick={(e) => { e.stopPropagation(); record.files.forEach(f => onAction(f, 'download')); }}
             className="px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-background border border-primary/20 hover:border-primary text-sm font-bold transition-all flex items-center gap-2"
           >
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Download All</span>
@@ -145,7 +145,7 @@ function UploadRecordItem({
                   return (
                     <div
                       key={idx}
-                      onClick={(e) => { e.stopPropagation(); onDownload(file); }}
+                      onClick={(e) => { e.stopPropagation(); onAction(file, 'preview'); }}
                       className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-background hover:bg-background-elevated hover:border-primary/40 cursor-pointer transition-all group"
                     >
                       <div className="flex items-center gap-4 min-w-0">
@@ -157,8 +157,21 @@ function UploadRecordItem({
                           <span className="text-xs text-text-tertiary mt-1">{formatSize(file.size)}</span>
                         </div>
                       </div>
-                      <div className="w-9 h-9 rounded-full bg-background border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3 shadow-sm">
-                        <Download className="w-4 h-4 text-text-secondary group-hover:text-primary" />
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-3 shrink-0">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onAction(file, 'preview'); }}
+                          title="Preview"
+                          className="w-9 h-9 rounded-full bg-background-elevated border border-border flex items-center justify-center hover:bg-primary/10 hover:border-primary/30 transition-colors shadow-sm"
+                        >
+                          <Eye className="w-4 h-4 text-text-secondary hover:text-primary transition-colors" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onAction(file, 'download'); }}
+                          title="Download"
+                          className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center hover:bg-primary group/btn transition-colors shadow-sm"
+                        >
+                          <Download className="w-4 h-4 text-primary group-hover/btn:text-background transition-colors" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -322,26 +335,36 @@ export default function G2pDashboard({
     }
   };
 
-  const handleDownload = async (file: UploadedFile) => {
+  const handleAction = async (file: UploadedFile, action: 'preview' | 'download' = 'download') => {
     if (!token) return;
     try {
       const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/files/${file.id}/download`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ action })
       });
-      if (!res.ok) throw new Error("Download failed");
+      if (!res.ok) throw new Error(`${action} failed`);
       const data = await res.json();
       
       const link = document.createElement("a");
       link.href = data.url;
-      link.download = file.name;
-      link.target = "_blank";
+      
+      // If download, the backend already set ResponseContentDisposition=attachment.
+      if (action === 'download') {
+        link.download = file.name;
+      } else {
+        link.target = "_blank";
+      }
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      console.error("Error downloading file:", err);
-      alert("Could not download file.");
+      console.error(`Error ${action}ing file:`, err);
+      alert(`Could not ${action} file.`);
     }
   };
 
@@ -470,7 +493,7 @@ export default function G2pDashboard({
                         key={record.uploadId} 
                         record={record} 
                         onDelete={handleDeleteUpload} 
-                        onDownload={handleDownload}
+                        onAction={handleAction}
                       />
                     ))}
                   </AnimatePresence>

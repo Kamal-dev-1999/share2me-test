@@ -23,11 +23,23 @@ async function generatePresignedPutUrl(r2Key, mimeType, sizeBytes) {
   return await getSignedUrl(s3, command, { expiresIn: 15 * 60 });
 }
 
-async function generatePresignedGetUrl(r2Key) {
-  const command = new GetObjectCommand({
+async function generatePresignedGetUrl(r2Key, originalName = 'file', action = 'preview') {
+  const commandInput = {
     Bucket: R2_BUCKET,
     Key: r2Key,
-  });
+  };
+
+  // If action is download, force the browser to treat it as an attachment
+  if (action === 'download') {
+    // Strip quotes and newlines to prevent header injection
+    const safeName = originalName.replace(/["\n\r]/g, '');
+    commandInput.ResponseContentDisposition = `attachment; filename="${safeName}"`;
+  } else {
+    // Force inline for preview
+    commandInput.ResponseContentDisposition = 'inline';
+  }
+
+  const command = new GetObjectCommand(commandInput);
   // 15 min expiration
   return await getSignedUrl(s3, command, { expiresIn: 15 * 60 });
 }
