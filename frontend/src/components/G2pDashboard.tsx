@@ -4,7 +4,7 @@ import {
   Copy, Check, Search, Download, Trash2, Calendar,
   ArrowUpDown, FileText, FileImage, Film,
   FolderArchive, LogOut, Volume2, VolumeX,
-  Inbox, QrCode, ChevronDown, Eye
+  Inbox, QrCode, ChevronDown, Eye, Settings, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
@@ -218,6 +218,41 @@ export default function G2pDashboard({
   const [displayName, setDisplayName] = useState(user.username);
   const [isUpdatingName, setIsUpdatingName] = useState(false);
   const [nameUpdateStatus, setNameUpdateStatus] = useState<string | null>(null);
+  
+  // QR Customization State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [qrFgColor, setQrFgColor] = useState("#fcd535"); // Primary color
+  const [qrBgColor, setQrBgColor] = useState("#1e2329"); // Background
+  const [qrLogoUrl, setQrLogoUrl] = useState("");
+  const [debouncedLogoUrl, setDebouncedLogoUrl] = useState("");
+
+  // Load from LocalStorage on mount
+  useEffect(() => {
+    const savedFg = localStorage.getItem('g2p_qrFgColor');
+    const savedBg = localStorage.getItem('g2p_qrBgColor');
+    const savedLogo = localStorage.getItem('g2p_qrLogoUrl');
+    if (savedFg) setQrFgColor(savedFg);
+    if (savedBg) setQrBgColor(savedBg);
+    if (savedLogo) {
+      setQrLogoUrl(savedLogo);
+      setDebouncedLogoUrl(savedLogo);
+    }
+  }, []);
+
+  const saveQrSettings = () => {
+    localStorage.setItem('g2p_qrFgColor', qrFgColor);
+    localStorage.setItem('g2p_qrBgColor', qrBgColor);
+    localStorage.setItem('g2p_qrLogoUrl', qrLogoUrl);
+    setIsSettingsOpen(false);
+  };
+
+  // Debounce the logo URL so we don't spam the QR API while the user is typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedLogoUrl(qrLogoUrl);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [qrLogoUrl]);
 
   const playChime = useCallback(() => {
     if (!soundEnabled) return;
@@ -382,7 +417,12 @@ export default function G2pDashboard({
     ? `${window.location.origin}/g2p/${user.shareCode}`
     : `https://share2.me/g2p/${user.shareCode}`;
 
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=fcd535&bgcolor=1e2329&data=${encodeURIComponent(shareLink)}`;
+  const cleanFg = qrFgColor.replace('#', '');
+  const cleanBg = qrBgColor.replace('#', '');
+  
+  // Only append centerImageUrl if it looks somewhat like a valid URL
+  const isValidLogo = debouncedLogoUrl.startsWith("http");
+  const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(shareLink)}&size=300&margin=1&dark=${cleanFg}&light=${cleanBg}${isValidLogo ? `&centerImageUrl=${encodeURIComponent(debouncedLogoUrl)}` : ''}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(user.shareCode);
@@ -538,62 +578,185 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="bg-background-card border border-border rounded-2xl p-8 flex flex-col items-center text-center shadow-sm relative overflow-hidden h-full min-h-[500px] justify-center"
+              className="bg-background-card border border-border rounded-2xl shadow-sm relative overflow-hidden h-full min-h-[500px] flex"
             >
-              <div className="absolute top-[-20%] left-[-20%] w-full h-full bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
+              <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
               
-              <div className="w-20 h-20 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center mb-8 relative z-10 shadow-glow">
-                <QrCode className="w-10 h-10 text-primary" />
-              </div>
+              {/* MAIN CONTENT: PREVIEW */}
+              <div className="w-full h-full p-8 relative z-10 flex flex-col items-center justify-center text-center">
+                
+                {/* Settings Toggle Button */}
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="absolute top-6 right-6 p-2.5 rounded-xl bg-background-elevated border border-border text-text-tertiary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-colors shadow-sm group"
+                  title="Portal Settings"
+                >
+                  <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                </button>
 
-              <h2 className="text-2xl font-semibold text-text-primary mb-3 relative z-10">Your Share Portal</h2>
-              <p className="text-sm text-text-tertiary mb-10 max-w-md relative z-10 leading-relaxed">
-                Scan the QR code or share your unique code. Anyone with this code can upload files directly to your inbox, even if you are offline.
-              </p>
+                <h3 className="text-2xl font-semibold text-text-primary mb-3">Your Share Portal</h3>
+                <p className="text-sm text-text-tertiary max-w-md mb-10 leading-relaxed">
+                  Anyone scanning this QR can securely drop files directly into your inbox.
+                </p>
 
-              {/* Display Name Setting Box */}
-              <div className="w-full max-w-sm bg-background border border-border rounded-xl p-4 mb-6 relative z-10 shadow-sm flex flex-col items-start gap-2 text-left">
-                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Your Display Name</label>
-                <div className="flex gap-2 w-full">
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="flex-1 bg-background-elevated border border-border focus:border-primary/50 rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none transition-colors"
-                  />
+                <div className="w-full max-w-[280px] aspect-square bg-background rounded-2xl border border-border p-4 flex items-center justify-center mb-10 shadow-2xl relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={qrImageUrl} alt="Custom QR Code" className="w-full h-full rounded-xl object-contain" />
+                </div>
+                
+                <div className="w-full max-w-[280px] flex items-center bg-background border border-border focus-within:border-primary/50 rounded-xl p-1.5 pl-5 relative transition-colors shadow-sm">
+                  <span className="flex-1 text-base font-bold tracking-[0.2em] text-primary text-left uppercase">{user.shareCode}</span>
                   <button
-                    onClick={handleUpdateName}
-                    disabled={isUpdatingName || !displayName.trim()}
-                    className="bg-primary hover:bg-primary-hover text-background px-4 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 shrink-0"
+                    onClick={copyToClipboard}
+                    className="bg-primary text-background hover:bg-primary-hover px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-glow shrink-0"
                   >
-                    {isUpdatingName ? "Saving..." : "Save"}
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied ? "Copied" : "Copy"}
                   </button>
                 </div>
-                {nameUpdateStatus && (
-                  <p className={`text-[10px] font-medium mt-0.5 ${
-                    nameUpdateStatus.includes("successfully") ? "text-status-success" : "text-status-error"
-                  }`}>
-                    {nameUpdateStatus}
-                  </p>
-                )}
               </div>
 
-              <div className="w-full max-w-sm bg-background rounded-2xl border border-border p-6 flex justify-center mb-8 relative z-10 shadow-xl">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrImageUrl} alt="QR Code" className="w-56 h-56 rounded-xl shadow-glow" />
-              </div>
-              
-              <div className="w-full max-w-sm flex items-center bg-background border border-border focus-within:border-primary/50 rounded-xl p-2 pl-6 relative z-10 transition-colors shadow-sm">
-                <span className="flex-1 text-lg font-bold tracking-[0.2em] text-primary text-left uppercase">{user.shareCode}</span>
-                <button
-                  onClick={copyToClipboard}
-                  className="bg-primary text-background hover:bg-primary-hover px-6 py-3 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-glow"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Copied" : "Copy Code"}
-                </button>
-              </div>
+              {/* SLIDING SETTINGS DRAWER */}
+              <AnimatePresence>
+                {isSettingsOpen && (
+                  <>
+                    {/* Backdrop */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-background/50 backdrop-blur-sm z-20"
+                      onClick={() => setIsSettingsOpen(false)}
+                    />
+                    
+                    {/* Drawer */}
+                    <motion.div
+                      initial={{ x: "100%" }}
+                      animate={{ x: 0 }}
+                      exit={{ x: "100%" }}
+                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      className="absolute top-0 right-0 w-full md:w-[400px] h-full bg-background-card border-l border-border shadow-2xl z-30 flex flex-col"
+                    >
+                      {/* Drawer Header */}
+                      <div className="flex items-center justify-between p-6 border-b border-border bg-background/50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center shadow-glow">
+                            <QrCode className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <h2 className="text-lg font-bold text-text-primary">Portal Settings</h2>
+                            <p className="text-[10px] text-text-tertiary uppercase tracking-wider">Customize your page</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setIsSettingsOpen(false)}
+                          className="p-2 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-background-elevated transition-colors"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      {/* Drawer Content */}
+                      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                        
+                        {/* Profile Section */}
+                        <div>
+                          <h3 className="text-sm font-semibold text-text-secondary mb-3 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" /> Profile Info
+                          </h3>
+                          <div className="bg-background border border-border rounded-xl p-4 shadow-sm flex flex-col gap-2">
+                            <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Display Name</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                placeholder="Enter your name"
+                                className="flex-1 bg-background-elevated border border-border focus:border-primary/50 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none transition-colors"
+                              />
+                              <button
+                                onClick={handleUpdateName}
+                                disabled={isUpdatingName || !displayName.trim()}
+                                className="bg-primary hover:bg-primary-hover text-background px-4 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50 shrink-0 shadow-glow"
+                              >
+                                {isUpdatingName ? "Saving..." : "Save"}
+                              </button>
+                            </div>
+                            {nameUpdateStatus && (
+                              <p className={`text-[10px] font-medium mt-1 ${
+                                nameUpdateStatus.includes("successfully") ? "text-status-success" : "text-status-error"
+                              }`}>
+                                {nameUpdateStatus}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* QR Customization Section */}
+                        <div>
+                          <h3 className="text-sm font-semibold text-text-secondary mb-3 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" /> QR Customization
+                          </h3>
+                          <div className="bg-background border border-border rounded-xl p-4 shadow-sm flex flex-col gap-4">
+                            
+                            <div className="flex gap-4">
+                              <div className="flex-1">
+                                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider block mb-1.5">Color</label>
+                                <div className="flex items-center gap-2 bg-background-elevated border border-border rounded-lg p-1.5">
+                                  <input
+                                    type="color"
+                                    value={qrFgColor}
+                                    onChange={(e) => setQrFgColor(e.target.value)}
+                                    className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0"
+                                  />
+                                  <span className="text-xs text-text-secondary font-mono">{qrFgColor.toUpperCase()}</span>
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider block mb-1.5">Background</label>
+                                <div className="flex items-center gap-2 bg-background-elevated border border-border rounded-lg p-1.5">
+                                  <input
+                                    type="color"
+                                    value={qrBgColor}
+                                    onChange={(e) => setQrBgColor(e.target.value)}
+                                    className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0"
+                                  />
+                                  <span className="text-xs text-text-secondary font-mono">{qrBgColor.toUpperCase()}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider block mb-1.5">Center Logo URL (Optional)</label>
+                              <input
+                                type="text"
+                                value={qrLogoUrl}
+                                onChange={(e) => setQrLogoUrl(e.target.value)}
+                                placeholder="https://example.com/logo.png"
+                                className="w-full bg-background-elevated border border-border focus:border-primary/50 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none transition-colors"
+                              />
+                              <p className="text-[9px] text-text-tertiary mt-1.5 leading-relaxed">
+                                Note: Must be a <strong className="text-text-secondary">direct link</strong> to an image file (ends in .png or .jpg). Webpage links will not work.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                      
+                      {/* Drawer Footer */}
+                      <div className="p-6 border-t border-border bg-background-elevated">
+                        <button
+                          onClick={saveQrSettings}
+                          className="w-full bg-primary hover:bg-primary-hover text-background py-3 rounded-xl text-sm font-bold transition-all shadow-glow flex items-center justify-center gap-2"
+                        >
+                          <Check className="w-4 h-4" /> Save Preferences
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 
