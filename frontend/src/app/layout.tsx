@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
@@ -188,6 +189,11 @@ export default function RootLayout({
               ]
             })
           }}
+        />
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6158699724091217"
+          crossOrigin="anonymous"
         />
       </head>
       <body className="min-h-screen bg-background text-text-primary antialiased" suppressHydrationWarning>
