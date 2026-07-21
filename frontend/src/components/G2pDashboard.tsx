@@ -631,8 +631,39 @@ export default function G2pDashboard({
                     onClick={handleUpdateName}
                     disabled={isUpdatingName || !displayName.trim()}
                     className="bg-primary hover:bg-primary-hover text-background border border-primary px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 shrink-0"
+                  >
+                    {isUpdatingName ? "Saving..." : "Save"}
+                  </button>
+                </div>
+                {nameUpdateStatus && (
+                  <p className={`text-[10px] font-medium mt-0.5 ${
+                    nameUpdateStatus.includes("successfully") ? "text-status-success" : "text-status-error"
+                  }`}>
+                    {nameUpdateStatus}
+                  </p>
+                )}
+              </div>
 
-              {/* SLIDING SETTINGS DRAWER */}
+              {/* QR Code Container */}
+              <div className="w-full max-w-xs sm:max-w-sm bg-background rounded-2xl border-2 border-primary p-4 sm:p-6 flex justify-center mb-6 sm:mb-8 relative z-10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrImageUrl} alt="QR Code" className="w-44 h-44 sm:w-56 sm:h-56 rounded-xl border border-primary/20" />
+              </div>
+              
+              {/* Share Code Bar */}
+              <div className="w-full max-w-sm flex flex-col sm:flex-row items-center gap-2 sm:gap-0 bg-background border-2 border-primary rounded-xl p-2 sm:pl-5 relative z-10 transition-colors">
+                <span className="w-full sm:flex-1 text-center sm:text-left text-base sm:text-lg font-bold tracking-[0.15em] sm:tracking-[0.2em] text-primary uppercase font-mono py-1">
+                  {user.shareCode || activeShareCode || "LOADING..."}
+                </span>
+                <button
+                  onClick={copyToClipboard}
+                  disabled={!user.shareCode && !activeShareCode}
+                  className="w-full sm:w-auto bg-primary text-background hover:bg-primary-hover px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 border border-primary disabled:opacity-50 shrink-0"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Copied" : "Copy Code"}
+                </button>
+              </div>
               <AnimatePresence>
                 {isSettingsOpen && (
                   <>
@@ -773,27 +804,6 @@ export default function G2pDashboard({
                   </>
                 )}
               </AnimatePresence>
-=======
-              {/* QR Code Container */}
-              <div className="w-full max-w-xs sm:max-w-sm bg-background rounded-2xl border-2 border-primary p-4 sm:p-6 flex justify-center mb-6 sm:mb-8 relative z-10">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrImageUrl} alt="QR Code" className="w-44 h-44 sm:w-56 sm:h-56 rounded-xl border border-primary/20" />
-              </div>
-              
-              {/* Share Code Bar */}
-              <div className="w-full max-w-sm flex flex-col sm:flex-row items-center gap-2 sm:gap-0 bg-background border-2 border-primary rounded-xl p-2 sm:pl-5 relative z-10 transition-colors">
-                <span className="w-full sm:flex-1 text-center sm:text-left text-base sm:text-lg font-bold tracking-[0.15em] sm:tracking-[0.2em] text-primary uppercase font-mono py-1">
-                  {activeShareCode || "LOADING..."}
-                </span>
-                <button
-                  onClick={copyToClipboard}
-                  disabled={!activeShareCode}
-                  className="w-full sm:w-auto bg-primary text-background hover:bg-primary-hover px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 border border-primary disabled:opacity-50 shrink-0"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Copied" : "Copy Code"}
-                </button>
-              </div>
             </motion.div>
           )}
 
