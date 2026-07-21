@@ -15,29 +15,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, account, profile }) {
-      if (account && profile) {
-        // Initial sign in - Contact the Express backend to upsert the vendor
+      if ((account && profile) || !token.shareCode || !token.id) {
+        // Contact the Express backend to upsert or fetch the vendor
         try {
-          const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/upsert`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${AUTH_SECRET}`,
-            },
-            body: JSON.stringify({
-              name: profile.name,
-              providerId: `google-oauth2|${profile.sub}`,
-            }),
-          });
-          
-          if (!res.ok) {
-            console.error("[NextAuth] Failed to upsert vendor:", await res.text());
-            return token;
+          const providerSub = profile?.sub || token.sub;
+          const name = profile?.name || token.name || "Vendor";
+          if (providerSub) {
+            const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/upsert`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${AUTH_SECRET}`,
+              },
+              body: JSON.stringify({
+                name,
+                providerId: `google-oauth2|${providerSub}`,
+              }),
+            });
+            
+            if (res.ok) {
+              const vendorData = await res.json();
+              token.id = vendorData.id;
+              token.shareCode = vendorData.share2me_id;
+            } else {
+              console.error("[NextAuth] Failed to upsert vendor:", await res.text());
+            }
           }
-
-          const vendorData = await res.json();
-          token.id = vendorData.id; // Emulate jose expectation
-          token.shareCode = vendorData.share2me_id;
         } catch (e) {
           console.error("[NextAuth] Error upserting vendor:", e);
         }

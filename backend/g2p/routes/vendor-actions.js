@@ -55,6 +55,18 @@ router.use(async (req, res, next) => {
   next();
 });
 
+// Get current vendor profile details
+router.get('/me', async (req, res) => {
+  try {
+    const vRes = await query(`SELECT id, name, share2me_id FROM vendors WHERE id = $1`, [req.vendorId]);
+    if (vRes.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
+    res.json(vRes.rows[0]);
+  } catch (err) {
+    console.error('[G2P] Fetch vendor profile error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 // Update vendor's display name
 router.post('/name', async (req, res) => {
   const { name } = req.body;

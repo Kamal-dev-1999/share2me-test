@@ -179,7 +179,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         {isIdle ? (
           <div className="flex flex-col gap-6">
             {/* OTC Input Box */}
-            <div className="bg-background-card border border-border rounded-[20px] p-6 shadow-sm">
+            <div className="bg-background-card border-2 border-primary rounded-[22px] p-6">
               <label className="block text-[13px] font-semibold text-text-tertiary uppercase tracking-wider mb-4">
                 Enter Sender&apos;s Code
               </label>
@@ -196,7 +196,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                     }
                   }}
                   placeholder="6-DIGIT CODE"
-                  className="w-full bg-background border border-border rounded-xl px-5 py-4 text-primary font-mono text-[20px] font-bold tracking-[0.2em] focus:border-primary focus:outline-none transition-colors uppercase placeholder:text-border placeholder:font-sans placeholder:tracking-normal"
+                  className="w-full bg-background border-2 border-primary rounded-xl px-5 py-4 text-primary font-mono text-[20px] font-bold tracking-[0.2em] focus:outline-none transition-all uppercase placeholder:text-border placeholder:font-sans placeholder:tracking-normal"
                 />
               </div>
               
@@ -205,8 +205,8 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                 onClick={() => handleJoin(otc)}
                 className={`w-full mt-4 font-bold text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 transition-all duration-200 ${
                   otc.length !== 6 || joining
-                    ? "bg-background-elevated text-text-tertiary border border-border opacity-40 cursor-not-allowed"
-                    : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 shadow-glow border border-transparent"
+                    ? "bg-background-elevated text-text-tertiary border border-primary/40 opacity-50 cursor-not-allowed"
+                    : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 border-2 border-primary"
                 }`}
               >
                 {joining ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
@@ -216,12 +216,12 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
 
 
             {/* QR Scanner */}
-            <div className="bg-background-card border border-border rounded-[20px] overflow-hidden flex flex-col relative shadow-sm">
+            <div className="bg-background-card border-2 border-primary rounded-[22px] overflow-hidden flex flex-col relative">
               
               {!scanning && !scanSuccess && (
                 <div className="p-10 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 rounded-full bg-background-elevated border border-border flex items-center justify-center mb-4">
-                    <Camera className="w-7 h-7 text-text-tertiary" />
+                  <div className="w-16 h-16 rounded-full bg-background-elevated border-2 border-primary flex items-center justify-center mb-4">
+                    <Camera className="w-7 h-7 text-primary" />
                   </div>
                   <h3 className="text-[15px] font-semibold text-text-primary">Scan QR Code</h3>
                   <p className="text-[13px] text-text-tertiary mt-1 mb-5">Quickly connect by scanning the sender&apos;s code.</p>
@@ -232,9 +232,9 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
 
                   <button
                     onClick={startScan}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-background-elevated border border-border hover:border-border-hover text-[14px] font-medium text-text-secondary hover:text-text-primary rounded-xl transition-all"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-background-elevated border border-primary hover:bg-primary/10 text-[14px] font-bold text-text-primary rounded-xl transition-all"
                   >
-                    <Camera className="w-4 h-4" /> Open Camera
+                    <Camera className="w-4 h-4 text-primary" /> Open Camera
                   </button>
                 </div>
               )}

@@ -205,20 +205,20 @@ export function SendFlow({
       <div className="flex flex-col gap-5">
         
         {/* Type Selector */}
-        <div className="flex p-1 bg-background-elevated rounded-[14px] border border-border">
+        <div className="flex p-1.5 bg-background-elevated rounded-2xl border border-primary/40">
           <button
             onClick={() => setTransferType("file")}
             disabled={!isIdle}
-            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-semibold py-2.5 rounded-[10px] transition-all
-              ${transferType === "file" ? "bg-primary text-background shadow-soft" : "text-text-secondary hover:text-text-primary disabled:opacity-40"}`}
+            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-bold py-2.5 rounded-xl transition-all
+              ${transferType === "file" ? "bg-primary text-background border border-primary" : "text-text-secondary hover:text-text-primary disabled:opacity-40 font-semibold"}`}
           >
             <FileUp className="w-[18px] h-[18px]" /> Files
           </button>
           <button
             onClick={() => setTransferType("text")}
             disabled={!isIdle}
-            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-semibold py-2.5 rounded-[10px] transition-all
-              ${transferType === "text" ? "bg-primary text-background shadow-soft" : "text-text-secondary hover:text-text-primary disabled:opacity-40"}`}
+            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-bold py-2.5 rounded-xl transition-all
+              ${transferType === "text" ? "bg-primary text-background border border-primary" : "text-text-secondary hover:text-text-primary disabled:opacity-40 font-semibold"}`}
           >
             <Type className="w-[18px] h-[18px]" /> Text
           </button>
@@ -232,17 +232,17 @@ export function SendFlow({
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
               onClick={() => isIdle && fileInputRef.current?.click()}
-              className={`relative bg-background-card rounded-[20px] border-2 border-dashed p-10 text-center transition-all duration-300 select-none
-                ${!isIdle ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-                ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}
-                ${files.length > 0 ? "border-primary/30" : ""}
+              className={`relative bg-background-card rounded-[22px] border-2 border-dashed border-primary p-10 text-center transition-all duration-300 select-none
+                ${!isIdle ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-primary/5"}
+                ${dragging ? "bg-primary/10" : ""}
+                ${files.length > 0 ? "bg-background-elevated/30" : ""}
               `}
             >
               <input ref={fileInputRef} type="file" className="hidden" multiple onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }} disabled={!isIdle} />
               
               <div className="flex flex-col items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-background-elevated border border-border flex items-center justify-center">
-                  {files.length > 0 ? <FileText className="w-8 h-8 text-primary" /> : <Upload className="w-8 h-8 text-text-secondary" />}
+                <div className="w-16 h-16 rounded-2xl bg-background-elevated border-2 border-primary flex items-center justify-center">
+                  {files.length > 0 ? <FileText className="w-8 h-8 text-primary" /> : <Upload className="w-8 h-8 text-primary" />}
                 </div>
                 <div>
                   <p className="text-text-primary text-[15px] font-semibold">
@@ -264,9 +264,9 @@ export function SendFlow({
               {files.length > 0 && isIdle && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                   {files.map((f, i) => (
-                    <div key={i} className="flex items-center justify-between bg-background-card px-4 py-3 rounded-xl border border-border group">
+                    <div key={i} className="flex items-center justify-between bg-background-card px-4 py-3 rounded-xl border border-primary/50 group">
                       <div className="flex items-center gap-3 overflow-hidden">
-                        <FileText className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+                        <FileText className="w-4 h-4 text-primary flex-shrink-0" />
                         <span className="text-[13px] text-text-primary truncate">{f.name}</span>
                       </div>
                       <div className="flex items-center gap-4 pl-3">
@@ -289,14 +289,14 @@ export function SendFlow({
               disabled={!isIdle}
               placeholder="Paste or type any text here..."
               rows={8}
-              className="w-full bg-background-card border border-border rounded-[20px] p-5 text-text-primary text-[14px] font-mono resize-y focus:outline-none focus:border-primary transition-colors placeholder:text-text-tertiary disabled:opacity-50"
+              className="w-full bg-background-card border-2 border-primary rounded-[22px] p-5 text-text-primary text-[14px] font-mono resize-y focus:outline-none placeholder:text-text-tertiary disabled:opacity-50"
             />
             <div className="absolute bottom-4 left-5 right-5 flex justify-between items-center">
-              <span className="text-[12px] text-text-tertiary bg-background/50 backdrop-blur-sm px-2 py-1 rounded-md border border-border">
+              <span className="text-[12px] text-text-tertiary bg-background px-2 py-1 rounded-md border border-primary/40">
                 {textInput.length.toLocaleString()} chars · {formatBytes(textBytes)}
               </span>
               {isIdle && textInput.length === 0 && (
-                <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setTextInput(t); } catch {} }} className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary bg-background/50 hover:bg-primary/10 hover:text-primary hover:border-primary/30 px-3 py-1.5 rounded-lg border border-border transition-all">
+                <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setTextInput(t); } catch {} }} className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary bg-background hover:bg-primary/10 hover:text-primary hover:border-primary px-3 py-1.5 rounded-lg border border-primary/40 transition-all">
                   <ClipboardPaste className="w-3.5 h-3.5" /> Paste
                 </button>
               )}
@@ -311,8 +311,8 @@ export function SendFlow({
             onClick={handleCreateRoom}
             className={`flex-1 font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
               !canPrepare
-                ? "bg-background-elevated text-text-tertiary border border-border opacity-50 cursor-not-allowed"
-                : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 shadow-glow border border-transparent"
+                ? "bg-background-elevated text-text-tertiary border border-primary/40 opacity-50 cursor-not-allowed"
+                : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 border-2 border-primary"
             }`}
           >
             {isPreparing || isZipping ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
@@ -324,8 +324,8 @@ export function SendFlow({
             onClick={onStartSend}
             className={`flex-1 font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
               phase !== "key_exchange"
-                ? "bg-background-elevated text-text-tertiary border border-border opacity-50 cursor-not-allowed"
-                : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 shadow-glow border border-transparent"
+                ? "bg-background-elevated text-text-tertiary border border-primary/40 opacity-50 cursor-not-allowed"
+                : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 border-2 border-primary"
             }`}
           >
             {phase === "ready" ? (
@@ -341,15 +341,15 @@ export function SendFlow({
       </div>
 
       {/* ── RIGHT PANEL: STATUS & DASHBOARD ── */}
-      <div className="bg-background-card rounded-[20px] border border-border overflow-hidden flex flex-col h-full min-h-[400px]">
+      <div className="bg-background-card rounded-[22px] border-2 border-primary overflow-hidden flex flex-col h-full min-h-[400px]">
         
         {/* Connection Header */}
-        <div className="px-6 py-4 border-b border-border bg-background-elevated/30 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-primary/40 bg-background-elevated flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${isIdle ? "bg-text-tertiary" : isDone ? "bg-status-success" : "bg-primary animate-pulse-ring"}`} />
+            <div className={`w-2.5 h-2.5 rounded-full ${isIdle ? "bg-text-tertiary" : isDone ? "bg-status-success" : "bg-primary"}`} />
             <span className="text-[13px] font-semibold text-text-secondary uppercase tracking-wider">Connection Status</span>
           </div>
-          <div className="flex items-center gap-1.5 bg-status-success/10 border border-status-success/20 px-2.5 py-1 rounded-md">
+          <div className="flex items-center gap-1.5 bg-status-success/10 border border-status-success/30 px-2.5 py-1 rounded-md">
             <Shield className="w-3.5 h-3.5 text-status-success" />
             <span className="text-[11px] font-semibold text-status-success">E2E Secured</span>
           </div>
@@ -361,7 +361,7 @@ export function SendFlow({
           <AnimatePresence mode="wait">
             {isIdle ? (
               <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center text-center gap-4">
-                <div className="w-20 h-20 rounded-full border border-border flex items-center justify-center bg-background/50">
+                <div className="w-20 h-20 rounded-full border border-border flex items-center justify-center bg-background">
                   <Activity className="w-8 h-8 text-text-tertiary" />
                 </div>
                 <div>
@@ -376,7 +376,7 @@ export function SendFlow({
                 {/* OTC Display */}
                 <div 
                   onClick={copyToClipboard}
-                  className="w-full bg-background border border-border rounded-[16px] p-5 mb-6 text-center relative group cursor-pointer hover:border-primary/40 active:scale-[0.99] transition-all duration-200 select-none shadow-sm"
+                  className="w-full bg-background border border-border rounded-[16px] p-5 mb-6 text-center relative group cursor-pointer hover:border-primary active:scale-[0.99] transition-all duration-200 select-none"
                   title="Click to copy code"
                 >
                   <div className="flex items-center justify-between">
@@ -390,11 +390,11 @@ export function SendFlow({
                 </div>
 
                 {/* QR Code */}
-                <div className="bg-primary p-2 rounded-[20px] shadow-glow">
+                <div className="bg-primary p-2 rounded-[20px] border border-primary">
                   {qrDataUrl ? (
                     <Image src={qrDataUrl} alt="QR Code" width={200} height={200} className="rounded-xl" />
                   ) : (
-                    <div className="w-[200px] h-[200px] bg-background-elevated rounded-xl animate-pulse" />
+                    <div className="w-[200px] h-[200px] bg-background-elevated rounded-xl" />
                   )}
                 </div>
                 <p className="text-[13px] text-text-secondary mt-5 font-medium">Scan QR with receiver device</p>

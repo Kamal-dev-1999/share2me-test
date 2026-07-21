@@ -32,21 +32,21 @@ function G2PContent() {
       <div>
         <TopNav />
         
-        <main className="w-full max-w-6xl mx-auto px-6 pt-12 pb-24">
-          <div className="mb-10">
+        <main className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <Link 
               href="/" 
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-background-elevated border border-border hover:bg-background-card text-sm font-medium text-text-secondary hover:text-primary transition-all shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-background-elevated border border-primary/40 hover:bg-background-card text-xs font-semibold text-text-secondary hover:text-primary transition-all shadow-sm"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Home</span>
             </Link>
           </div>
 
-          <div className="mb-12 space-y-3">
-            <h1 className="text-3xl md:text-4xl font-semibold text-text-primary tracking-tight">Receive Portal</h1>
-            <p className="text-text-tertiary max-w-2xl text-sm md:text-base leading-relaxed">
-              Create a permanent inbox to receive files from anyone. Senders can use your unique Share Code to securely upload files directly to you.
+          <div className="mb-8 space-y-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-text-primary tracking-tight">Receive Portal</h1>
+            <p className="text-text-tertiary text-xs md:text-sm leading-relaxed">
+              Create a permanent inbox to receive files from anyone using your unique Share Code.
             </p>
           </div>
 
@@ -69,7 +69,7 @@ function G2PContent() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="w-full lg:w-1/2 bg-background-card border border-border rounded-2xl p-8 shadow-xl"
+                    className="w-full lg:w-1/2 bg-background-card border-2 border-primary rounded-2xl p-8"
                   >
                     <div className="space-y-2 mb-8">
                       <h2 className="text-xl font-semibold text-text-primary">Create your portal</h2>
@@ -81,9 +81,9 @@ function G2PContent() {
                     <div className="flex flex-col items-center justify-center gap-4 w-full">
                       <button
                         onClick={() => signIn("google")}
-                        className="w-full py-3 px-4 rounded-xl border border-border bg-background-elevated hover:bg-background hover:border-primary/50 text-sm font-medium text-text-primary hover:text-primary transition-colors flex items-center justify-center gap-3 shadow-glow"
+                        className="w-full py-3.5 px-4 rounded-xl border-2 border-primary bg-background-elevated hover:bg-primary/10 text-sm font-bold text-text-primary hover:text-primary transition-colors flex items-center justify-center gap-3"
                       >
-                        <UserCheck className="w-5 h-5" />
+                        <UserCheck className="w-5 h-5 text-primary" />
                         <span>Continue with Google</span>
                       </button>
                     </div>
@@ -95,10 +95,10 @@ function G2PContent() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ delay: 0.1 }}
-                    className="w-full lg:w-1/2 bg-background-elevated border border-border rounded-2xl p-8"
+                    className="w-full lg:w-1/2 bg-background-elevated border-2 border-primary rounded-2xl p-8"
                   >
                     <div className="flex flex-col mb-6">
-                      <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center mb-4">
+                      <div className="w-10 h-10 bg-primary/10 border-2 border-primary rounded-xl flex items-center justify-center mb-4">
                         <Send className="w-5 h-5 text-primary" />
                       </div>
                       <h3 className="font-semibold text-text-primary text-lg">Send files instead?</h3>
@@ -119,11 +119,11 @@ function G2PContent() {
                         name="shareCodeInput"
                         required
                         placeholder="e.g. STY392"
-                        className="bg-background border border-border focus:border-primary/50 rounded-xl px-4 py-3 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors w-full uppercase tracking-wider"
+                        className="bg-background border-2 border-primary rounded-xl px-4 py-3 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors w-full uppercase tracking-wider font-mono font-bold"
                       />
                       <button
                         type="submit"
-                        className="bg-primary text-background hover:bg-primary-hover font-bold rounded-xl px-6 py-3 text-sm transition-colors shrink-0 shadow-glow hover:shadow-glow-active"
+                        className="bg-primary text-background hover:bg-primary-hover font-bold rounded-xl px-6 py-3 text-sm transition-colors shrink-0 border-2 border-primary"
                       >
                         Open
                       </button>

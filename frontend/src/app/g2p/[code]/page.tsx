@@ -206,10 +206,10 @@ export default function G2pSenderPortal({ params }: PageProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-background-card border border-border rounded-3xl p-8 shadow-xl"
+              className="bg-background-card border-2 border-primary rounded-3xl p-8"
             >
-              <div className="flex items-center gap-4 mb-8 pb-8 border-b border-border">
-                <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-bold text-primary">
+              <div className="flex items-center gap-4 mb-8 pb-8 border-b-2 border-primary/40">
+                <div className="w-14 h-14 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center text-xl font-bold text-primary">
                   {receiver.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -233,12 +233,12 @@ export default function G2pSenderPortal({ params }: PageProps) {
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
-                    className={`relative w-full border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all ${
-                      isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-background"
+                    className={`relative w-full border-2 border-dashed border-primary rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all ${
+                      isDragging ? "bg-primary/10" : "bg-background hover:bg-primary/5"
                     } ${uploading || !receiver.accepting_requests ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                   >
                     <input type="file" multiple onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploading || !receiver.accepting_requests} />
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 border-2 border-primary flex items-center justify-center mb-3">
                       <Upload className="w-6 h-6 text-primary" />
                     </div>
                     <p className="text-sm font-bold text-text-primary mb-1">Click or drag files here</p>
@@ -248,10 +248,10 @@ export default function G2pSenderPortal({ params }: PageProps) {
                   {selectedFiles.length > 0 && (
                     <div className="mt-4 space-y-2 max-h-64 overflow-y-auto pr-1">
                       {selectedFiles.map((f, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border bg-background/50 hover:bg-background transition-colors group">
+                        <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-primary/50 bg-background/50 hover:bg-background transition-colors group">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-lg bg-background-elevated border border-border flex items-center justify-center shrink-0">
-                              <FileText className="w-5 h-5 text-text-tertiary group-hover:text-primary transition-colors" />
+                            <div className="w-10 h-10 rounded-lg bg-background-elevated border border-primary/40 flex items-center justify-center shrink-0">
+                              <FileText className="w-5 h-5 text-primary group-hover:text-primary transition-colors" />
                             </div>
                             <div className="flex flex-col min-w-0">
                               <span className="text-sm font-medium text-text-primary truncate">{f.name}</span>
@@ -277,7 +277,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
                     <input
                       type="text" required disabled={uploading || !receiver.accepting_requests} placeholder="Your Name"
                       value={senderName} onChange={e => setSenderName(e.target.value)}
-                      className="w-full bg-background border border-border focus:border-primary/50 rounded-xl pl-11 pr-4 py-3.5 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors"
+                      className="w-full bg-background border-2 border-primary rounded-xl pl-11 pr-4 py-3.5 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors"
                     />
                   </div>
                   
@@ -286,7 +286,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
                     <textarea
                       placeholder="Add a message (optional)" disabled={uploading || !receiver.accepting_requests} rows={2}
                       value={message} onChange={e => setMessage(e.target.value)}
-                      className="w-full bg-background border border-border focus:border-primary/50 rounded-xl pl-11 pr-4 py-3.5 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors resize-none"
+                      className="w-full bg-background border-2 border-primary rounded-xl pl-11 pr-4 py-3.5 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors resize-none"
                     />
                   </div>
                 </div>
@@ -299,15 +299,15 @@ export default function G2pSenderPortal({ params }: PageProps) {
                       <span className="flex items-center gap-2"><Loader2 className="w-3 h-3 text-primary animate-spin" /> Uploading securely...</span>
                       <span className="text-primary">{Math.floor(uploadProgress)}%</span>
                     </div>
-                    <div className="w-full h-2 bg-background rounded-full overflow-hidden border border-border">
-                      <div className="h-full bg-primary transition-all duration-100 shadow-glow" style={{ width: `${uploadProgress}%` }} />
+                    <div className="w-full h-2 bg-background rounded-full overflow-hidden border border-primary">
+                      <div className="h-full bg-primary transition-all duration-100" style={{ width: `${uploadProgress}%` }} />
                     </div>
                   </div>
                 ) : (
                   <button 
                     type="submit" 
                     disabled={!receiver.accepting_requests}
-                    className="w-full bg-primary text-background disabled:bg-background-elevated disabled:text-text-tertiary hover:bg-primary-hover font-bold py-3.5 rounded-xl transition-colors mt-4 shadow-glow"
+                    className="w-full bg-primary text-background disabled:bg-background-elevated disabled:text-text-tertiary hover:bg-primary-hover font-bold py-3.5 rounded-xl border-2 border-primary transition-colors mt-4"
                   >
                     Transfer Files
                   </button>

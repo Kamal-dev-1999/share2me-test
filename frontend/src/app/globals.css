@@ -6,20 +6,57 @@
 
 :root {
   color-scheme: dark;
+  --surface: #111417;
+  --surface-dim: #111417;
+  --surface-bright: #37393d;
+  --surface-container-lowest: #0b0e11;
+  --surface-container-low: #191c1f;
+  --surface-container: #1d2023;
+  --surface-container-high: #272a2e;
+  --surface-container-highest: #323538;
+  --on-surface: #e1e2e7;
+  --on-surface-variant: #d1c6ab;
+  --inverse-surface: #e1e2e7;
+  --inverse-on-surface: #2e3134;
+  --outline: #9a9078;
+  --outline-variant: #4d4632;
+  --surface-tint: #eec200;
+  --primary: #ffecb9;
+  --on-primary: #3c2f00;
+  --primary-container: #facc15;
+  --on-primary-container: #6c5700;
+  --inverse-primary: #735c00;
+  --secondary: #bdc7d9;
+  --on-secondary: #27313f;
+  --secondary-container: #404a59;
+  --on-secondary-container: #afb9cb;
+  --tertiary: #e6edfa;
+  --on-tertiary: #2a313b;
+  --tertiary-container: #cad1de;
+  --on-tertiary-container: #525a64;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+  --background: #111417;
+  --on-background: #e1e2e7;
+  --surface-card: #1F2937;
+  --text-muted: #9CA3AF;
+  --pure-white: #FFFFFF;
 }
 
 @layer base {
   body {
-    @apply bg-background text-text-secondary font-body antialiased;
+    @apply bg-background text-on-surface font-body antialiased selection:bg-primary-container/30 selection:text-primary-container;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display text-text-primary font-semibold;
+    @apply font-display text-on-surface font-bold tracking-tight;
   }
 }
 
 @layer utilities {
   .text-gradient-yellow {
-    background: linear-gradient(135deg, #fcd535 0%, #f0b90b 100%);
+    background: linear-gradient(135deg, #facc15 0%, #ffe083 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -32,6 +69,6 @@
 
   /* Drag-over highlight */
   .drag-active {
-    @apply border-primary bg-primary/5;
+    @apply border-primary-container bg-primary-container/10;
   }
 }

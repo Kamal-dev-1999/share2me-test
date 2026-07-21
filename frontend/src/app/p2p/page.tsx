@@ -55,17 +55,16 @@ function P2PContent() {
             </p>
           </div>
 
-          {/* Refined Workspace Card */}
-          <div className="bg-background-elevated rounded-[32px] border border-border p-5 sm:p-8 md:p-10 shadow-soft relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          {/* Refined Workspace Card - Framed with Clean, Solid Yellow Border */}
+          <div className="bg-background-card rounded-[24px] border-2 border-primary p-6 sm:p-8 md:p-10 relative overflow-hidden">
             
             {/* Top Control Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-              <div className="flex bg-background border border-border p-1.5 rounded-[16px] w-full sm:w-auto shadow-inner relative">
+              <div className="flex bg-background border border-primary/40 p-1.5 rounded-[16px] w-full sm:w-auto relative">
                 <button
                   onClick={() => setMode("send")}
                   className={`flex-1 sm:flex-none py-3 px-6 sm:px-10 text-[15px] sm:text-[16px] font-bold rounded-[12px] transition-all duration-200 z-10 ${
-                    mode === "send" ? "text-primary shadow-md bg-background border border-border/50" : "text-text-secondary hover:text-text-primary"
+                    mode === "send" ? "text-primary bg-background-elevated border-2 border-primary" : "text-text-secondary hover:text-text-primary"
                   }`}
                 >
                   Send Files
@@ -73,7 +72,7 @@ function P2PContent() {
                 <button
                   onClick={() => setMode("receive")}
                   className={`flex-1 sm:flex-none py-3 px-6 sm:px-10 text-[15px] sm:text-[16px] font-bold rounded-[12px] transition-all duration-200 z-10 ${
-                    mode === "receive" ? "text-primary shadow-md bg-background border border-border/50" : "text-text-secondary hover:text-text-primary"
+                    mode === "receive" ? "text-primary bg-background-elevated border-2 border-primary" : "text-text-secondary hover:text-text-primary"
                   }`}
                 >
                   Receive Files

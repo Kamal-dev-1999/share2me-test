@@ -27,16 +27,11 @@ export function TopNav() {
     };
   }, [isMenuOpen]);
 
-  // Scroll to #transfer on the home page, pre-selecting the given mode
+  // Navigate directly to the P2P transfer workspace with the chosen mode
   const goToTransfer = (mode: "send" | "receive") => (e: React.MouseEvent) => {
     e.preventDefault();
     setIsMenuOpen(false); // Close menu on click
-    if (pathname === "/") {
-      window.dispatchEvent(new CustomEvent("set-transfer-mode", { detail: mode }));
-      document.getElementById("transfer")?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      router.push(`/?mode=${mode}#transfer`);
-    }
+    router.push(`/p2p?mode=${mode}`);
   };
 
   return (
@@ -57,12 +52,15 @@ export function TopNav() {
 
         {/* Nav links (Desktop) */}
         <div className="hidden md:flex items-center gap-1.5 ml-12 lg:ml-16">
-          <a href="/#transfer" onClick={goToTransfer("send")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
+          <Link href="/" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
+            Home
+          </Link>
+          <Link href="/p2p?mode=send" onClick={goToTransfer("send")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
             Send
-          </a>
-          <a href="/#transfer" onClick={goToTransfer("receive")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all cursor-pointer">
+          </Link>
+          <Link href="/p2p?mode=receive" onClick={goToTransfer("receive")} className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
             Receive
-          </a>
+          </Link>
           <Link href="/how-it-works" className="px-4 py-2 rounded-lg text-[14px] font-medium text-text-secondary hover:text-text-primary hover:bg-border/50 transition-all">
             How it Works
           </Link>
@@ -96,12 +94,15 @@ export function TopNav() {
               transition={{ duration: 0.2, ease: "easeOut" }}
               className="absolute top-[calc(100%+16px)] right-6 w-56 bg-background-elevated border border-border rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col p-2 md:hidden overflow-hidden origin-top-right z-50"
             >
-              <a href="/#transfer" onClick={goToTransfer("send")} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all cursor-pointer flex items-center gap-3">
+              <Link href="/" onClick={() => setIsMenuOpen(false)} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all flex items-center gap-3">
+                Home
+              </Link>
+              <Link href="/p2p?mode=send" onClick={goToTransfer("send")} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all flex items-center gap-3">
                 Send a File
-              </a>
-              <a href="/#transfer" onClick={goToTransfer("receive")} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all cursor-pointer flex items-center gap-3">
+              </Link>
+              <Link href="/p2p?mode=receive" onClick={goToTransfer("receive")} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all flex items-center gap-3">
                 Receive a File
-              </a>
+              </Link>
               <div className="h-px w-full bg-border my-1" />
               <Link href="/how-it-works" onClick={() => setIsMenuOpen(false)} className="px-4 py-3 rounded-xl text-[15px] font-medium text-text-secondary hover:text-text-primary hover:bg-background-card transition-all flex items-center gap-3">
                 How it Works

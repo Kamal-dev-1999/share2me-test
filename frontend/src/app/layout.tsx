@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 
 import { SplashScreen } from "@/components/SplashScreen";
@@ -196,6 +196,7 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights />
         <GoogleAnalytics gaId="G-8XDS75JXYK" />
+        <GoogleTagManager gtmId="GTM-KS4LVZSF" />
       </body>
     </html>
   );

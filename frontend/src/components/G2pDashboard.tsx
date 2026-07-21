@@ -215,6 +215,7 @@ export default function G2pDashboard({
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [vendorCode, setVendorCode] = useState<string>(user.shareCode || "");
   const [displayName, setDisplayName] = useState(user.username);
   const [isUpdatingName, setIsUpdatingName] = useState(false);
   const [nameUpdateStatus, setNameUpdateStatus] = useState<string | null>(null);
@@ -253,6 +254,8 @@ export default function G2pDashboard({
     }, 800);
     return () => clearTimeout(timer);
   }, [qrLogoUrl]);
+
+  const activeShareCode = vendorCode || user.shareCode || "";
 
   const playChime = useCallback(() => {
     if (!soundEnabled) return;
@@ -355,6 +358,19 @@ export default function G2pDashboard({
           setToken(data.token);
           loadUploads(data.token);
           connectSocket(data.token);
+
+          // Fetch current vendor profile details to ensure shareCode is always present
+          fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/me`, {
+            headers: { Authorization: `Bearer ${data.token}` }
+          })
+            .then(res => res.ok ? res.json() : null)
+            .then(profile => {
+              if (mounted && profile) {
+                if (profile.share2me_id) setVendorCode(profile.share2me_id);
+                if (profile.name) setDisplayName(profile.name);
+              }
+            })
+            .catch(err => console.error("Failed to load vendor profile:", err));
         }
       })
       .catch(err => console.error("Failed to get token:", err));
@@ -414,8 +430,8 @@ export default function G2pDashboard({
   };
 
   const shareLink = typeof window !== "undefined"
-    ? `${window.location.origin}/g2p/${user.shareCode}`
-    : `https://share2.me/g2p/${user.shareCode}`;
+    ? `${window.location.origin}/g2p/${activeShareCode}`
+    : `https://share2.me/g2p/${activeShareCode}`;
 
   const cleanFg = qrFgColor.replace('#', '');
   const cleanBg = qrBgColor.replace('#', '');
@@ -425,7 +441,8 @@ export default function G2pDashboard({
   const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(shareLink)}&size=300&margin=1&dark=${cleanFg}&light=${cleanBg}${isValidLogo ? `&centerImageUrl=${encodeURIComponent(debouncedLogoUrl)}` : ''}`;
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(user.shareCode);
+    if (!activeShareCode) return;
+    navigator.clipboard.writeText(activeShareCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -439,17 +456,17 @@ export default function G2pDashboard({
     });
 
   return (
-    <div className="flex gap-4 sm:gap-6 text-text-primary font-sans relative">
+    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 text-text-primary font-sans relative">
       
-      {/* LEFT FLOATING NAVIGATION PILL */}
-      <div className="sticky top-24 shrink-0 flex flex-col items-center gap-3 bg-background-elevated/90 backdrop-blur-md border border-border rounded-full p-2.5 shadow-xl h-fit z-20">
+      {/* FLOATING NAVIGATION PILL (Horizontal on mobile, vertical sticky on desktop) */}
+      <div className="sm:sticky sm:top-24 shrink-0 flex sm:flex-col flex-row items-center justify-around sm:justify-start gap-2 sm:gap-3 bg-background-elevated border-2 border-primary rounded-2xl sm:rounded-full p-2 sm:p-2.5 h-fit z-20 w-full sm:w-auto">
         
         {/* Inbox Tab */}
         <button
           onClick={() => setActiveTab("inbox")}
           title="Inbox"
-          className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${
-            activeTab === "inbox" ? "bg-primary text-background shadow-glow" : "text-text-tertiary hover:bg-background-card hover:text-primary"
+          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-full flex items-center justify-center transition-all duration-200 ${
+            activeTab === "inbox" ? "bg-primary text-background border-2 border-primary font-bold" : "text-text-tertiary hover:bg-background-card hover:text-primary"
           }`}
         >
           <Inbox className="w-5 h-5" />
@@ -462,20 +479,21 @@ export default function G2pDashboard({
         <button
           onClick={() => setActiveTab("share")}
           title="Share Portal"
-          className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 ${
-            activeTab === "share" ? "bg-primary text-background shadow-glow" : "text-text-tertiary hover:bg-background-card hover:text-primary"
+          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-full flex items-center justify-center transition-all duration-200 ${
+            activeTab === "share" ? "bg-primary text-background border-2 border-primary font-bold" : "text-text-tertiary hover:bg-background-card hover:text-primary"
           }`}
         >
           <QrCode className="w-5 h-5" />
         </button>
 
-        <div className="w-6 h-px bg-border my-1" />
+        <div className="hidden sm:block w-6 h-px bg-primary/40 my-1" />
+        <div className="sm:hidden w-px h-6 bg-primary/40 mx-1" />
 
         {/* Settings / Utilities */}
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}
           title={soundEnabled ? "Mute Alerts" : "Enable Alerts"}
-          className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 text-text-tertiary hover:bg-background-card hover:text-primary"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-full flex items-center justify-center transition-all duration-200 text-text-tertiary hover:bg-background-card hover:text-primary"
         >
           {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
         </button>
@@ -483,14 +501,14 @@ export default function G2pDashboard({
         <button
           onClick={onLogout}
           title="Logout"
-          className="w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 text-status-error hover:bg-status-error/10 hover:shadow-[0_0_15px_rgba(246,70,93,0.2)]"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-full flex items-center justify-center transition-all duration-200 text-status-error hover:bg-status-error/10"
         >
-          <LogOut className="w-4 h-4 ml-1" />
+          <LogOut className="w-4 h-4 ml-0.5" />
         </button>
       </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 w-full">
         <AnimatePresence mode="wait">
           
           {/* --- INBOX VIEW --- */}
@@ -501,15 +519,15 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="bg-background-card border border-border rounded-2xl flex flex-col overflow-hidden shadow-sm h-full min-h-[500px]"
+              className="bg-background-card border-2 border-primary rounded-2xl flex flex-col overflow-hidden h-full min-h-[calc(100vh-220px)]"
             >
-              <div className="p-6 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-background-card">
+              <div className="p-4 sm:p-6 border-b-2 border-primary/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-background-card">
                 <div className="flex items-center gap-3 text-text-primary font-semibold">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border-2 border-primary flex items-center justify-center shrink-0">
                     <Inbox className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h2 className="text-lg leading-tight">Received Files</h2>
+                    <h2 className="text-base sm:text-lg leading-tight">Received Files</h2>
                     <p className="text-xs text-text-tertiary font-normal mt-0.5">{uploads.length} active requests</p>
                   </div>
                 </div>
@@ -522,20 +540,20 @@ export default function G2pDashboard({
                       placeholder="Search sender or message..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-background border border-border focus:border-primary/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors"
+                      className="w-full bg-background border-2 border-primary rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors"
                     />
                   </div>
                   <button
                     onClick={() => setSortOrder(prev => prev === "latest" ? "oldest" : "latest")}
-                    className="bg-background border border-border hover:bg-background-elevated hover:text-primary text-sm font-medium text-text-secondary px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 shrink-0"
+                    className="bg-background border-2 border-primary hover:bg-background-elevated hover:text-primary text-xs sm:text-sm font-bold text-text-primary px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-colors flex items-center gap-2 shrink-0"
                   >
-                    <ArrowUpDown className="w-4 h-4" />
+                    <ArrowUpDown className="w-4 h-4 text-primary" />
                     <span className="hidden sm:inline">{sortOrder === "latest" ? "Latest First" : "Oldest First"}</span>
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-background">
+              <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-background">
                 <div className="space-y-4">
                   <AnimatePresence mode="popLayout">
                     {processedUploads.map((record) => (
@@ -549,17 +567,17 @@ export default function G2pDashboard({
                   </AnimatePresence>
 
                   {processedUploads.length === 0 && (
-                    <div className="flex flex-col items-center justify-center text-center py-24 px-4">
-                      <div className="w-20 h-20 rounded-3xl bg-background-elevated border border-border flex items-center justify-center mb-6">
-                        <Inbox className="w-10 h-10 text-text-tertiary" />
+                    <div className="flex flex-col items-center justify-center text-center py-16 sm:py-24 px-4">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-background-elevated border-2 border-primary flex items-center justify-center mb-6">
+                        <Inbox className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
                       </div>
-                      <h3 className="text-xl font-semibold text-text-primary mb-3">Your inbox is empty</h3>
-                      <p className="text-sm text-text-tertiary max-w-sm leading-relaxed">
+                      <h3 className="text-lg sm:text-xl font-semibold text-text-primary mb-3">Your inbox is empty</h3>
+                      <p className="text-xs sm:text-sm text-text-tertiary max-w-sm leading-relaxed">
                         No one has sent you files yet. Share your portal code with others so they can drop files securely into your inbox.
                       </p>
                       <button 
                         onClick={() => setActiveTab("share")}
-                        className="mt-8 text-primary font-medium hover:text-primary-hover flex items-center gap-2"
+                        className="mt-6 text-primary font-bold hover:text-primary-hover flex items-center gap-2 border-2 border-primary px-4 py-2 rounded-xl bg-primary/10 text-xs sm:text-sm"
                       >
                         View your Share Portal <ArrowUpDown className="w-4 h-4 rotate-90" />
                       </button>
@@ -578,43 +596,41 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="bg-background-card border border-border rounded-2xl shadow-sm relative overflow-hidden h-full min-h-[500px] flex"
+              className="bg-background-card border-2 border-primary rounded-2xl p-4 sm:p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden h-full min-h-[500px] justify-center"
             >
-              <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
-              
-              {/* MAIN CONTENT: PREVIEW */}
-              <div className="w-full h-full p-8 relative z-10 flex flex-col items-center justify-center text-center">
-                
-                {/* Settings Toggle Button */}
-                <button
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="absolute top-6 right-6 p-2.5 rounded-xl bg-background-elevated border border-border text-text-tertiary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-colors shadow-sm group"
-                  title="Portal Settings"
-                >
-                  <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-                </button>
+              {/* Settings Toggle Button */}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2.5 rounded-xl bg-background-elevated border-2 border-primary text-text-primary hover:text-primary hover:bg-primary/10 transition-colors shadow-sm group z-10"
+                title="Portal Settings"
+              >
+                <Settings className="w-5 h-5 text-primary group-hover:rotate-90 transition-transform duration-300" />
+              </button>
 
-                <h3 className="text-2xl font-semibold text-text-primary mb-3">Your Share Portal</h3>
-                <p className="text-sm text-text-tertiary max-w-md mb-10 leading-relaxed">
-                  Anyone scanning this QR can securely drop files directly into your inbox.
-                </p>
-
-                <div className="w-full max-w-[280px] aspect-square bg-background rounded-2xl border border-border p-4 flex items-center justify-center mb-10 shadow-2xl relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrImageUrl} alt="Custom QR Code" className="w-full h-full rounded-xl object-contain" />
-                </div>
-                
-                <div className="w-full max-w-[280px] flex items-center bg-background border border-border focus-within:border-primary/50 rounded-xl p-1.5 pl-5 relative transition-colors shadow-sm">
-                  <span className="flex-1 text-base font-bold tracking-[0.2em] text-primary text-left uppercase">{user.shareCode}</span>
-                  <button
-                    onClick={copyToClipboard}
-                    className="bg-primary text-background hover:bg-primary-hover px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-glow shrink-0"
-                  >
-                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copied ? "Copied" : "Copy"}
-                  </button>
-                </div>
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary/10 border-2 border-primary rounded-full flex items-center justify-center mb-6 sm:mb-8 relative z-10 shrink-0">
+                <QrCode className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
               </div>
+
+              <h2 className="text-xl sm:text-2xl font-semibold text-text-primary mb-2 sm:mb-3 relative z-10">Your Share Portal</h2>
+              <p className="text-xs sm:text-sm text-text-tertiary mb-6 sm:mb-8 max-w-md relative z-10 leading-relaxed px-2">
+                Scan the QR code or share your unique code. Anyone with this code can upload files directly to your inbox, even if you are offline.
+              </p>
+
+              {/* Display Name Setting Box */}
+              <div className="w-full max-w-sm bg-background border-2 border-primary rounded-xl p-3.5 sm:p-4 mb-6 relative z-10 flex flex-col items-start gap-2 text-left">
+                <label className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Your Display Name</label>
+                <div className="flex gap-2 w-full items-center">
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="flex-1 min-w-0 bg-background-elevated border border-primary/40 focus:border-primary rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                  />
+                  <button
+                    onClick={handleUpdateName}
+                    disabled={isUpdatingName || !displayName.trim()}
+                    className="bg-primary hover:bg-primary-hover text-background border border-primary px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 shrink-0"
 
               {/* SLIDING SETTINGS DRAWER */}
               <AnimatePresence>
@@ -757,6 +773,27 @@ export default function G2pDashboard({
                   </>
                 )}
               </AnimatePresence>
+=======
+              {/* QR Code Container */}
+              <div className="w-full max-w-xs sm:max-w-sm bg-background rounded-2xl border-2 border-primary p-4 sm:p-6 flex justify-center mb-6 sm:mb-8 relative z-10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrImageUrl} alt="QR Code" className="w-44 h-44 sm:w-56 sm:h-56 rounded-xl border border-primary/20" />
+              </div>
+              
+              {/* Share Code Bar */}
+              <div className="w-full max-w-sm flex flex-col sm:flex-row items-center gap-2 sm:gap-0 bg-background border-2 border-primary rounded-xl p-2 sm:pl-5 relative z-10 transition-colors">
+                <span className="w-full sm:flex-1 text-center sm:text-left text-base sm:text-lg font-bold tracking-[0.15em] sm:tracking-[0.2em] text-primary uppercase font-mono py-1">
+                  {activeShareCode || "LOADING..."}
+                </span>
+                <button
+                  onClick={copyToClipboard}
+                  disabled={!activeShareCode}
+                  className="w-full sm:w-auto bg-primary text-background hover:bg-primary-hover px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 border border-primary disabled:opacity-50 shrink-0"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Copied" : "Copy Code"}
+                </button>
+              </div>
             </motion.div>
           )}
 
