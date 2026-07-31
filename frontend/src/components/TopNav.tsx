@@ -76,6 +76,7 @@ export function TopNav() {
         <div className="ml-auto flex items-center gap-4">
           {/* Mobile Menu Toggle Button */}
           <button 
+            suppressHydrationWarning
             className="md:hidden p-2 -mr-2 text-text-secondary hover:text-text-primary transition-colors focus:outline-none"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
