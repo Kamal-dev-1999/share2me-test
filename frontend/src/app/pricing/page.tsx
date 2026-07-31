@@ -7,6 +7,7 @@ import { useState } from "react";
 
 export default function PricingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [subscribing, setSubscribing] = useState(false);
 
   const faqs = [
     {
@@ -26,6 +27,39 @@ export default function PricingPage() {
       a: "During the trial, you can receive files up to 2 GB per upload. Once you subscribe, the limits are entirely custom-tailored to your R2 bucket allocations."
     }
   ];
+
+  const handleSubscribe = async () => {
+    setSubscribing(true);
+    try {
+      const tokenRes = await fetch("/api/g2p-token");
+      const tokenData = await tokenRes.json();
+      if (!tokenData.token) {
+        alert("Please log in to your G2P Receive Portal first to subscribe.");
+        window.location.href = "/g2p";
+        return;
+      }
+
+      const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
+      const res = await fetch(`${backendUrl}/g2p/billing/checkout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${tokenData.token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Failed to create checkout session.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred. Please try again.");
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col justify-between font-sans selection:bg-primary/20">
@@ -152,10 +186,11 @@ export default function PricingPage() {
 
               <div className="mt-8">
                 <button
-                  onClick={() => alert("Stripe checkout session will be configured here!")}
-                  className="w-full h-12 bg-primary text-background border-2 border-primary hover:bg-primary-hover font-extrabold rounded-xl flex items-center justify-center gap-2 transition-all text-sm"
+                  onClick={handleSubscribe}
+                  disabled={subscribing}
+                  className="w-full h-12 bg-primary text-background border-2 border-primary hover:bg-primary-hover font-extrabold rounded-xl flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50"
                 >
-                  <Zap className="w-4 h-4 fill-current" /> Subscribe Now
+                  <Zap className="w-4 h-4 fill-current" /> {subscribing ? "Opening Checkout..." : "Subscribe Now"}
                 </button>
               </div>
             </motion.div>

@@ -10,8 +10,16 @@ g2pRouter.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-status-token']
 }));
 
+// Mount Webhooks first so they get raw body instead of parsed JSON
+const webhooksRouter = require('./routes/webhooks');
+g2pRouter.use('/billing', webhooksRouter);
+
 // Parse JSON for G2P endpoints
 g2pRouter.use(express.json());
+
+// Mount billing router (checkout, portal)
+const billingRouter = require('./routes/billing');
+g2pRouter.use('/billing', billingRouter);
 
 // Detailed Phase 7 Health Check
 const healthRoutes = require('./routes/health');
