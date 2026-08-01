@@ -71,7 +71,7 @@ export default function PricingPage() {
           <div className="mb-6">
             <Link 
               href="/g2p" 
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-background-elevated border-2 border-primary hover:bg-primary/10 text-xs font-bold text-text-primary transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container border border-outline hover:bg-surface-container-high text-xs font-bold text-on-surface transition-all shadow-sm"
             >
               <ArrowLeft className="w-4 h-4 text-primary" />
               <span>Back to G2P Portal</span>
@@ -81,12 +81,12 @@ export default function PricingPage() {
           {/* Header */}
           <div className="text-center max-w-2xl mx-auto mb-12 space-y-3">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary text-xs font-bold text-primary uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" /> 30-Day Free Trial
+              <Sparkles className="w-3.5 h-3.5 animate-pulse" /> 30-Day Free Trial
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-text-primary tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-bold text-on-surface tracking-tight font-display uppercase">
               Get Your Permanent <span className="text-primary">G2P Inbox</span>
             </h1>
-            <p className="text-text-tertiary text-sm sm:text-base max-w-lg mx-auto">
+            <p className="text-text-secondary text-sm sm:text-base max-w-lg mx-auto font-body">
               Receive large files and clipboard text from anyone directly into your personal dashboard. Free for 1 month, then just $4.99/mo.
             </p>
           </div>
@@ -98,22 +98,22 @@ export default function PricingPage() {
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-background-card border-2 border-primary rounded-3xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden"
+              className="bg-surface-card border border-outline-variant rounded-2xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden shadow-md"
             >
               <div>
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <h3 className="text-lg font-bold text-text-primary">30-Day Trial</h3>
-                    <p className="text-xs text-text-tertiary mt-1">Try G2P risk-free</p>
+                    <h3 className="text-lg font-bold text-on-surface font-display uppercase">30-Day Trial</h3>
+                    <p className="text-xs text-text-secondary mt-1 font-body">Try G2P risk-free</p>
                   </div>
-                  <span className="px-3.5 py-1 rounded-lg bg-primary/10 border border-primary text-xs font-extrabold text-primary uppercase">
+                  <span className="px-3 py-1 rounded-lg bg-surface-container border border-outline-variant text-[10px] font-bold text-on-surface uppercase font-mono tracking-wider">
                     Active Plan
                   </span>
                 </div>
 
                 <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-4xl font-extrabold text-text-primary">$0</span>
-                  <span className="text-sm text-text-tertiary">/ first month</span>
+                  <span className="text-4xl font-extrabold text-on-surface">$0</span>
+                  <span className="text-sm text-text-secondary font-mono">/ first month</span>
                 </div>
 
                 <ul className="space-y-4">
@@ -124,7 +124,7 @@ export default function PricingPage() {
                     "Full dashboard inbox access",
                     "No credit card required"
                   ].map((feat, index) => (
-                    <li key={index} className="flex items-center gap-3 text-sm text-text-secondary">
+                    <li key={index} className="flex items-center gap-3 text-sm text-text-secondary font-body">
                       <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                       <span>{feat}</span>
                     </li>
@@ -135,7 +135,7 @@ export default function PricingPage() {
               <div className="mt-8">
                 <Link 
                   href="/g2p"
-                  className="w-full h-12 bg-primary/10 text-primary border-2 border-primary hover:bg-primary/20 font-bold rounded-xl flex items-center justify-center transition-all text-sm"
+                  className="w-full h-12 bg-surface-container text-on-surface border border-outline hover:bg-surface-container-high font-bold rounded-2xl flex items-center justify-center transition-all text-sm"
                 >
                   Start Using G2P
                 </Link>
@@ -147,24 +147,24 @@ export default function PricingPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-background-card border-2 border-primary rounded-3xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden"
+              className="bg-surface-card border border-outline-variant rounded-2xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden shadow-md"
             >
               {/* Highlight Tag */}
-              <div className="absolute top-0 right-0 bg-primary text-background text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl border-l-2 border-b-2 border-primary">
+              <div className="absolute top-0 right-0 bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl border-l border-b border-outline-variant">
                 PRO PASS
               </div>
 
               <div>
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <h3 className="text-lg font-bold text-text-primary">Pro Lifetime</h3>
-                    <p className="text-xs text-text-tertiary mt-1">Keep your portal permanently alive</p>
+                    <h3 className="text-lg font-bold text-on-surface font-display uppercase">Pro Lifetime</h3>
+                    <p className="text-xs text-text-secondary mt-1 font-body">Keep your portal permanently alive</p>
                   </div>
                 </div>
 
                 <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-4xl font-extrabold text-text-primary">$4.99</span>
-                  <span className="text-sm text-text-tertiary">/ month</span>
+                  <span className="text-4xl font-extrabold text-on-surface">$4.99</span>
+                  <span className="text-sm text-text-secondary font-mono">/ month</span>
                 </div>
 
                 <ul className="space-y-4">
@@ -176,7 +176,7 @@ export default function PricingPage() {
                     "Customized QR codes & page branding",
                     "Priority secure bandwidth lanes"
                   ].map((feat, index) => (
-                    <li key={index} className="flex items-center gap-3 text-sm text-text-secondary">
+                    <li key={index} className="flex items-center gap-3 text-sm text-text-secondary font-body">
                       <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                       <span className="font-medium">{feat}</span>
                     </li>
@@ -188,9 +188,9 @@ export default function PricingPage() {
                 <button
                   onClick={handleSubscribe}
                   disabled={subscribing}
-                  className="w-full h-12 bg-primary text-background border-2 border-primary hover:bg-primary-hover font-extrabold rounded-xl flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50"
+                  className="w-full h-12 bg-primary text-on-primary border border-transparent hover:bg-[#ffe170] font-bold rounded-2xl flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50 shadow-md"
                 >
-                  <Zap className="w-4 h-4 fill-current" /> {subscribing ? "Opening Checkout..." : "Subscribe Now"}
+                  <Zap className="w-4 h-4 fill-current text-on-primary" /> {subscribing ? "Opening Checkout..." : "Subscribe Now"}
                 </button>
               </div>
             </motion.div>
@@ -198,13 +198,13 @@ export default function PricingPage() {
           </div>
 
           {/* Security Banner */}
-          <div className="max-w-4xl mx-auto mt-12 bg-background-elevated border-2 border-primary rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary flex items-center justify-center shrink-0">
+          <div className="max-w-4xl mx-auto mt-12 bg-surface-container-low border border-outline-variant rounded-2xl p-5 flex flex-col sm:flex-row items-center gap-4 shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
               <Shield className="w-6 h-6 text-primary" />
             </div>
             <div className="text-center sm:text-left">
-              <h4 className="text-sm font-bold text-text-primary">Secure Cryptographic Billing</h4>
-              <p className="text-xs text-text-tertiary mt-0.5">
+              <h4 className="text-sm font-bold text-on-surface font-display">Secure Cryptographic Billing</h4>
+              <p className="text-xs text-text-secondary mt-0.5 font-body">
                 All transactions are fully encrypted and processed directly by Stripe. Share2Me does not store your payment credentials.
               </p>
             </div>
@@ -212,23 +212,23 @@ export default function PricingPage() {
 
           {/* FAQ Section */}
           <div className="max-w-3xl mx-auto mt-16 space-y-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-text-primary text-center">Frequently Asked Questions</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-on-surface text-center font-display uppercase">Frequently Asked Questions</h2>
             
             <div className="space-y-3">
               {faqs.map((faq, index) => (
                 <div 
                   key={index}
-                  className="border-2 border-primary rounded-xl overflow-hidden bg-background-card transition-all"
+                  className="border border-outline-variant rounded-xl overflow-hidden bg-surface-container-low transition-all"
                 >
                   <button
                     onClick={() => setActiveFaq(activeFaq === index ? null : index)}
-                    className="w-full flex items-center justify-between p-4 text-left font-bold text-sm text-text-primary hover:text-primary transition-colors"
+                    className="w-full flex items-center justify-between p-4 text-left font-bold text-sm text-on-surface hover:text-primary transition-colors"
                   >
-                    <span>{faq.q}</span>
+                    <span className="font-display">{faq.q}</span>
                     <HelpCircle className={`w-4 h-4 text-primary transition-transform duration-200 ${activeFaq === index ? 'rotate-180' : ''}`} />
                   </button>
                   {activeFaq === index && (
-                    <div className="px-4 pb-4 pt-1 text-xs sm:text-sm text-text-tertiary border-t border-primary/20 leading-relaxed bg-background/40">
+                    <div className="px-4 pb-4 pt-1 text-xs sm:text-sm text-text-secondary border-t border-outline-variant bg-surface-container-lowest leading-relaxed font-body">
                       {faq.a}
                     </div>
                   )}

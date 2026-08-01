@@ -84,7 +84,7 @@ function UploadRecordItem({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white border-2 border-on-surface rounded-none p-5 hover:bg-surface-container-lowest transition-all shadow-[4px_4px_0px_0px_#1a1c1c] overflow-hidden"
+      className="bg-surface-card border border-outline-variant rounded-2xl p-5 hover:border-primary/40 transition-all overflow-hidden"
     >
       {/* HEADER (Always Visible) */}
       <div 
@@ -92,13 +92,13 @@ function UploadRecordItem({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-none bg-primary border-2 border-on-surface flex items-center justify-center text-lg font-black text-on-primary shrink-0 transition-transform group-hover:scale-105">
+          <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-lg font-black text-on-primary shrink-0 transition-transform group-hover:scale-105">
             {record.senderName.charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-base font-black text-on-surface group-hover:text-primary transition-colors font-display">{record.senderName}</span>
-              <span className="px-2 py-0.5 rounded-none bg-primary border-2 border-on-surface text-[10px] font-bold text-on-surface uppercase font-mono">
+              <span className="px-2.5 py-0.5 rounded-lg bg-surface-container border border-outline-variant text-[10px] font-bold text-on-surface uppercase font-mono tracking-wider">
                 {record.files.length} file{record.files.length > 1 ? 's' : ''}
               </span>
             </div>
@@ -112,21 +112,21 @@ function UploadRecordItem({
         <div className="flex items-center gap-2 sm:gap-3 ml-16 sm:ml-0" onClick={e => e.stopPropagation()}>
           <button
             onClick={handleDownloadAll}
-            className="px-4 py-2 rounded-none bg-primary text-on-primary hover:bg-[#ffe16d] border-2 border-on-surface text-xs font-black transition-all flex items-center gap-2"
+            className="px-4 py-2 rounded-2xl bg-primary text-on-primary hover:bg-[#ffe170] border border-transparent text-xs font-black transition-all flex items-center gap-2"
           >
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Download All</span>
           </button>
           
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(record.uploadId); }}
-            className="p-2.5 rounded-none border-2 border-on-surface text-on-surface hover:text-white hover:bg-error transition-colors"
+            className="p-2.5 rounded-lg border border-outline-variant text-on-surface hover:text-white hover:bg-error/30 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
           
-          <div className="w-0.5 h-6 bg-on-surface mx-1 hidden sm:block" />
+          <div className="w-px h-6 bg-outline-variant mx-1 hidden sm:block" />
           
-          <button className="p-2 rounded-none text-on-surface hover:bg-surface-container transition-colors border border-transparent hover:border-on-surface">
+          <button className="p-2 rounded-lg text-on-surface hover:bg-surface-container transition-colors border border-transparent hover:border-outline-variant">
              <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
         </div>
@@ -142,9 +142,9 @@ function UploadRecordItem({
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="pt-6 mt-5 border-t-2 border-on-surface">
+            <div className="pt-6 mt-5 border-t border-outline-variant">
               {record.message && (
-                <div className="mb-5 pl-4 border-l-4 border-primary text-sm text-on-surface-variant leading-relaxed italic bg-surface-container-low py-3 rounded-none">
+                <div className="mb-5 pl-4 border-l-4 border-primary text-sm text-on-surface-variant leading-relaxed italic bg-surface-container-low py-3 rounded-lg">
                   &quot;{record.message}&quot;
                 </div>
               )}
@@ -156,10 +156,10 @@ function UploadRecordItem({
                     <div
                       key={idx}
                       onClick={(e) => { e.stopPropagation(); onAction(file, 'preview'); }}
-                      className="flex items-center justify-between p-3.5 rounded-none border-2 border-on-surface bg-white hover:bg-surface-container-lowest cursor-pointer transition-all group"
+                      className="flex items-center justify-between p-3.5 rounded-lg border border-outline-variant bg-surface-container-lowest hover:border-primary/40 cursor-pointer transition-all group"
                     >
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-10 h-10 rounded-none bg-surface-container border-2 border-on-surface flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-surface-container border border-outline-variant flex items-center justify-center shrink-0">
                           <Icon className="w-5 h-5 text-on-surface" />
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -171,16 +171,16 @@ function UploadRecordItem({
                         <button 
                           onClick={(e) => { e.stopPropagation(); onAction(file, 'preview'); }}
                           title="Preview"
-                          className="w-9 h-9 rounded-none bg-white border-2 border-on-surface flex items-center justify-center hover:bg-surface-container transition-colors shadow-sm"
+                          className="w-9 h-9 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center hover:bg-surface-container-high transition-colors shadow-sm"
                         >
                           <Eye className="w-4 h-4 text-on-surface" />
                         </button>
                         <button 
                           onClick={(e) => { e.stopPropagation(); onAction(file, 'download'); }}
                           title="Download"
-                          className="w-9 h-9 rounded-none bg-primary border-2 border-on-surface flex items-center justify-center hover:bg-[#ffe16d] transition-colors shadow-sm"
+                          className="w-9 h-9 rounded-full bg-primary flex items-center justify-center hover:bg-[#ffe170] transition-colors shadow-sm"
                         >
-                          <Download className="w-4 h-4 text-on-surface" />
+                          <Download className="w-4 h-4 text-on-primary" />
                         </button>
                       </div>
                     </div>
@@ -459,19 +459,19 @@ export default function G2pDashboard({
     <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 text-text-primary font-sans relative">
       
       {/* FLOATING NAVIGATION PILL (Horizontal on mobile, vertical sticky on desktop) */}
-      <div className="sm:sticky sm:top-24 shrink-0 flex sm:flex-col flex-row items-center justify-around sm:justify-start gap-2 sm:gap-3 bg-white border-2 border-on-surface rounded-none p-2 h-fit z-20 w-full sm:w-auto shadow-[4px_4px_0px_0px_#1a1c1c]">
+      <div className="sm:sticky sm:top-24 shrink-0 flex sm:flex-col flex-row items-center justify-around sm:justify-start gap-2 sm:gap-3 bg-surface-card border border-outline-variant rounded-2xl p-2.5 h-fit z-20 w-full sm:w-auto shadow-lg">
         
         {/* Inbox Tab */}
         <button
           onClick={() => setActiveTab("inbox")}
           title="Inbox"
-          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-none flex items-center justify-center transition-all duration-200 ${
-            activeTab === "inbox" ? "bg-primary text-on-primary border-2 border-on-surface font-black" : "text-on-surface hover:bg-surface-container"
+          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all duration-200 ${
+            activeTab === "inbox" ? "bg-primary text-on-primary border border-transparent font-bold shadow-md" : "text-on-surface hover:bg-surface-container hover:text-primary"
           }`}
         >
-          <Inbox className="w-5 h-5 text-on-surface" />
+          <Inbox className="w-5 h-5 text-current" />
           {uploads.length > 0 && activeTab !== "inbox" && (
-            <span className="absolute top-0 right-0 w-3 h-3 bg-primary border border-on-surface rounded-none"></span>
+            <span className="absolute top-0 right-0 w-3 h-3 bg-primary border-2 border-surface-card rounded-full"></span>
           )}
         </button>
 
@@ -479,29 +479,29 @@ export default function G2pDashboard({
         <button
           onClick={() => setActiveTab("share")}
           title="Share Portal"
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-none flex items-center justify-center transition-all duration-200 ${
-            activeTab === "share" ? "bg-primary text-on-primary border-2 border-on-surface font-black" : "text-on-surface hover:bg-surface-container"
+          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all duration-200 ${
+            activeTab === "share" ? "bg-primary text-on-primary border border-transparent font-bold shadow-md" : "text-on-surface hover:bg-surface-container hover:text-primary"
           }`}
         >
-          <QrCode className="w-5 h-5 text-on-surface" />
+          <QrCode className="w-5 h-5 text-current" />
         </button>
 
-        <div className="hidden sm:block w-6 h-0.5 bg-on-surface my-1" />
-        <div className="sm:hidden w-px h-6 bg-on-surface mx-1" />
+        <div className="hidden sm:block w-6 h-px bg-outline-variant my-1" />
+        <div className="sm:hidden w-px h-6 bg-outline-variant mx-1" />
 
         {/* Settings / Utilities */}
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}
           title={soundEnabled ? "Mute Alerts" : "Enable Alerts"}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-none flex items-center justify-center transition-all duration-200 text-on-surface hover:bg-surface-container"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all duration-200 text-on-surface hover:bg-surface-container"
         >
-          {soundEnabled ? <Volume2 className="w-5 h-5 text-on-surface" /> : <VolumeX className="w-5 h-5 text-on-surface" />}
+          {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
         </button>
 
         <button
           onClick={onLogout}
           title="Logout"
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-none flex items-center justify-center transition-all duration-200 text-on-surface hover:text-white hover:bg-error border border-transparent hover:border-on-surface"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all duration-200 text-error hover:bg-error/10"
         >
           <LogOut className="w-4 h-4 ml-0.5" />
         </button>
@@ -519,41 +519,41 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="bg-white border-2 border-on-surface rounded-none flex flex-col overflow-hidden h-full min-h-[calc(100vh-220px)] shadow-[4px_4px_0px_0px_#1a1c1c]"
+              className="bg-surface-card border border-outline-variant rounded-2xl flex flex-col overflow-hidden h-full min-h-[calc(100vh-220px)] shadow-lg"
             >
-              <div className="p-4 sm:p-6 border-b-2 border-on-surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white">
-                <div className="flex items-center gap-3 text-on-surface font-black">
-                  <div className="w-10 h-10 rounded-none bg-primary border-2 border-on-surface flex items-center justify-center shrink-0">
-                    <Inbox className="w-5 h-5 text-on-surface" />
+              <div className="p-4 sm:p-6 border-b border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface-card">
+                <div className="flex items-center gap-3 text-on-surface font-semibold">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary flex items-center justify-center shrink-0">
+                    <Inbox className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h2 className="text-base sm:text-lg leading-tight font-display font-black">Received Files</h2>
+                    <h2 className="text-base sm:text-lg leading-tight font-display font-bold">Received Files</h2>
                     <p className="text-xs text-text-secondary font-mono mt-0.5">{uploads.length} active requests</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <div className="relative w-full sm:w-56">
-                    <Search className="w-4 h-4 text-on-surface absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       placeholder="Search sender or message..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-white border-2 border-on-surface rounded-none pl-9 pr-4 py-2 text-xs sm:text-sm text-on-surface placeholder-text-secondary focus:outline-none transition-colors"
+                      className="w-full bg-surface-container border border-outline rounded-lg pl-9 pr-4 py-2 text-xs sm:text-sm text-on-surface placeholder-on-surface-variant focus:outline-none focus:border-primary transition-colors"
                     />
                   </div>
                   <button
                     onClick={() => setSortOrder(prev => prev === "latest" ? "oldest" : "latest")}
-                    className="bg-white border-2 border-on-surface hover:bg-primary text-xs sm:text-sm font-black text-on-surface px-3 sm:px-4 py-2 sm:py-2.5 rounded-none transition-colors flex items-center gap-2 shrink-0"
+                    className="bg-surface-container border border-outline hover:bg-surface-container-high hover:text-primary text-xs sm:text-sm font-bold text-on-surface px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-colors flex items-center gap-2 shrink-0"
                   >
-                    <ArrowUpDown className="w-4 h-4 text-on-surface" />
+                    <ArrowUpDown className="w-4 h-4 text-primary" />
                     <span className="hidden sm:inline font-display">{sortOrder === "latest" ? "Latest First" : "Oldest First"}</span>
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-[#f9f9f9]">
+              <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-surface-container-lowest">
                 <div className="space-y-4">
                   <AnimatePresence mode="popLayout">
                     {processedUploads.map((record) => (
@@ -567,17 +567,17 @@ export default function G2pDashboard({
                   </AnimatePresence>
 
                   {processedUploads.length === 0 && (
-                    <div className="flex flex-col items-center justify-center text-center py-16 sm:py-24 px-4 bg-white border-2 border-on-surface rounded-none shadow-[4px_4px_0px_0px_#1a1c1c]">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-none bg-[#f9f9f9] border-2 border-on-surface flex items-center justify-center mb-6">
-                        <Inbox className="w-8 h-8 sm:w-10 sm:h-10 text-on-surface" />
+                    <div className="flex flex-col items-center justify-center text-center py-16 sm:py-24 px-4 bg-surface-card border border-outline-variant rounded-2xl shadow-sm">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-surface-container border border-outline-variant flex items-center justify-center mb-6">
+                        <Inbox className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
                       </div>
-                      <h3 className="text-lg sm:text-xl font-black text-on-surface mb-3 font-display">Your inbox is empty</h3>
-                      <p className="text-xs sm:text-sm text-text-secondary max-w-sm leading-relaxed">
+                      <h3 className="text-lg sm:text-xl font-bold text-on-surface mb-3 font-display">Your inbox is empty</h3>
+                      <p className="text-xs sm:text-sm text-text-secondary max-w-sm leading-relaxed font-body">
                         No one has sent you files yet. Share your portal code with others so they can drop files securely into your inbox.
                       </p>
                       <button 
                         onClick={() => setActiveTab("share")}
-                        className="mt-6 text-on-surface font-black hover:bg-[#ffe16d] flex items-center gap-2 border-2 border-on-surface px-4 py-2 rounded-none bg-primary text-xs sm:text-sm transition-all"
+                        className="mt-6 text-on-primary font-bold hover:bg-[#ffe170] flex items-center gap-2 border border-transparent px-4 py-2.5 rounded-2xl bg-primary text-xs sm:text-sm transition-all"
                       >
                         View your Share Portal <ArrowUpDown className="w-4 h-4 rotate-90" />
                       </button>
@@ -596,28 +596,28 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="bg-white border-2 border-on-surface rounded-none p-4 sm:p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden h-full min-h-[500px] justify-center shadow-[4px_4px_0px_0px_#1a1c1c]"
+              className="bg-surface-card border border-outline-variant rounded-2xl p-4 sm:p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden h-full min-h-[500px] justify-center shadow-lg"
             >
               {/* Settings Toggle Button */}
               <button
                 onClick={() => setIsSettingsOpen(true)}
-                className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2.5 rounded-none bg-white border-2 border-on-surface text-on-surface hover:bg-primary transition-colors group z-10"
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2.5 rounded-xl bg-surface-container border border-outline text-on-surface hover:text-primary hover:bg-surface-container-high transition-colors shadow-sm group z-10"
                 title="Portal Settings"
               >
-                <Settings className="w-5 h-5 text-on-surface group-hover:rotate-90 transition-transform duration-300" />
+                <Settings className="w-5 h-5 text-primary group-hover:rotate-90 transition-transform duration-300" />
               </button>
 
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary border-2 border-on-surface rounded-none flex items-center justify-center mb-6 sm:mb-8 relative z-10 shrink-0 shadow-[4px_4px_0px_0px_#1a1c1c]">
-                <QrCode className="w-8 h-8 sm:w-10 sm:h-10 text-on-surface" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary/10 border border-primary rounded-full flex items-center justify-center mb-6 sm:mb-8 relative z-10 shrink-0 shadow-sm">
+                <QrCode className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-on-surface mb-2 sm:mb-3 relative z-10 font-display">Your Share Portal</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-on-surface mb-2 sm:mb-3 relative z-10 font-display">Your Share Portal</h2>
               <p className="text-xs sm:text-sm text-text-secondary mb-6 sm:mb-8 max-w-md relative z-10 leading-relaxed px-2 font-body">
                 Scan the QR code or share your unique code. Anyone with this code can upload files directly to your inbox, even if you are offline.
               </p>
 
               {/* Display Name Setting Box */}
-              <div className="w-full max-w-sm bg-white border-2 border-on-surface rounded-none p-3.5 sm:p-4 mb-6 relative z-10 flex flex-col items-start gap-2 text-left shadow-[4px_4px_0px_0px_#1a1c1c]">
+              <div className="w-full max-w-sm bg-surface-container-low border border-outline rounded-2xl p-3.5 sm:p-4 mb-6 relative z-10 flex flex-col items-start gap-2 text-left shadow-sm">
                 <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider font-mono">Your Display Name</label>
                 <div className="flex gap-2 w-full items-center">
                   <input
@@ -625,12 +625,12 @@ export default function G2pDashboard({
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Enter your name"
-                    className="flex-1 min-w-0 bg-white border-2 border-on-surface rounded-none px-3 py-2 text-xs text-on-surface focus:outline-none focus:bg-surface-container transition-colors"
+                    className="flex-1 min-w-0 bg-surface-container border border-outline rounded-lg px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-primary transition-colors"
                   />
                   <button
                     onClick={handleUpdateName}
                     disabled={isUpdatingName || !displayName.trim()}
-                    className="bg-primary hover:bg-[#ffe16d] text-on-primary border-2 border-on-surface px-3 sm:px-4 py-2 rounded-none text-xs font-black transition-all disabled:opacity-50 shrink-0"
+                    className="bg-primary hover:bg-[#ffe170] text-on-primary border border-transparent px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 shrink-0"
                   >
                     {isUpdatingName ? "Saving..." : "Save"}
                   </button>
@@ -645,20 +645,20 @@ export default function G2pDashboard({
               </div>
 
               {/* QR Code Container */}
-              <div className="w-full max-w-xs sm:max-w-sm bg-white rounded-none border-2 border-on-surface p-4 sm:p-6 flex justify-center mb-6 sm:mb-8 relative z-10 shadow-[4px_4px_0px_0px_#1a1c1c]">
+              <div className="w-full max-w-xs sm:max-w-sm bg-surface-container-low rounded-2xl border border-outline p-4 sm:p-6 flex justify-center mb-6 sm:mb-8 relative z-10 shadow-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrImageUrl} alt="QR Code" className="w-44 h-44 sm:w-56 sm:h-56 rounded-none border-2 border-on-surface" />
+                <img src={qrImageUrl} alt="QR Code" className="w-44 h-44 sm:w-56 sm:h-56 rounded-xl border border-outline-variant/30" />
               </div>
               
               {/* Share Code Bar */}
-              <div className="w-full max-w-sm flex flex-col sm:flex-row items-center gap-2 sm:gap-0 bg-white border-2 border-on-surface rounded-none p-2 sm:p-0 relative z-10 transition-colors shadow-[4px_4px_0px_0px_#1a1c1c]">
-                <span className="w-full sm:flex-1 text-center sm:text-left text-base sm:text-lg font-black tracking-[0.15em] sm:tracking-[0.2em] text-on-surface uppercase font-mono py-2 sm:pl-5">
+              <div className="w-full max-w-sm flex flex-col sm:flex-row items-center gap-2 sm:gap-0 bg-surface-container-low border border-outline rounded-2xl p-2 sm:pl-5 relative z-10 transition-colors shadow-sm">
+                <span className="w-full sm:flex-1 text-center sm:text-left text-base sm:text-lg font-bold tracking-[0.15em] sm:tracking-[0.2em] text-primary uppercase font-mono py-1">
                   {user.shareCode || activeShareCode || "LOADING..."}
                 </span>
                 <button
                   onClick={copyToClipboard}
                   disabled={!user.shareCode && !activeShareCode}
-                  className="w-full sm:w-auto bg-primary text-on-primary hover:bg-[#ffe16d] px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-none text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 border-t-2 sm:border-t-0 sm:border-l-2 border-on-surface disabled:opacity-50 shrink-0"
+                  className="w-full sm:w-auto bg-primary text-on-primary hover:bg-[#ffe170] px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 border border-transparent disabled:opacity-50 shrink-0"
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   {copied ? "Copied" : "Copy Code"}
@@ -682,36 +682,36 @@ export default function G2pDashboard({
                       animate={{ x: 0 }}
                       exit={{ x: "100%" }}
                       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                      className="absolute top-0 right-0 w-full md:w-[400px] h-full bg-white border-l-2 border-on-surface shadow-2xl z-30 flex flex-col"
+                      className="absolute top-0 right-0 w-full md:w-[400px] h-full bg-surface-card border-l border-outline-variant shadow-2xl z-30 flex flex-col"
                     >
                       {/* Drawer Header */}
-                      <div className="flex items-center justify-between p-6 border-b-2 border-on-surface bg-white">
+                      <div className="flex items-center justify-between p-6 border-b border-outline-variant bg-surface-card">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary border-2 border-on-surface rounded-none flex items-center justify-center shadow-[2px_2px_0px_0px_#1a1c1c]">
-                            <QrCode className="w-5 h-5 text-on-surface" />
+                          <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center shadow-sm">
+                            <QrCode className="w-5 h-5 text-primary" />
                           </div>
                           <div>
-                            <h2 className="text-lg font-black text-on-surface font-display">Portal Settings</h2>
+                            <h2 className="text-lg font-bold text-on-surface font-display">Portal Settings</h2>
                             <p className="text-[10px] text-text-secondary uppercase tracking-wider font-mono">Customize your page</p>
                           </div>
                         </div>
                         <button
                           onClick={() => setIsSettingsOpen(false)}
-                          className="p-2 rounded-none text-on-surface hover:bg-surface-container border border-transparent hover:border-on-surface transition-colors"
+                          className="p-2 rounded-lg text-text-secondary hover:text-on-surface hover:bg-surface-container transition-colors"
                         >
                           <X className="w-5 h-5" />
                         </button>
                       </div>
 
                       {/* Drawer Content */}
-                      <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-[#f9f9f9]">
+                      <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-surface-card">
                         
                         {/* Profile Section */}
                         <div>
-                          <h3 className="text-sm font-black text-on-surface mb-3 flex items-center gap-2 font-display">
-                            <span className="w-2.5 h-2.5 bg-primary border border-on-surface rounded-none" /> Profile Info
+                          <h3 className="text-sm font-semibold text-on-surface mb-3 flex items-center gap-2 font-display">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" /> Profile Info
                           </h3>
-                          <div className="bg-white border-2 border-on-surface rounded-none p-4 shadow-[4px_4px_0px_0px_#1a1c1c] flex flex-col gap-2">
+                          <div className="bg-surface-container border border-outline rounded-xl p-4 shadow-sm flex flex-col gap-2">
                             <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider font-mono">Display Name</label>
                             <div className="flex gap-2">
                               <input
@@ -719,18 +719,18 @@ export default function G2pDashboard({
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
                                 placeholder="Enter your name"
-                                className="flex-1 bg-white border-2 border-on-surface focus:bg-surface-container rounded-none px-3 py-2 text-sm text-on-surface focus:outline-none transition-colors"
+                                className="flex-1 bg-surface-container-low border border-outline focus:border-primary/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none transition-colors"
                               />
                               <button
                                 onClick={handleUpdateName}
                                 disabled={isUpdatingName || !displayName.trim()}
-                                className="bg-primary hover:bg-[#ffe16d] text-on-primary border-2 border-on-surface px-4 py-2 rounded-none text-sm font-black transition-all disabled:opacity-50 shrink-0"
+                                className="bg-primary hover:bg-[#ffe170] text-on-primary px-4 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50 shrink-0 shadow-sm"
                               >
                                 {isUpdatingName ? "Saving..." : "Save"}
                               </button>
                             </div>
                             {nameUpdateStatus && (
-                              <p className={`text-[10px] font-bold mt-1 font-mono ${
+                              <p className={`text-[10px] font-medium mt-1 font-mono ${
                                 nameUpdateStatus.includes("successfully") ? "text-status-success" : "text-status-error"
                               }`}>
                                 {nameUpdateStatus}
@@ -741,34 +741,34 @@ export default function G2pDashboard({
 
                         {/* QR Customization Section */}
                         <div>
-                          <h3 className="text-sm font-black text-on-surface mb-3 flex items-center gap-2 font-display">
-                            <span className="w-2.5 h-2.5 bg-primary border border-on-surface rounded-none" /> QR Customization
+                          <h3 className="text-sm font-semibold text-on-surface mb-3 flex items-center gap-2 font-display">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" /> QR Customization
                           </h3>
-                          <div className="bg-white border-2 border-on-surface rounded-none p-4 shadow-[4px_4px_0px_0px_#1a1c1c] flex flex-col gap-4">
+                          <div className="bg-surface-container border border-outline rounded-xl p-4 shadow-sm flex flex-col gap-4">
                             
                             <div className="flex gap-4">
                               <div className="flex-1">
                                 <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block mb-1.5 font-mono">Color</label>
-                                <div className="flex items-center gap-2 bg-white border-2 border-on-surface rounded-none p-1.5">
+                                <div className="flex items-center gap-2 bg-surface-container-low border border-outline rounded-lg p-1.5">
                                   <input
                                     type="color"
                                     value={qrFgColor}
                                     onChange={(e) => setQrFgColor(e.target.value)}
-                                    className="w-7 h-7 rounded-none cursor-pointer bg-transparent border-0 p-0"
+                                    className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0"
                                   />
-                                  <span className="text-xs text-on-surface font-mono">{qrFgColor.toUpperCase()}</span>
+                                  <span className="text-xs text-text-secondary font-mono">{qrFgColor.toUpperCase()}</span>
                                 </div>
                               </div>
                               <div className="flex-1">
                                 <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block mb-1.5 font-mono">Background</label>
-                                <div className="flex items-center gap-2 bg-white border-2 border-on-surface rounded-none p-1.5">
+                                <div className="flex items-center gap-2 bg-surface-container-low border border-outline rounded-lg p-1.5">
                                   <input
                                     type="color"
                                     value={qrBgColor}
                                     onChange={(e) => setQrBgColor(e.target.value)}
-                                    className="w-7 h-7 rounded-none cursor-pointer bg-transparent border-0 p-0"
+                                    className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0"
                                   />
-                                  <span className="text-xs text-on-surface font-mono">{qrBgColor.toUpperCase()}</span>
+                                  <span className="text-xs text-text-secondary font-mono">{qrBgColor.toUpperCase()}</span>
                                 </div>
                               </div>
                             </div>
@@ -780,7 +780,7 @@ export default function G2pDashboard({
                                 value={qrLogoUrl}
                                 onChange={(e) => setQrLogoUrl(e.target.value)}
                                 placeholder="https://example.com/logo.png"
-                                className="w-full bg-white border-2 border-on-surface focus:bg-surface-container rounded-none px-3 py-2 text-sm text-on-surface focus:outline-none transition-colors"
+                                className="w-full bg-surface-container-low border border-outline focus:border-primary/50 rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none transition-colors"
                               />
                               <p className="text-[9px] text-text-secondary mt-1.5 leading-relaxed font-mono">
                                 Note: Must be a <strong className="text-on-surface">direct link</strong> to an image file (ends in .png or .jpg).
@@ -792,10 +792,10 @@ export default function G2pDashboard({
                       </div>
                       
                       {/* Drawer Footer */}
-                      <div className="p-6 border-t-2 border-on-surface bg-white">
+                      <div className="p-6 border-t border-outline-variant bg-surface-container-low">
                         <button
                           onClick={saveQrSettings}
-                          className="w-full bg-primary hover:bg-[#ffe16d] text-on-primary py-3 border-2 border-on-surface rounded-none text-sm font-black transition-all flex items-center justify-center gap-2"
+                          className="w-full bg-primary hover:bg-[#ffe170] text-on-primary py-3 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2"
                         >
                           <Check className="w-4 h-4" /> Save Preferences
                         </button>

@@ -135,9 +135,9 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["'Hanken Grotesk'", "sans-serif"],
-        display: ["Chivo", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        body: ["'Hanken Grotesk'", "sans-serif"],
+        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        display: ["'Archivo Narrow'", "sans-serif"],
+        body: ["Inter", "sans-serif"],
         mono: ["'JetBrains Mono'", "monospace"],
       },
       fontSize: {
