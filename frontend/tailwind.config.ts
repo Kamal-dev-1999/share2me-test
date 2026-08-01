@@ -135,9 +135,10 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        body: ["Inter", "sans-serif"],
-        mono: ["'JetBrains Mono'", "'IBM Plex Mono'", "monospace"],
+        sans: ["'Hanken Grotesk'", "sans-serif"],
+        display: ["Chivo", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        body: ["'Hanken Grotesk'", "sans-serif"],
+        mono: ["'JetBrains Mono'", "monospace"],
       },
       fontSize: {
         'headline-xl': ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }],

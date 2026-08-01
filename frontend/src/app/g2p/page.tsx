@@ -36,25 +36,25 @@ function G2PContent() {
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <Link 
               href="/" 
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-background-elevated border border-primary/40 hover:bg-background-card text-xs font-semibold text-text-secondary hover:text-primary transition-all shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-none bg-white border-2 border-on-surface hover:bg-surface-container text-xs font-black text-on-surface transition-all shadow-[2px_2px_0px_0px_#1a1c1c]"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 text-on-surface" />
               <span>Back to Home</span>
             </Link>
           </div>
 
           <div className="mb-8 space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold text-text-primary tracking-tight">Receive Portal</h1>
-            <p className="text-text-tertiary text-xs md:text-sm leading-relaxed">
+            <h1 className="text-2xl md:text-3xl font-black text-on-surface tracking-tight font-display uppercase">Receive Portal</h1>
+            <p className="text-text-secondary text-xs md:text-sm leading-relaxed font-body">
               Create a permanent inbox to receive files from anyone using your unique Share Code.
             </p>
           </div>
 
           {isLoading ? (
             <div className="w-full flex items-center justify-center p-12">
-               <div className="animate-pulse flex flex-col items-center gap-4 text-text-tertiary">
-                 <div className="w-8 h-8 rounded-full border-2 border-primary/50 border-t-transparent animate-spin"></div>
-                 <span className="text-sm font-medium">Authenticating securely...</span>
+               <div className="animate-pulse flex flex-col items-center gap-4 text-text-secondary font-mono">
+                 <div className="w-8 h-8 rounded-none border-2 border-on-surface border-t-transparent animate-spin"></div>
+                 <span className="text-sm font-bold">Authenticating securely...</span>
                </div>
             </div>
           ) : g2pUser ? (
@@ -69,11 +69,11 @@ function G2PContent() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="w-full lg:w-1/2 bg-background-card border-2 border-primary rounded-2xl p-8"
+                    className="w-full lg:w-1/2 bg-white border-2 border-on-surface rounded-none p-8 shadow-[6px_6px_0px_0px_#1a1c1c]"
                   >
                     <div className="space-y-2 mb-8">
-                      <h2 className="text-xl font-semibold text-text-primary">Create your portal</h2>
-                      <p className="text-sm text-text-secondary">
+                      <h2 className="text-xl font-black text-on-surface font-display uppercase">Create your portal</h2>
+                      <p className="text-sm text-text-secondary font-body">
                         Sign in to claim your permanent Share Code and start receiving files.
                       </p>
                     </div>
@@ -81,9 +81,9 @@ function G2PContent() {
                     <div className="flex flex-col items-center justify-center gap-4 w-full">
                       <button
                         onClick={() => signIn("google")}
-                        className="w-full py-3.5 px-4 rounded-xl border-2 border-primary bg-background-elevated hover:bg-primary/10 text-sm font-bold text-text-primary hover:text-primary transition-colors flex items-center justify-center gap-3"
+                        className="w-full py-3.5 px-4 rounded-none border-2 border-on-surface bg-primary hover:bg-[#ffe16d] text-sm font-black text-on-primary transition-all flex items-center justify-center gap-3 shadow-[4px_4px_0px_0px_#1a1c1c]"
                       >
-                        <UserCheck className="w-5 h-5 text-primary" />
+                        <UserCheck className="w-5 h-5 text-on-primary" />
                         <span>Continue with Google</span>
                       </button>
                     </div>
@@ -95,14 +95,14 @@ function G2PContent() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ delay: 0.1 }}
-                    className="w-full lg:w-1/2 bg-background-elevated border-2 border-primary rounded-2xl p-8"
+                    className="w-full lg:w-1/2 bg-white border-2 border-on-surface rounded-none p-8 shadow-[6px_6px_0px_0px_#1a1c1c]"
                   >
                     <div className="flex flex-col mb-6">
-                      <div className="w-10 h-10 bg-primary/10 border-2 border-primary rounded-xl flex items-center justify-center mb-4">
-                        <Send className="w-5 h-5 text-primary" />
+                      <div className="w-10 h-10 bg-primary border-2 border-on-surface rounded-none flex items-center justify-center mb-4 shadow-[2px_2px_0px_0px_#1a1c1c]">
+                        <Send className="w-5 h-5 text-on-primary" />
                       </div>
-                      <h3 className="font-semibold text-text-primary text-lg">Send files instead?</h3>
-                      <p className="text-sm text-text-secondary mt-1">Enter a receiver&apos;s Share Code to open their portal.</p>
+                      <h3 className="font-black text-on-surface text-lg font-display uppercase">Send files instead?</h3>
+                      <p className="text-sm text-text-secondary mt-1 font-body">Enter a receiver&apos;s Share Code to open their portal.</p>
                     </div>
 
                     <form
@@ -119,11 +119,11 @@ function G2PContent() {
                         name="shareCodeInput"
                         required
                         placeholder="e.g. STY392"
-                        className="bg-background border-2 border-primary rounded-xl px-4 py-3 text-sm text-text-primary placeholder-text-tertiary focus:outline-none transition-colors w-full uppercase tracking-wider font-mono font-bold"
+                        className="bg-white border-2 border-on-surface rounded-none px-4 py-3 text-sm text-on-surface placeholder-text-secondary focus:outline-none transition-colors w-full uppercase tracking-wider font-mono font-black"
                       />
                       <button
                         type="submit"
-                        className="bg-primary text-background hover:bg-primary-hover font-bold rounded-xl px-6 py-3 text-sm transition-colors shrink-0 border-2 border-primary"
+                        className="bg-primary text-on-primary hover:bg-[#ffe16d] font-black rounded-none px-6 py-3 text-sm transition-all shrink-0 border-2 border-on-surface shadow-[2px_2px_0px_0px_#1a1c1c]"
                       >
                         Open
                       </button>
