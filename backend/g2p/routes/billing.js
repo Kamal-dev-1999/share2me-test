@@ -1,7 +1,17 @@
 const express = require('express');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { query } = require('../lib/db');
 const { verifyVendorJWT } = require('../lib/auth');
+
+let stripeInstance = null;
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('Stripe API Key is not configured. Please add STRIPE_SECRET_KEY to your env variables.');
+  }
+  if (!stripeInstance) {
+    stripeInstance = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripeInstance;
+}
 
 const router = express.Router();
 
@@ -25,7 +35,7 @@ router.post('/checkout', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
 
     // 2. Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
       line_items: [
@@ -61,7 +71,7 @@ router.post('/portal', async (req, res) => {
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
 
-    const portalSession = await stripe.billingPortal.sessions.create({
+    const portalSession = await getStripe().billingPortal.sessions.create({
       customer: vRes.rows[0].stripe_customer_id,
       return_url: `${frontendUrl}/g2p`,
     });

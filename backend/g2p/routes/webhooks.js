@@ -1,6 +1,16 @@
 const express = require('express');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { query } = require('../lib/db');
+
+let stripeInstance = null;
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('Stripe API Key is not configured. Please add STRIPE_SECRET_KEY to your env variables.');
+  }
+  if (!stripeInstance) {
+    stripeInstance = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripeInstance;
+}
 
 const router = express.Router();
 
@@ -13,7 +23,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
   try {
     // Verify signature using Stripe SDK
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    event = getStripe().webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err) {
     console.error(`[Webhook] Signature verification failed:`, err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -31,7 +41,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
         if (vendorId) {
           // Update vendor record with Stripe reference and upgrade tier to pro
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
           const endsAt = new Date(subscription.current_period_end * 1000).toISOString();
           
           await query(`
