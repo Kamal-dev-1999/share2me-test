@@ -31,7 +31,7 @@ function P2PContent() {
   } = useTransfer(socket);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-between">
+    <div className="min-h-screen bg-background flex flex-col justify-between selection:bg-primary/20 text-on-surface">
       <div>
         <TopNav />
         
@@ -40,39 +40,39 @@ function P2PContent() {
           <div className="mb-6">
             <Link 
               href="/" 
-              className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full border border-border bg-background-elevated hover:bg-border/30 hover:border-primary/30 text-xs sm:text-sm font-bold text-text-secondary hover:text-text-primary transition-all duration-200 shadow-sm active:scale-95 group"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container border border-outline hover:bg-surface-container-high text-xs font-bold text-on-surface transition-all shadow-sm"
             >
-              <ArrowLeft className="w-4 h-4 text-text-tertiary group-hover:text-primary transition-transform group-hover:-translate-x-0.5" />
+              <ArrowLeft className="w-4 h-4 text-primary" />
               <span>Back to Home</span>
             </Link>
           </div>
 
           {/* Refined Header */}
           <div className="mb-8 space-y-2">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-text-primary tracking-tight">Person-to-Person (P2P) Transfer</h1>
-            <p className="text-sm sm:text-base text-text-secondary max-w-[650px] leading-relaxed">
+            <h1 className="text-3xl sm:text-4xl font-bold text-on-surface tracking-tight font-display uppercase">Person-to-Person (P2P) Transfer</h1>
+            <p className="text-sm sm:text-base text-text-secondary max-w-[650px] leading-relaxed font-body">
               Direct, end-to-end encrypted file and text sharing. Keep both browsers open to transfer.
             </p>
           </div>
 
-          {/* Refined Workspace Card - Framed with Clean, Solid Yellow Border */}
-          <div className="bg-background-card rounded-[24px] border-2 border-primary p-6 sm:p-8 md:p-10 relative overflow-hidden">
+          {/* Refined Workspace Card */}
+          <div className="bg-surface-card rounded-[24px] border border-outline-variant p-6 sm:p-8 md:p-10 relative overflow-hidden shadow-lg">
             
             {/* Top Control Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-              <div className="flex bg-background border border-primary/40 p-1.5 rounded-[16px] w-full sm:w-auto relative">
+              <div className="flex bg-surface-container border border-outline p-1 rounded-xl w-full sm:w-auto relative">
                 <button
                   onClick={() => setMode("send")}
-                  className={`flex-1 sm:flex-none py-3 px-6 sm:px-10 text-[15px] sm:text-[16px] font-bold rounded-[12px] transition-all duration-200 z-10 ${
-                    mode === "send" ? "text-primary bg-background-elevated border-2 border-primary" : "text-text-secondary hover:text-text-primary"
+                  className={`flex-1 sm:flex-none py-2.5 px-6 sm:px-10 text-sm font-bold rounded-lg transition-all duration-200 ${
+                    mode === "send" ? "text-on-primary bg-primary shadow-sm" : "text-text-secondary hover:text-on-surface"
                   }`}
                 >
                   Send Files
                 </button>
                 <button
                   onClick={() => setMode("receive")}
-                  className={`flex-1 sm:flex-none py-3 px-6 sm:px-10 text-[15px] sm:text-[16px] font-bold rounded-[12px] transition-all duration-200 z-10 ${
-                    mode === "receive" ? "text-primary bg-background-elevated border-2 border-primary" : "text-text-secondary hover:text-text-primary"
+                  className={`flex-1 sm:flex-none py-2.5 px-6 sm:px-10 text-sm font-bold rounded-lg transition-all duration-200 ${
+                    mode === "receive" ? "text-on-primary bg-primary shadow-sm" : "text-text-secondary hover:text-on-surface"
                   }`}
                 >
                   Receive Files
@@ -113,26 +113,20 @@ function P2PContent() {
       <SeoContent />
 
       {/* Footer */}
-      <footer className="w-full border-t border-border bg-background py-12">
+      <footer className="w-full border-t border-outline-variant bg-surface-card py-12">
         <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-              </div>
-              <span className="text-text-primary font-display font-bold">Share2Me</span>
+              <span className="text-on-surface font-display font-bold uppercase">Share2Me</span>
             </div>
             
-            <div className="text-[13px] text-text-tertiary">
+            <div className="text-[13px] text-text-secondary font-mono">
               © 2026 Share2Me. All rights reserved.
             </div>
 
-            <div className="flex items-center gap-6">
-              <Link href="/privacy" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Privacy</Link>
-              <Link href="/terms" className="text-[13px] text-text-secondary hover:text-text-primary transition-colors">Terms</Link>
+            <div className="flex items-center gap-6 font-mono text-[13px]">
+              <Link href="/privacy" className="text-text-secondary hover:text-primary transition-colors">Privacy</Link>
+              <Link href="/terms" className="text-text-secondary hover:text-primary transition-colors">Terms</Link>
             </div>
           </div>
         </div>
