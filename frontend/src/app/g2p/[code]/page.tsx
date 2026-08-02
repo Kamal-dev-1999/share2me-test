@@ -23,12 +23,12 @@ export default function G2pSenderPortal({ params }: PageProps) {
   const { code } = use(params);
   const [receiver, setReceiver] = useState<VendorProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const [senderName, setSenderName] = useState("");
   const [message, setMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  
+
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
@@ -49,8 +49,11 @@ export default function G2pSenderPortal({ params }: PageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <div className="w-14 h-14 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center shadow-hard">
+          <Loader2 className="w-6 h-6 text-ink animate-spin" strokeWidth={2.5} />
+        </div>
+        <span className="label-caps text-ink">Looking up portal…</span>
       </div>
     );
   }
@@ -58,16 +61,18 @@ export default function G2pSenderPortal({ params }: PageProps) {
   if (!receiver) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 text-on-surface">
-        <div className="w-16 h-16 rounded-2xl bg-error/10 border border-error/20 flex items-center justify-center mb-6">
-          <AlertCircle className="w-8 h-8 text-error" />
+        <div className="card-brutalist p-8 max-w-md w-full text-center">
+          <div className="w-14 h-14 bg-error text-surface border-2 border-ink rounded-md flex items-center justify-center mx-auto mb-6 shadow-hard-sm">
+            <AlertCircle className="w-7 h-7" strokeWidth={2.5} />
+          </div>
+          <h2 className="font-display font-bold uppercase text-3xl text-ink mb-2">Portal Not Found</h2>
+          <p className="text-on-surface-variant mb-8 leading-relaxed">
+            The Share Code <span className="font-mono font-bold text-ink">&quot;{code}&quot;</span> is invalid or has expired.
+          </p>
+          <Link href="/" className="btn-brutalist w-full">
+            Return Home
+          </Link>
         </div>
-        <h2 className="text-xl font-bold text-on-surface mb-2 font-display uppercase">Portal Not Found</h2>
-        <p className="text-sm text-text-secondary mb-8 text-center max-w-sm font-body">
-          The Share Code &quot;{code}&quot; is invalid or has expired.
-        </p>
-        <Link href="/" className="bg-primary text-on-primary font-bold px-6 py-3 rounded-xl hover:bg-[#ffe170] transition-colors shadow-md">
-          Return Home
-        </Link>
       </div>
     );
   }
@@ -91,10 +96,9 @@ export default function G2pSenderPortal({ params }: PageProps) {
     if (!receiver.accepting_requests) return setErrorMsg("This portal is currently not accepting files.");
 
     setUploading(true);
-    setUploadProgress(10); // Initial progress indicating we are contacting backend
+    setUploadProgress(10);
 
     try {
-      // 1. Create the Request Container (Safe transactional lock)
       const reqRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,16 +112,14 @@ export default function G2pSenderPortal({ params }: PageProps) {
         const errData = await reqRes.json();
         throw new Error(errData.message || errData.error || "Failed to create request");
       }
-      
+
       const { id: requestId, status_token: statusToken } = await reqRes.json();
       setUploadProgress(20);
 
-      // 2. Upload Each File Directly to S3/R2
       const totalFiles = selectedFiles.length;
       let completedFiles = 0;
 
       for (const file of selectedFiles) {
-        // A. Presign Upload URL
         const preRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/files/presign`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -134,15 +136,14 @@ export default function G2pSenderPortal({ params }: PageProps) {
           const errData = await preRes.json();
           throw new Error(errData.message || `Failed to initialize upload for ${file.name}`);
         }
-        
-        const { fileId, presignedUrl } = await preRes.json();
 
-        // B. Proxy Upload (Bypassing CORS entirely)
+        const { fileId } = await preRes.json();
+
         const proxyUrl = `${EXPRESS_BACKEND_URL}/g2p/files/${fileId}/upload`;
         const uploadRes = await fetch(proxyUrl, {
           method: "PUT",
           body: file,
-          headers: { 
+          headers: {
             "Content-Type": file.type || 'application/octet-stream',
             "x-status-token": statusToken
           }
@@ -150,13 +151,12 @@ export default function G2pSenderPortal({ params }: PageProps) {
 
         if (!uploadRes.ok) throw new Error(`Cloudflare rejected upload for ${file.name}`);
 
-        // C. Complete & Verify Upload
         const completeRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/files/${fileId}/complete`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ statusToken })
         });
-        
+
         if (!completeRes.ok) {
           const errData = await completeRes.json();
           throw new Error(errData.error || "Backend failed to verify the upload");
@@ -169,8 +169,6 @@ export default function G2pSenderPortal({ params }: PageProps) {
       setUploadComplete(true);
     } catch (err: any) {
       console.error("Upload process error:", err);
-      
-      // If it's a TypeError: Failed to fetch during the PUT request, it's a network/CORS issue
       if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
         setErrorMsg("Network error: The backend server rejected the upload connection.");
       } else {
@@ -189,14 +187,15 @@ export default function G2pSenderPortal({ params }: PageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden text-on-surface">
-      
-      {/* Subtle brand glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[400px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-
-      <div className="w-full max-w-lg relative z-10">
-        <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container border border-outline hover:bg-surface-container-high text-xs font-bold text-on-surface transition-all shadow-sm group mb-8">
-          <ArrowLeft className="w-4 h-4 text-primary group-hover:-translate-x-0.5 transition-transform" /> Cancel Transfer
+    <div className="min-h-screen bg-background flex flex-col items-center px-5 sm:px-8 py-10 md:py-16 font-body text-on-surface">
+      <div className="w-full max-w-xl">
+        {/* Back link */}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 border-2 border-ink rounded-md px-3 py-1.5 bg-surface hover:bg-signal-yellow transition-colors label-caps text-ink shadow-hard-sm mb-8 group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" strokeWidth={2.5} />
+          Cancel Transfer
         </Link>
 
         <AnimatePresence mode="wait">
@@ -206,110 +205,148 @@ export default function G2pSenderPortal({ params }: PageProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface-card border border-outline-variant rounded-2xl p-8 shadow-lg"
+              className="card-brutalist p-6 sm:p-8"
             >
-              <div className="flex items-center gap-4 mb-8 pb-8 border-b border-outline-variant">
-                <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary flex items-center justify-center text-xl font-bold text-primary">
+              {/* Recipient header */}
+              <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-ink">
+                <div className="w-14 h-14 rounded-md bg-signal-yellow border-2 border-ink flex items-center justify-center font-display font-bold uppercase text-2xl text-ink shadow-hard-sm shrink-0">
                   {receiver.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <p className="text-[10px] text-text-secondary font-bold uppercase tracking-widest mb-0.5 font-mono">SENDING TO</p>
-                  <h1 className="text-xl font-bold text-on-surface leading-tight font-display">{receiver.name}</h1>
+                <div className="min-w-0">
+                  <p className="label-caps text-on-surface-variant mb-1">// Sending To</p>
+                  <h1 className="font-display font-bold uppercase text-2xl md:text-3xl text-ink leading-tight truncate">
+                    {receiver.name}
+                  </h1>
                 </div>
               </div>
 
-              {!receiver.accepting_requests ? (
-                <div className="bg-error/10 border border-error/30 rounded-xl p-4 flex gap-3 mb-6">
-                  <AlertCircle className="w-5 h-5 text-error shrink-0" />
-                  <p className="text-sm text-error font-medium">This portal is currently paused and is not accepting new files right now.</p>
+              {!receiver.accepting_requests && (
+                <div className="bg-error-container border-2 border-error rounded-md p-4 flex gap-3 mb-6">
+                  <AlertCircle className="w-5 h-5 text-on-error-container shrink-0" strokeWidth={2.5} />
+                  <p className="text-sm text-on-error-container font-medium">
+                    This portal is currently paused and is not accepting new files.
+                  </p>
                 </div>
-              ) : null}
+              )}
 
               <form onSubmit={handleSendFiles} className="space-y-6">
-                
-                {/* File Dropzone */}
+                {/* Dropzone */}
                 <div>
+                  <label className="label-caps text-on-surface-variant block mb-2">// Files</label>
                   <div
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
-                    className={`relative w-full border-2 border-dashed border-outline-variant rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all ${
-                      isDragging ? "bg-primary/10 border-primary" : "bg-surface-container hover:bg-surface-container-high"
+                    className={`relative w-full border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all ${
+                      isDragging
+                        ? "border-signal-yellow bg-signal-yellow/20"
+                        : "border-ink bg-surface-container hover:bg-surface-container-high"
                     } ${uploading || !receiver.accepting_requests ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                   >
-                    <input type="file" multiple onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" disabled={uploading || !receiver.accepting_requests} />
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary flex items-center justify-center mb-3">
-                      <Upload className="w-6 h-6 text-primary" />
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      disabled={uploading || !receiver.accepting_requests}
+                    />
+                    <div className="w-14 h-14 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center mb-4 shadow-hard-sm">
+                      <Upload className="w-7 h-7 text-ink" strokeWidth={2.5} />
                     </div>
-                    <p className="text-sm font-bold text-on-surface mb-1 font-display">Click or drag files here</p>
-                    <p className="text-xs text-text-secondary font-mono">Files are sent directly via Cloudflare R2.</p>
+                    <p className="font-display font-bold uppercase text-lg text-ink mb-1">
+                      Click or drag files here
+                    </p>
+                    <p className="label-caps text-on-surface-variant">Direct upload via Cloudflare R2</p>
                   </div>
 
                   {selectedFiles.length > 0 && (
                     <div className="mt-4 space-y-2 max-h-64 overflow-y-auto pr-1">
                       {selectedFiles.map((f, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-outline bg-surface-container-low hover:bg-surface-container transition-colors group">
+                        <div
+                          key={i}
+                          className="flex items-center justify-between p-3 rounded-md border-2 border-ink bg-surface hover:bg-surface-container transition-colors group"
+                        >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-lg bg-surface-container border border-outline flex items-center justify-center shrink-0">
-                              <FileText className="w-5 h-5 text-primary" />
+                            <div className="w-10 h-10 rounded-md bg-signal-yellow border-2 border-ink flex items-center justify-center shrink-0">
+                              <FileText className="w-5 h-5 text-ink" strokeWidth={2.5} />
                             </div>
                             <div className="flex flex-col min-w-0">
-                              <span className="text-sm font-medium text-on-surface truncate font-display">{f.name}</span>
-                              <span className="text-xs text-text-secondary mt-0.5 font-mono">{formatSize(f.size)}</span>
+                              <span className="text-sm font-bold text-ink truncate">{f.name}</span>
+                              <span className="label-caps text-on-surface-variant mt-0.5">{formatSize(f.size)}</span>
                             </div>
                           </div>
-                          <div className="flex items-center shrink-0 ml-3">
-                            {!uploading && (
-                              <button type="button" onClick={() => setSelectedFiles(s => s.filter((_, idx) => idx !== i))} className="w-8 h-8 rounded-full bg-surface-container border border-outline flex items-center justify-center text-text-secondary hover:text-error hover:border-error transition-all opacity-0 group-hover:opacity-100">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
+                          {!uploading && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFiles(s => s.filter((_, idx) => idx !== i))}
+                              className="w-8 h-8 rounded-md border-2 border-ink bg-surface flex items-center justify-center text-ink hover:bg-error hover:text-surface transition-all shrink-0 ml-3"
+                            >
+                              <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-4 pt-2">
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
-                    <input
-                      type="text" required disabled={uploading || !receiver.accepting_requests} placeholder="Your Name"
-                      value={senderName} onChange={e => setSenderName(e.target.value)}
-                      className="w-full bg-surface-container border border-outline focus:border-primary rounded-lg pl-11 pr-4 py-3 text-sm text-on-surface placeholder-on-surface-variant focus:outline-none transition-colors"
-                    />
+                {/* Sender fields */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="label-caps text-on-surface-variant block mb-2">// Your Name</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink" strokeWidth={2.5} />
+                      <input
+                        type="text" required disabled={uploading || !receiver.accepting_requests}
+                        placeholder="Jane Doe"
+                        value={senderName} onChange={e => setSenderName(e.target.value)}
+                        className="input-brutalist pl-11"
+                      />
+                    </div>
                   </div>
-                  
-                  <div className="relative">
-                    <MessageSquare className="absolute left-4 top-4 w-4 h-4 text-primary" />
-                    <textarea
-                      placeholder="Add a message (optional)" disabled={uploading || !receiver.accepting_requests} rows={2}
-                      value={message} onChange={e => setMessage(e.target.value)}
-                      className="w-full bg-surface-container border border-outline focus:border-primary rounded-lg pl-11 pr-4 py-3 text-sm text-on-surface placeholder-on-surface-variant focus:outline-none transition-colors resize-none"
-                    />
+
+                  <div>
+                    <label className="label-caps text-on-surface-variant block mb-2">// Message (optional)</label>
+                    <div className="relative">
+                      <MessageSquare className="absolute left-4 top-4 w-4 h-4 text-ink" strokeWidth={2.5} />
+                      <textarea
+                        placeholder="Say something…" disabled={uploading || !receiver.accepting_requests} rows={2}
+                        value={message} onChange={e => setMessage(e.target.value)}
+                        className="input-brutalist pl-11 resize-none"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {errorMsg && <p className="text-error text-sm text-center font-bold font-mono">{errorMsg}</p>}
+                {errorMsg && (
+                  <div className="bg-error-container border-2 border-error rounded-md p-3 text-on-error-container text-sm font-mono">
+                    {errorMsg}
+                  </div>
+                )}
 
                 {uploading ? (
-                  <div className="pt-4">
-                    <div className="flex justify-between text-xs font-bold text-text-secondary mb-2 font-mono">
-                      <span className="flex items-center gap-2"><Loader2 className="w-3 h-3 text-primary animate-spin" /> Uploading securely...</span>
-                      <span className="text-primary">{Math.floor(uploadProgress)}%</span>
+                  <div className="pt-2">
+                    <div className="flex justify-between mb-2">
+                      <span className="label-caps text-ink flex items-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.5} />
+                        Uploading securely…
+                      </span>
+                      <span className="label-caps text-ink">{Math.floor(uploadProgress)}%</span>
                     </div>
-                    <div className="w-full h-2.5 bg-surface-container rounded-full overflow-hidden border border-outline-variant">
-                      <div className="h-full bg-primary transition-all duration-100" style={{ width: `${uploadProgress}%` }} />
+                    <div className="w-full h-3 bg-surface-container border-2 border-ink rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-signal-yellow transition-all duration-100 rounded-full border-r-2 border-ink"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
                     </div>
                   </div>
                 ) : (
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={!receiver.accepting_requests}
-                    className="w-full bg-primary text-on-primary hover:bg-[#ffe170] disabled:bg-surface-container disabled:text-text-secondary font-bold py-3.5 rounded-xl border border-transparent shadow-md transition-all mt-4"
+                    className="btn-brutalist w-full disabled:opacity-50 disabled:pointer-events-none"
                   >
-                    Transfer Files
+                    Transfer Files →
                   </button>
                 )}
               </form>
@@ -319,21 +356,28 @@ export default function G2pSenderPortal({ params }: PageProps) {
               key="success"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-surface-card border border-outline-variant rounded-2xl p-10 text-center shadow-lg"
+              className="card-brutalist p-10 text-center"
             >
-              <div className="w-16 h-16 rounded-full bg-status-success/10 border border-status-success/20 flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="w-8 h-8 text-status-success" />
+              <div className="w-16 h-16 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center mx-auto mb-6 shadow-hard">
+                <CheckCircle2 className="w-9 h-9 text-ink" strokeWidth={2.5} />
               </div>
-              <h2 className="text-2xl font-bold text-on-surface mb-3 font-display uppercase">Transfer Complete</h2>
-              <p className="text-text-secondary text-sm mb-8 max-w-sm mx-auto leading-relaxed font-body">
-                Your files have been securely delivered to <strong>{receiver.name}</strong>&apos;s inbox.
+              <h2 className="font-display font-bold uppercase text-3xl text-ink mb-3">Transfer Complete</h2>
+              <p className="text-on-surface-variant mb-8 max-w-sm mx-auto leading-relaxed">
+                Your files have been securely delivered to{" "}
+                <strong className="text-ink">{receiver.name}</strong>&apos;s inbox.
               </p>
-              
               <div className="flex flex-col gap-3">
-                <button onClick={() => { setSelectedFiles([]); setUploadComplete(false); setUploadProgress(0); }} className="w-full bg-primary text-on-primary font-bold py-3 rounded-xl hover:bg-[#ffe170] transition-colors shadow-md">
+                <button
+                  onClick={() => {
+                    setSelectedFiles([]);
+                    setUploadComplete(false);
+                    setUploadProgress(0);
+                  }}
+                  className="btn-brutalist w-full"
+                >
                   Send More Files
                 </button>
-                <Link href="/" className="w-full bg-surface-container border border-outline text-text-secondary font-bold py-3 rounded-xl hover:bg-surface-container-high transition-colors text-center">
+                <Link href="/" className="btn-brutalist-ghost w-full">
                   Return to Home
                 </Link>
               </div>

@@ -1,62 +1,177 @@
-@import url('https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,400..700;1,400..700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,400..700;1,400..700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Share2Me — Kinetic Grid light theme
+   Cream surface, ink borders, signal-yellow accent, hard shadows.
+   ============================================================ */
 :root {
-  color-scheme: dark;
-  --surface: #131313;
-  --surface-dim: #131313;
-  --surface-bright: #3a3939;
-  --surface-container-lowest: #0e0e0e;
-  --surface-container-low: #1c1b1b;
-  --surface-container: #201f1f;
-  --surface-container-high: #2a2a2a;
-  --surface-container-highest: #353534;
-  --on-surface: #e5e2e1;
-  --on-surface-variant: #d0c6ab;
-  --inverse-surface: #e5e2e1;
-  --inverse-on-surface: #313030;
-  --outline: #474746;
-  --outline-variant: #4d4632;
-  --surface-tint: #e9c400;
-  --primary: #ffd600;
-  --on-primary: #131313;
-  --primary-container: #ffd600;
-  --on-primary-container: #705d00;
+  color-scheme: light;
+
+  --surface: #F2F0EF;
+  --surface-dim: #d4d4d4;
+  --surface-bright: #F2F0EF;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f5f5f5;
+  --surface-container: #f0f0f0;
+  --surface-container-high: #ebebeb;
+  --surface-container-highest: #e5e5e5;
+
+  --on-surface: #1e1b15;
+  --on-surface-variant: #525252;
+  --inverse-surface: #262626;
+  --inverse-on-surface: #f5f5f5;
+
+  --outline: #737373;
+  --outline-variant: #d4d4d4;
+
+  --surface-tint: #FFD700;
+  --primary: #FFD700;
+  --on-primary: #1e1b15;
+  --primary-container: #FFD700;
+  --on-primary-container: #1e1b15;
   --inverse-primary: #705d00;
-  --secondary: #c8c6c5;
-  --on-secondary: #313030;
-  --secondary-container: #474746;
-  --on-secondary-container: #b7b5b4;
-  --tertiary: #f5f5f5;
-  --on-tertiary: #2f3131;
-  --tertiary-container: #d9d9d9;
-  --on-tertiary-container: #5d5f5f;
-  --error: #ffb4ab;
-  --on-error: #690005;
-  --error-container: #93000a;
-  --on-error-container: #ffdad6;
-  --background: #131313;
-  --on-background: #e5e2e1;
-  --surface-card: #1c1b1b;
-  --text-muted: #b7b5b4;
+
+  --secondary: #5e5e5e;
+  --on-secondary: #ffffff;
+  --secondary-container: #e1dfdf;
+  --on-secondary-container: #3d3d3d;
+
+  --tertiary: #454747;
+  --on-tertiary: #ffffff;
+  --tertiary-container: #5d5f5f;
+  --on-tertiary-container: #d8d9d9;
+
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
+
+  --background: #F2F0EF;
+  --on-background: #1e1b15;
+  --surface-card: #f0f0f0;
+  --text-muted: #737373;
   --pure-white: #ffffff;
+
+  --ink: #1e1b15;
+  --signal-yellow: #FFD700;
+  --hard-shadow: 4px 4px 0 0 rgba(30, 27, 21, 1);
+  --hard-shadow-sm: 2px 2px 0 0 rgba(30, 27, 21, 1);
 }
 
 @layer base {
+  html {
+    background-color: var(--background);
+  }
   body {
-    @apply bg-background text-on-surface font-body antialiased selection:bg-primary-container/30 selection:text-primary-container;
+    @apply bg-background text-on-surface font-body antialiased;
+    background-color: var(--background);
+    color: var(--on-surface);
+    selection: bg-primary text-on-primary;
+  }
+  ::selection {
+    background: var(--signal-yellow);
+    color: var(--ink);
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display text-on-surface font-bold tracking-tight;
+    @apply font-display font-bold uppercase tracking-tight;
+    color: var(--on-surface);
   }
+
+  /* Custom scrollbar — brutalist, slightly rounded (matches reference). */
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-track {
+    background: var(--surface-container);
+    border-left: 2px solid var(--ink);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ink);
+    border: 2px solid var(--surface-container);
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--signal-yellow); }
+}
+
+@layer components {
+  /* Primary yellow button with hard offset shadow. */
+  .btn-brutalist {
+    @apply relative inline-flex items-center justify-center gap-2 bg-primary text-on-primary font-display font-bold uppercase tracking-tight
+           rounded-lg px-6 py-3 transition-all;
+    box-shadow: var(--hard-shadow);
+  }
+  .btn-brutalist:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 0 var(--ink); }
+  .btn-brutalist:active { transform: translate(2px, 2px); box-shadow: 0 0 0 0 var(--ink); }
+
+  /* Secondary (ghost) button. */
+  .btn-brutalist-ghost {
+    @apply relative inline-flex items-center justify-center gap-2 bg-surface text-on-surface font-display font-bold uppercase tracking-tight
+           rounded-lg px-6 py-3 transition-all;
+  }
+  .btn-brutalist-ghost:hover { background-color: var(--signal-yellow); }
+
+  /* Card with 2px ink border. */
+  .card-brutalist {
+    @apply relative bg-surface rounded-xl;
+    box-shadow: var(--hard-shadow);
+  }
+  .card-brutalist-flat {
+    @apply relative bg-surface rounded-xl;
+  }
+
+  /* Input field. */
+  .input-brutalist {
+    @apply relative w-full bg-surface text-on-surface rounded-lg px-4 py-3
+           font-body placeholder:text-outline focus:outline-none transition-all;
+    border: 2px solid var(--ink);
+    filter: url(#wobble-soft);
+  }
+  .input-brutalist:focus {
+    box-shadow: 0 0 0 3px var(--signal-yellow);
+  }
+
+  /* JetBrains Mono uppercase caps label. */
+  .label-caps {
+    @apply font-mono uppercase tracking-[0.1em] text-[12px] font-medium;
+  }
+
+  /* Yellow chip / tag. */
+  .chip-yellow {
+    @apply relative inline-flex items-center bg-primary text-ink rounded-md px-2 py-0.5 font-mono uppercase text-[11px] font-black;
+  }
+  .chip-outline {
+    @apply relative inline-flex items-center bg-surface text-on-surface rounded-md px-2 py-0.5 font-mono uppercase text-[11px] font-black;
+  }
+
+  /* -------------------------------------------------------------------
+     Hand-drawn wobble border applied via an SVG-filtered pseudo-element.
+     Keeps children (text, icons) perfectly crisp — only the ::before
+     rectangle is passed through the turbulence displacement filter.
+     -------------------------------------------------------------------
+  */
+  .btn-brutalist::before,
+  .btn-brutalist-ghost::before,
+  .card-brutalist::before,
+  .card-brutalist-flat::before,
+  .chip-yellow::before,
+  .chip-outline::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border: 2px solid var(--ink);
+    border-radius: inherit;
+    pointer-events: none;
+    filter: url(#wobble);
+  }
+  .chip-yellow::before,
+  .chip-outline::before { inset: 0; border-width: 1.5px; }
 }
 
 @layer utilities {
   .text-gradient-yellow {
-    background: linear-gradient(135deg, #facc15 0%, #ffe083 100%);
+    background: linear-gradient(135deg, #FFD700 0%, #ffe170 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -67,8 +182,40 @@
   }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-  /* Drag-over highlight */
+  /* Drag-over highlight for drop zones. */
   .drag-active {
-    @apply border-primary-container bg-primary-container/10;
+    background-color: rgba(255, 215, 0, 0.15);
+    border-color: var(--signal-yellow) !important;
   }
+
+  /* Hard offset shadow utilities. */
+  .shadow-hard { box-shadow: var(--hard-shadow); }
+  .shadow-hard-sm { box-shadow: var(--hard-shadow-sm); }
+
+  /* Wobble the whole element (subtle) — for containers where a pseudo-border
+     isn't practical (e.g. the sticky nav's `border-b-2`). Distorts children
+     slightly, so use sparingly. */
+  .wobble { filter: url(#wobble-soft); }
+  .wobble-hard { filter: url(#wobble); }
+}
+
+/* Wavy borders on raw `border-2 border-ink` elements — but ONLY for those
+   that aren't absolutely positioned. Positioned elements (laptop, phone,
+   floating badges) keep their own layout context; we don't force position
+   on them or we'd break their coordinates. Absolute/fixed/sticky elements
+   already have positioning contexts, so we can still overlay a wavy pseudo
+   without touching position. */
+.border-ink.border-2:not(input):not(textarea):not(nav):not(.card-brutalist):not(.card-brutalist-flat):not(.btn-brutalist):not(.btn-brutalist-ghost):not(.chip-yellow):not(.chip-outline):not(.absolute):not(.fixed):not(.sticky) {
+  position: relative;
+  border-color: transparent !important;
+}
+.border-ink.border-2:not(input):not(textarea):not(nav):not(.card-brutalist):not(.card-brutalist-flat):not(.btn-brutalist):not(.btn-brutalist-ghost):not(.chip-yellow):not(.chip-outline):not(.absolute):not(.fixed):not(.sticky)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--ink);
+  border-radius: inherit;
+  pointer-events: none;
+  filter: url(#wobble);
+  z-index: 0;
 }

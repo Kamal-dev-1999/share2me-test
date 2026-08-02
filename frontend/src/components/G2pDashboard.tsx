@@ -84,7 +84,7 @@ function UploadRecordItem({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-surface-card border border-outline-variant rounded-2xl p-5 hover:border-primary/40 transition-all overflow-hidden"
+      className="bg-surface border-2 border-ink rounded-xl p-5 shadow-hard-sm hover:shadow-hard transition-all overflow-hidden"
     >
       {/* HEADER (Always Visible) */}
       <div 
@@ -119,7 +119,7 @@ function UploadRecordItem({
           
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(record.uploadId); }}
-            className="p-2.5 rounded-lg border border-outline-variant text-on-surface hover:text-white hover:bg-error/30 transition-colors"
+            className="p-2.5 rounded-lg border-2 border-ink bg-surface text-on-surface hover:bg-error hover:text-surface transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -459,7 +459,7 @@ export default function G2pDashboard({
     <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 text-text-primary font-sans relative">
       
       {/* FLOATING NAVIGATION PILL (Horizontal on mobile, vertical sticky on desktop) */}
-      <div className="sm:sticky sm:top-24 shrink-0 flex sm:flex-col flex-row items-center justify-around sm:justify-start gap-2 sm:gap-3 bg-surface-card border border-outline-variant rounded-2xl p-2.5 h-fit z-20 w-full sm:w-auto shadow-lg">
+      <div className="sm:sticky sm:top-24 shrink-0 flex sm:flex-col flex-row items-center justify-around sm:justify-start gap-2 sm:gap-3 bg-surface border-2 border-ink rounded-xl p-2.5 h-fit z-20 w-full sm:w-auto shadow-hard-sm">
         
         {/* Inbox Tab */}
         <button
@@ -519,7 +519,7 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="bg-surface-card border border-outline-variant rounded-2xl flex flex-col overflow-hidden h-full min-h-[calc(100vh-220px)] shadow-lg"
+              className="bg-surface border-2 border-ink rounded-xl flex flex-col overflow-hidden h-full min-h-[calc(100vh-220px)] shadow-hard"
             >
               <div className="p-4 sm:p-6 border-b border-outline-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface-card">
                 <div className="flex items-center gap-3 text-on-surface font-semibold">

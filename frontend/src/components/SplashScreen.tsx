@@ -56,9 +56,9 @@ export function SplashScreen() {
           initial={{ scale: 0.5, opacity: 0, rotate: -15 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           transition={{ duration: 0.8, type: "spring", bounce: 0.4 }}
-          className="relative z-10 w-24 h-24 rounded-[1.5rem] bg-primary/10 flex items-center justify-center border border-primary/20 shadow-glow backdrop-blur-sm"
+          className="relative z-10 w-24 h-24 rounded-2xl bg-primary flex items-center justify-center border-2 border-ink shadow-hard"
         >
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-ink">
             <motion.path 
               initial={{ pathLength: 0, opacity: 0 }}
               animate={{ pathLength: 1, opacity: 1 }}
@@ -80,7 +80,7 @@ export function SplashScreen() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut", delay: 1.4 }}
-            className="text-3xl font-display font-bold text-text-primary tracking-wider"
+            className="text-3xl font-display font-bold text-on-surface uppercase tracking-wider"
           >
             Share2Me
           </motion.h1>

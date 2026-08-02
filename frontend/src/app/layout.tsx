@@ -56,7 +56,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#0b0e11",
+  themeColor: "#F2F0EF",
 };
 
 export default function RootLayout({
@@ -65,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className="light" suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
@@ -196,7 +196,24 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body className="min-h-screen bg-background text-text-primary antialiased" suppressHydrationWarning>
+      <body className="min-h-screen bg-background text-on-surface font-body antialiased" suppressHydrationWarning>
+        {/* Hand-drawn / manga-panel wobble filter, referenced from CSS via url(#wobble). */}
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}
+        >
+          <defs>
+            <filter id="wobble">
+              <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="4" />
+              <feDisplacementMap in="SourceGraphic" scale="3" />
+            </filter>
+            <filter id="wobble-soft">
+              <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="7" />
+              <feDisplacementMap in="SourceGraphic" scale="2" />
+            </filter>
+          </defs>
+        </svg>
         <SplashScreen />
         {children}
         <Analytics />
