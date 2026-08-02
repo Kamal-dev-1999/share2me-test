@@ -67,12 +67,12 @@ function P2PContent() {
         <div className="card-brutalist p-5 sm:p-8 md:p-10 relative">
           {/* Mode toggle */}
           <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
-            <div className="flex bg-surface-container border-2 border-ink rounded-md overflow-hidden w-full sm:w-auto">
+            <div className="flex bg-surface-container border-2 border-ink rounded-md w-full sm:w-auto wobble-soft">
               <button
                 onClick={() => setMode("send")}
-                className={`flex-1 sm:flex-none py-3 px-6 sm:px-8 label-caps transition-all flex items-center justify-center gap-2 border-r-2 border-ink ${
+                className={`flex-1 sm:flex-none py-3 px-6 sm:px-8 label-caps transition-all flex items-center justify-center gap-2 border-r-2 border-ink rounded-l-[4px] ${
                   mode === "send"
-                    ? "bg-signal-yellow text-ink"
+                    ? "bg-signal-yellow text-ink shadow-hard-sm"
                     : "bg-surface-container text-on-surface hover:bg-surface"
                 }`}
               >
@@ -81,9 +81,9 @@ function P2PContent() {
               </button>
               <button
                 onClick={() => setMode("receive")}
-                className={`flex-1 sm:flex-none py-3 px-6 sm:px-8 label-caps transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 sm:flex-none py-3 px-6 sm:px-8 label-caps transition-all flex items-center justify-center gap-2 rounded-r-[4px] ${
                   mode === "receive"
-                    ? "bg-signal-yellow text-ink"
+                    ? "bg-signal-yellow text-ink shadow-hard-sm"
                     : "bg-surface-container text-on-surface hover:bg-surface"
                 }`}
               >
