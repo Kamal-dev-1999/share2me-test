@@ -134,6 +134,7 @@ function P2PContent() {
           <span className="font-display font-bold uppercase tracking-tight text-xl">Share2Me</span>
           <div className="label-caps text-surface/70">© 2026 Share2Me — All Rights Reserved</div>
           <div className="flex items-center gap-6">
+            <a href="https://www.linkedin.com/company/share2me" target="_blank" rel="noopener noreferrer" className="label-caps text-surface/70 hover:text-signal-yellow transition-colors">LinkedIn</a>
             <Link href="/privacy" className="label-caps text-surface/70 hover:text-signal-yellow transition-colors">Privacy</Link>
             <Link href="/terms" className="label-caps text-surface/70 hover:text-signal-yellow transition-colors">Terms</Link>
           </div>

@@ -205,7 +205,8 @@ export default function RootLayout({
                     "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"]
                   },
                   "sameAs": [
-                    "https://github.com/share2me"
+                    "https://github.com/share2me",
+                    "https://www.linkedin.com/company/share2me"
                   ]
                 },
                 {
