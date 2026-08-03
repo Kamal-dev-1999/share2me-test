@@ -21,7 +21,14 @@ export const metadata: Metadata = {
     "secure file transfer online", "send big files free", "online text sharing",
     "private text share", "secure clipboard share", "encrypted file sharing",
     "no limit file transfer", "cross platform file sharing", "iphone to pc transfer free",
-    "how to send 10gb file free", "direct browser file share", "secure send text online"
+    "how to send 10gb file free", "direct browser file share", "secure send text online",
+    "file transfer without upload", "browser file sharing", "send files online without server",
+    "direct p2p file transfer", "webrtc file transfer", "send files anonymously",
+    "anonymous file sharing", "secure web clipboard", "local file transfer web",
+    "send large video files free", "pc to mobile file transfer online", "online file transfer cross platform",
+    "fastest way to send large files", "no login file sharing", "secure web drop box",
+    "clipboard sync cross platform", "share files webrtc", "temp file sharing secure",
+    "real time file sharing browser"
   ],
   authors: [{ name: "Share2Me" }],
   creator: "Share2Me",
