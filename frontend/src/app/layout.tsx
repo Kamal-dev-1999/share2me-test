@@ -28,7 +28,69 @@ export const metadata: Metadata = {
     "send large video files free", "pc to mobile file transfer online", "online file transfer cross platform",
     "fastest way to send large files", "no login file sharing", "secure web drop box",
     "clipboard sync cross platform", "share files webrtc", "temp file sharing secure",
-    "real time file sharing browser"
+    "real time file sharing browser",
+
+    // General File Sharing
+    "online file sharing", "free file sharing", "instant file sharing", "best file sharing app",
+    "best file sharing website", "online file transfer", "easy file sharing", "fast file sharing",
+    "quick file transfer", "simple file sharing",
+
+    // Large File Transfer
+    "share large files online", "transfer large files", "large file upload", "free large file transfer",
+    "large video transfer", "share 1gb file online", "share 2gb file online", "share 5gb file online",
+    "send files over 1gb", "best way to send large files",
+
+    // QR Code Sharing
+    "qr code file sharing", "share files with qr code", "scan qr to download files", "qr file transfer",
+    "qr code upload", "qr code download", "share documents with qr code", "photo sharing qr code",
+    "video sharing qr code",
+
+    // Device Transfer
+    "transfer files from phone to pc", "transfer files from pc to phone", "android to iphone transfer",
+    "iphone to android file transfer", "mac to windows transfer", "windows to mac file sharing",
+    "share files between phone and laptop", "cross device file transfer", "wifi file transfer",
+
+    // Browser Based
+    "browser based file sharing", "browser file transfer", "share files without app",
+    "send files without installing software", "web based file transfer", "online transfer without app",
+
+    // No Account
+    "share files without account", "share files without email", "share files without phone number",
+    "anonymous file transfer", "temporary file sharing", "guest file upload",
+
+    // Receive Portal / G2P
+    "collect files online", "receive files online", "upload portal", "file upload portal",
+    "document upload portal", "client upload portal", "resume upload portal", "assignment upload portal",
+    "secure upload link", "request files online",
+
+    // Team & Business
+    "business file sharing", "team file sharing", "company file transfer", "enterprise file sharing",
+    "office file sharing", "secure business file transfer",
+
+    // Students
+    "share notes online", "assignment sharing", "college file sharing", "project file sharing",
+    "student file transfer",
+
+    // Photos & Videos
+    "share photos online", "share videos online", "photo transfer", "video transfer",
+    "image sharing online", "gallery sharing", "high quality photo sharing",
+
+    // Clipboard
+    "copy text between devices", "clipboard sharing", "share clipboard online", "send text between devices",
+    "cross device clipboard",
+
+    // Privacy
+    "private file sharing", "encrypted file transfer", "secure upload", "private upload link",
+    "password protected file sharing",
+
+    // Competitor Keywords
+    "wetranfer alternative", "wetransfer alternative", "send anywhere alternative", "smash alternative",
+    "swisstransfer alternative", "filemail alternative", "google drive alternative", "dropbox alternative",
+    "airdrop alternative", "airdrop for windows", "airdrop for android",
+
+    // AI & Productivity
+    "share files with ai", "smart file sharing", "modern file sharing", "productivity tools",
+    "online collaboration tools"
   ],
   authors: [{ name: "Share2Me" }],
   creator: "Share2Me",
