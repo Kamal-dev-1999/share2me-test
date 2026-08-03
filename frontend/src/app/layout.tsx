@@ -15,82 +15,118 @@ export const metadata: Metadata = {
   },
   description: "Send large files and text clipboard data instantly between any device using Share2Me (also known as Share 2 Me, Share To, or Share2). Secure, end-to-end encrypted (AES-GCM-256) peer-to-peer (P2P) WebRTC. Zero file limits, no sign-ups, and zero cloud storage.",
   keywords: [
-    "share2", "share to", "share 2 me", "share2me", "share to me", "share-to-me",
-    "file sharing", "P2P file transfer", "WebRTC file sharing", "secure file transfer",
-    "share files between devices", "peer to peer file sharing", "send large files free",
-    "secure file transfer online", "send big files free", "online text sharing",
-    "private text share", "secure clipboard share", "encrypted file sharing",
-    "no limit file transfer", "cross platform file sharing", "iphone to pc transfer free",
-    "how to send 10gb file free", "direct browser file share", "secure send text online",
-    "file transfer without upload", "browser file sharing", "send files online without server",
-    "direct p2p file transfer", "webrtc file transfer", "send files anonymously",
-    "anonymous file sharing", "secure web clipboard", "local file transfer web",
-    "send large video files free", "pc to mobile file transfer online", "online file transfer cross platform",
-    "fastest way to send large files", "no login file sharing", "secure web drop box",
-    "clipboard sync cross platform", "share files webrtc", "temp file sharing secure",
-    "real time file sharing browser",
+    // Brand
+    "share2me", "share2", "share to", "share to me", "share 2 me", "share-to-me",
 
-    // General File Sharing
-    "online file sharing", "free file sharing", "instant file sharing", "best file sharing app",
-    "best file sharing website", "online file transfer", "easy file sharing", "fast file sharing",
-    "quick file transfer", "simple file sharing",
+    // Core File Sharing
+    "file sharing", "online file sharing", "free file sharing", "secure file sharing",
+    "instant file sharing", "browser file sharing", "browser based file sharing", "web based file sharing",
+    "easy file sharing", "simple file sharing", "modern file sharing", "fast file sharing",
+    "real time file sharing", "direct browser file share",
 
-    // Large File Transfer
-    "share large files online", "transfer large files", "large file upload", "free large file transfer",
-    "large video transfer", "share 1gb file online", "share 2gb file online", "share 5gb file online",
-    "send files over 1gb", "best way to send large files",
+    // File Transfer
+    "file transfer", "online file transfer", "secure file transfer", "instant file transfer",
+    "large file transfer", "fast file transfer", "free file transfer", "business file transfer",
+    "cross platform file transfer", "peer to peer file transfer", "direct p2p file transfer",
+    "webrtc file transfer",
 
-    // QR Code Sharing
-    "qr code file sharing", "share files with qr code", "scan qr to download files", "qr file transfer",
-    "qr code upload", "qr code download", "share documents with qr code", "photo sharing qr code",
-    "video sharing qr code",
+    // P2P / WebRTC
+    "P2P file transfer", "P2P file sharing", "peer to peer file sharing", "WebRTC file sharing",
+    "WebRTC transfer", "direct browser transfer", "browser to browser transfer", "real time file transfer",
+    "share files using WebRTC",
 
-    // Device Transfer
-    "transfer files from phone to pc", "transfer files from pc to phone", "android to iphone transfer",
-    "iphone to android file transfer", "mac to windows transfer", "windows to mac file sharing",
-    "share files between phone and laptop", "cross device file transfer", "wifi file transfer",
+    // Large Files
+    "send large files", "send large files free", "share large files", "share large files online",
+    "transfer large files", "large file upload", "large file sharing", "send big files",
+    "send big files free", "share large video files", "send video files", "share video online",
+    "send files over 1GB", "send files over 1.5GB", "best way to send large files", "fastest way to send files",
+    "how to send 10gb file free", "send large video files free", "fastest way to send large files",
 
-    // Browser Based
-    "browser based file sharing", "browser file transfer", "share files without app",
-    "send files without installing software", "web based file transfer", "online transfer without app",
-
-    // No Account
-    "share files without account", "share files without email", "share files without phone number",
-    "anonymous file transfer", "temporary file sharing", "guest file upload",
-
-    // Receive Portal / G2P
-    "collect files online", "receive files online", "upload portal", "file upload portal",
-    "document upload portal", "client upload portal", "resume upload portal", "assignment upload portal",
-    "secure upload link", "request files online",
-
-    // Team & Business
-    "business file sharing", "team file sharing", "company file transfer", "enterprise file sharing",
-    "office file sharing", "secure business file transfer",
-
-    // Students
-    "share notes online", "assignment sharing", "college file sharing", "project file sharing",
-    "student file transfer",
-
-    // Photos & Videos
-    "share photos online", "share videos online", "photo transfer", "video transfer",
-    "image sharing online", "gallery sharing", "high quality photo sharing",
+    // QR Sharing
+    "QR code file sharing", "QR file transfer", "share files with QR code", "upload using QR code",
+    "download using QR code", "scan QR to share files", "scan QR to upload files", "QR code upload portal",
+    "QR document sharing", "qr code file sharing", "scan qr to download files", "qr code upload",
+    "qr code download", "share documents with qr code", "photo sharing qr code", "video sharing qr code",
 
     // Clipboard
-    "copy text between devices", "clipboard sharing", "share clipboard online", "send text between devices",
-    "cross device clipboard",
+    "clipboard sharing", "secure clipboard sharing", "clipboard sync", "cross device clipboard",
+    "share clipboard online", "copy text between devices", "send text online", "private text sharing",
+    "secure text sharing", "web clipboard", "private text share", "secure clipboard share",
+    "secure send text online", "clipboard sync cross platform", "copy text between devices",
+
+    // No Login
+    "share files without login", "share files without account", "share files without signup",
+    "send files without account", "send files without email", "share files without phone number",
+    "anonymous file sharing", "anonymous file transfer", "temporary file sharing", "guest file upload",
+    "no login file sharing",
 
     // Privacy
-    "private file sharing", "encrypted file transfer", "secure upload", "private upload link",
-    "password protected file sharing",
+    "encrypted file sharing", "encrypted file transfer", "private file transfer", "private upload link",
+    "secure upload portal", "password protected file sharing", "AES encrypted file sharing",
+    "secure browser sharing", "private file sharing", "secure upload", "temp file sharing secure",
 
-    // Competitor Keywords
-    "wetranfer alternative", "wetransfer alternative", "send anywhere alternative", "smash alternative",
-    "swisstransfer alternative", "filemail alternative", "google drive alternative", "dropbox alternative",
-    "airdrop alternative", "airdrop for windows", "airdrop for android",
+    // Cross Device
+    "share files between devices", "cross device file sharing", "cross platform file sharing",
+    "transfer files phone to PC", "transfer files PC to phone", "Android to iphone transfer",
+    "iPhone to Android transfer", "Windows to Mac file sharing", "Mac to Windows transfer",
+    "phone to laptop transfer", "laptop to phone transfer", "iphone to pc transfer free",
+    "pc to mobile file transfer online", "online file transfer cross platform",
+
+    // Receive Portal (G2P)
+    "receive files online", "collect files online", "request files online", "upload portal",
+    "document upload portal", "client upload portal", "resume upload portal", "assignment upload portal",
+    "photo upload portal", "video upload portal", "secure upload link", "file request portal",
+    "collect documents online", "collect resumes online", "collect assignments online",
+    "file upload portal", "request files online",
+
+    // Business
+    "business file sharing", "enterprise file sharing", "team file sharing", "office file transfer",
+    "client file sharing", "secure business file transfer", "company file sharing", "company file transfer",
+    "office file sharing",
+
+    // Education
+    "share notes online", "student file sharing", "assignment sharing", "project file sharing",
+    "college file sharing", "classroom file sharing", "student file transfer",
+
+    // Photos & Videos
+    "share photos online", "photo sharing", "video sharing", "image sharing", "gallery sharing",
+    "photo transfer", "video transfer", "image sharing online", "high quality photo sharing",
+
+    // Documents
+    "PDF sharing", "document sharing", "share PDF online", "share documents securely",
+    "share Word documents", "Excel file sharing", "PowerPoint sharing",
+
+    // Cloud Alternatives
+    "cloud storage alternative", "cloud free file sharing", "share files without cloud",
+    "serverless file sharing", "file transfer without upload", "no cloud storage file sharing",
+    "file transfer without upload", "send files online without server", "local file transfer web",
+    "secure web drop box",
+
+    // Search Intent
+    "how to send files online", "how to share files online", "how to send large files",
+    "how to share large files", "best file sharing website", "best file sharing app",
+    "best secure file sharing", "best file transfer tool", "fastest file sharing website",
+
+    // Competitors
+    "WeTransfer alternative", "Send Anywhere alternative", "SwissTransfer alternative", "Smash alternative",
+    "Filemail alternative", "Dropbox alternative", "Google Drive alternative", "OneDrive alternative",
+    "Box alternative", "MEGA alternative", "AirDrop alternative", "AirDrop alternative for Windows",
+    "AirDrop alternative for Android", "Nearby Share alternative", "wetranfer alternative",
+    "wetransfer alternative", "airdrop alternative", "airdrop for windows", "airdrop for android",
+
+    // Industries
+    "HR file sharing", "recruitment file sharing", "marketing file sharing", "creative file sharing",
+    "agency file sharing", "architecture file sharing", "construction file sharing", "legal document sharing",
+    "healthcare file sharing", "manufacturing file sharing",
+
+    // Collaboration
+    "online collaboration", "share project files", "share work files", "team collaboration files",
+    "remote file sharing", "work from home file sharing", "online collaboration tools",
 
     // AI & Productivity
-    "share files with ai", "smart file sharing", "modern file sharing", "productivity tools",
-    "online collaboration tools"
+    "productivity tools", "modern productivity app", "AI productivity tools", "online collaboration tools",
+    "smart file sharing", "digital workspace", "share files with ai", "smart file sharing",
+    "modern file sharing"
   ],
   authors: [{ name: "Share2Me" }],
   creator: "Share2Me",
