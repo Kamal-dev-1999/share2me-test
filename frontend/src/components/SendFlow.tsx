@@ -205,20 +205,20 @@ export function SendFlow({
       <div className="flex flex-col gap-5">
         
         {/* Type Selector */}
-        <div className="flex p-1.5 bg-background-elevated rounded-2xl border border-primary/40">
+        <div className="flex p-1.5 bg-surface-container rounded-2xl border-2 border-ink wobble">
           <button
             onClick={() => setTransferType("file")}
             disabled={!isIdle}
-            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-bold py-2.5 rounded-xl transition-all
-              ${transferType === "file" ? "bg-primary text-background border border-primary" : "text-text-secondary hover:text-text-primary disabled:opacity-40 font-semibold"}`}
+            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-bold py-2.5 rounded-xl transition-all font-display uppercase tracking-tight
+              ${transferType === "file" ? "bg-signal-yellow text-ink border-2 border-ink shadow-hard-sm" : "text-outline hover:text-ink disabled:opacity-40"}`}
           >
             <FileUp className="w-[18px] h-[18px]" /> Files
           </button>
           <button
             onClick={() => setTransferType("text")}
             disabled={!isIdle}
-            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-bold py-2.5 rounded-xl transition-all
-              ${transferType === "text" ? "bg-primary text-background border border-primary" : "text-text-secondary hover:text-text-primary disabled:opacity-40 font-semibold"}`}
+            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-bold py-2.5 rounded-xl transition-all font-display uppercase tracking-tight
+              ${transferType === "text" ? "bg-signal-yellow text-ink border-2 border-ink shadow-hard-sm" : "text-outline hover:text-ink disabled:opacity-40"}`}
           >
             <Type className="w-[18px] h-[18px]" /> Text
           </button>
@@ -232,10 +232,10 @@ export function SendFlow({
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
               onClick={() => isIdle && fileInputRef.current?.click()}
-              className={`relative bg-background-card rounded-[22px] border-2 border-dashed border-primary p-10 text-center transition-all duration-300 select-none
-                ${!isIdle ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-primary/5"}
-                ${dragging ? "bg-primary/10" : ""}
-                ${files.length > 0 ? "bg-background-elevated/30" : ""}
+              className={`relative bg-surface rounded-[22px] border-[3px] border-dashed border-ink p-10 text-center transition-all duration-300 select-none wobble-soft
+                ${!isIdle ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-surface-container hover:shadow-hard-sm hover:-translate-y-0.5"}
+                ${dragging ? "bg-signal-yellow/20 border-signal-yellow" : ""}
+                ${files.length > 0 ? "bg-surface-container/50" : ""}
               `}
             >
               <input ref={fileInputRef} type="file" className="hidden" multiple onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }} disabled={!isIdle} />
@@ -309,10 +309,10 @@ export function SendFlow({
           <button
             disabled={!canPrepare}
             onClick={handleCreateRoom}
-            className={`flex-1 font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
+            className={`flex-1 h-[48px] flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
               !canPrepare
-                ? "bg-background-elevated text-text-tertiary border border-primary/40 opacity-50 cursor-not-allowed"
-                : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 border-2 border-primary"
+                ? "bg-surface-container text-outline border-2 border-outline border-dashed rounded-xl opacity-60 cursor-not-allowed font-display font-bold uppercase tracking-tight"
+                : "btn-brutalist wobble-hard"
             }`}
           >
             {isPreparing || isZipping ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
@@ -322,10 +322,10 @@ export function SendFlow({
           <button
             disabled={phase !== "key_exchange"}
             onClick={onStartSend}
-            className={`flex-1 font-bold text-[14px] sm:text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
+            className={`flex-1 h-[48px] flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
               phase !== "key_exchange"
-                ? "bg-background-elevated text-text-tertiary border border-primary/40 opacity-50 cursor-not-allowed"
-                : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 border-2 border-primary"
+                ? "bg-surface-container text-outline border-2 border-outline border-dashed rounded-xl opacity-60 cursor-not-allowed font-display font-bold uppercase tracking-tight"
+                : "btn-brutalist wobble-hard"
             }`}
           >
             {phase === "ready" ? (
@@ -341,17 +341,17 @@ export function SendFlow({
       </div>
 
       {/* ── RIGHT PANEL: STATUS & DASHBOARD ── */}
-      <div className="bg-background-card rounded-[22px] border-2 border-primary overflow-hidden flex flex-col h-full min-h-[400px]">
+      <div className="card-brutalist flex flex-col h-full min-h-[400px] border-[3px] border-ink bg-surface wobble-soft overflow-hidden">
         
         {/* Connection Header */}
-        <div className="px-6 py-4 border-b border-primary/40 bg-background-elevated flex items-center justify-between">
+        <div className="px-6 py-4 border-b-2 border-ink bg-surface-container flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${isIdle ? "bg-text-tertiary" : isDone ? "bg-status-success" : "bg-primary"}`} />
-            <span className="text-[13px] font-semibold text-text-secondary uppercase tracking-wider">Connection Status</span>
+            <div className={`w-3 h-3 rounded-full border-2 border-ink ${isIdle ? "bg-surface-dim" : isDone ? "bg-status-success" : "bg-signal-yellow"}`} />
+            <span className="label-caps">Connection Status</span>
           </div>
-          <div className="flex items-center gap-1.5 bg-status-success/10 border border-status-success/30 px-2.5 py-1 rounded-md">
+          <div className="flex items-center gap-1.5 bg-status-success/20 border-2 border-status-success px-2.5 py-1 rounded-md">
             <Shield className="w-3.5 h-3.5 text-status-success" />
-            <span className="text-[11px] font-semibold text-status-success">E2E Secured</span>
+            <span className="font-mono text-[11px] font-bold uppercase text-status-success">E2E Secured</span>
           </div>
         </div>
 

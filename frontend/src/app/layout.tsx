@@ -311,8 +311,8 @@ export default function RootLayout({
         >
           <defs>
             <filter id="wobble">
-              <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="4" />
-              <feDisplacementMap in="SourceGraphic" scale="3" />
+              <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="5" />
+              <feDisplacementMap in="SourceGraphic" scale="5" />
             </filter>
             <filter id="wobble-soft">
               <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="7" />

@@ -339,26 +339,26 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
       </div>
 
       {/* ── RIGHT PANEL: STATUS & DASHBOARD ── */}
-      <div className="bg-background-card rounded-[20px] border border-border overflow-hidden flex flex-col h-full min-h-[400px]">
+      <div className="card-brutalist flex flex-col h-full min-h-[400px] border-[3px] border-ink bg-surface wobble-soft overflow-hidden">
         
         {/* Connection Header */}
-        <div className="px-6 py-4 border-b border-border bg-background-elevated/30 flex items-center justify-between">
+        <div className="px-6 py-4 border-b-2 border-ink bg-surface-container flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${isIdle ? "bg-text-tertiary" : isDone ? "bg-status-success" : "bg-primary animate-pulse-ring"}`} />
-            <span className="text-[13px] font-semibold text-text-secondary uppercase tracking-wider">Connection Status</span>
+            <div className={`w-3 h-3 rounded-full border-2 border-ink ${isIdle ? "bg-surface-dim" : isDone ? "bg-status-success" : "bg-signal-yellow animate-pulse-ring"}`} />
+            <span className="label-caps">Connection Status</span>
           </div>
           {(!isIdle) ? (
-            <div className="flex items-center gap-1.5 bg-status-success/10 border border-status-success/20 px-2.5 py-1 rounded-md">
+            <div className="flex items-center gap-1.5 bg-status-success/20 border-2 border-status-success px-2.5 py-1 rounded-md">
               <Shield className="w-3.5 h-3.5 text-status-success" />
-              <span className="text-[11px] font-semibold text-status-success">
+              <span className="font-mono text-[11px] font-bold uppercase text-status-success">
                 {keyStatus === "ready" ? "Key Ready" : keyStatus === "generated" ? "Key Generated" : "Secured P2P"}
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 bg-background-elevated border border-border px-2.5 py-1 rounded-md">
-              <Activity className="w-3.5 h-3.5 text-text-tertiary" />
-              <span className="text-[11px] font-semibold text-text-tertiary">
-                Disconnected
+            <div className="flex items-center gap-1.5 bg-surface-container border-2 border-outline px-2.5 py-1 rounded-md">
+              <Activity className="w-3.5 h-3.5 text-outline" />
+              <span className="font-mono text-[11px] font-bold uppercase text-outline">
+                Standby
               </span>
             </div>
           )}

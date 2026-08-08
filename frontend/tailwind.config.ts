@@ -162,10 +162,10 @@ const config: Config = {
       },
 
       fontFamily: {
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        display: ["'Archivo Narrow'", "'Chivo'", "sans-serif"],
-        body: ["Inter", "sans-serif"],
-        mono: ["'JetBrains Mono'", "monospace"],
+        sans: ["'Comic Neue'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        display: ["'Kalam'", "cursive"],
+        body: ["'Comic Neue'", "sans-serif"],
+        mono: ["'Comic Neue'", "sans-serif"],
       },
       fontSize: {
         "headline-xl": ["64px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
