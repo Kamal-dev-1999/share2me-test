@@ -173,6 +173,7 @@ export default function RootLayout({
     <html lang="en" className="light" suppressHydrationWarning>
       <head>
         <script
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
@@ -296,11 +297,6 @@ export default function RootLayout({
             })
           }}
         />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6158699724091217"
-          crossOrigin="anonymous"
-        />
       </head>
       <body className="min-h-screen bg-background text-on-surface font-body antialiased" suppressHydrationWarning>
         {/* Hand-drawn / manga-panel wobble filter, referenced from CSS via url(#wobble). */}
@@ -326,6 +322,12 @@ export default function RootLayout({
         <SpeedInsights />
         <GoogleAnalytics gaId="G-8XDS75JXYK" />
         <GoogleTagManager gtmId="GTM-KS4LVZSF" />
+        <Script
+          id="google-adsense"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6158699724091217"
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+        />
       </body>
     </html>
   );

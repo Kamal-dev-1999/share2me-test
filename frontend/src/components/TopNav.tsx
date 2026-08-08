@@ -85,6 +85,7 @@ export function TopNav() {
             Receive
           </Link>
           <Link href="/g2p" className={linkClass(isActive("/g2p"))}>Portal</Link>
+          <Link href="/tools" className={linkClass(isActive("/tools"))}>Tools</Link>
           <Link href="/how-it-works" className={linkClass(isActive("/how-it-works"))}>How</Link>
           <Link href="/about" className={linkClass(isActive("/about"))}>About</Link>
           <Link href="/blog" className={linkClass(isActive("/blog"))}>Blog</Link>
@@ -129,6 +130,7 @@ export function TopNav() {
                 { href: "/p2p?mode=send", label: "Send a File", onClick: goToTransfer("send") },
                 { href: "/p2p?mode=receive", label: "Receive a File", onClick: goToTransfer("receive") },
                 { href: "/g2p", label: "Permanent Portal" },
+                { href: "/tools", label: "PDF Tools" },
               ].map((item) => (
                 <Link
                   key={item.label}
