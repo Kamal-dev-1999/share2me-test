@@ -18,19 +18,24 @@ const ITEMS: { href: string; icon: LucideIcon; label: string; grad: string; stop
 ];
 
 /**
- * Icon rail in the reference's frosted-glass style, but upgraded to 
- * feature colorful, 3D-matching logos based on the user's request.
+ * Liquid-motion animated icon rail. 
+ * Features a seamless gooey SVG bulge for the active item that physically 
+ * travels along the edge of the glass container.
  */
-function RailItems({ layoutId }: { layoutId: string }) {
+function RailItems({ layoutId, isMobile = false }: { layoutId: string; isMobile?: boolean }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
 
   return (
     <>
-      {/* SVG Definitions for Gradient Strokes */}
+      {/* SVG Definitions for Gradient Strokes & Backgrounds */}
       <svg width="0" height="0" className="absolute">
         <defs>
+          <linearGradient id="glass-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="rgba(255, 255, 255, 1)" offset="0%" />
+            <stop stopColor="rgba(255, 255, 255, 0.4)" offset="100%" />
+          </linearGradient>
           {ITEMS.map((item) => (
             <linearGradient key={item.grad} id={item.grad} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop stopColor={item.stops[0]} offset="0%" />
@@ -47,31 +52,66 @@ function RailItems({ layoutId }: { layoutId: string }) {
             key={href}
             href={href}
             aria-label={label}
-            className="relative flex flex-col items-center gap-1.5 w-14 py-1 group"
+            className={`relative flex flex-col items-center justify-center group ${
+              isMobile ? "h-full w-[68px]" : "w-full h-[76px]"
+            }`}
           >
-            {/* 3D Icon Slot Container */}
-            <span className="relative flex items-center justify-center w-11 h-11">
-              {/* Active state backplate (3D glowing button) */}
-              {active && (
-                <motion.span
-                  layoutId={layoutId}
-                  transition={{ type: "spring", bounce: 0.3, duration: 0.55 }}
-                  className="absolute inset-0 rounded-[14px] bg-white border-[1px] border-white/60 shadow-[0_4px_12px_rgba(23,18,38,0.1),_inset_0_2px_4px_rgba(255,255,255,1)]"
-                  aria-hidden="true"
+            {/* Active state liquid background - Desktop (Vertical) */}
+            {active && !isMobile && (
+              <motion.svg
+                layoutId={`${layoutId}-bg`}
+                transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                className="absolute left-0 w-[104px] h-[100px] top-[50%] -translate-y-1/2 z-0 pointer-events-none drop-shadow-[4px_4px_12px_rgba(70,40,140,0.2)]"
+                viewBox="0 0 104 100"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M0 0 L72 0 C72 15, 76 20, 84 26 C96 35, 104 42, 104 50 C104 58, 96 65, 84 74 C76 80, 72 85, 72 100 L0 100 Z"
+                  fill="url(#glass-gradient)"
+                  stroke="rgba(255, 255, 255, 0.9)"
+                  strokeWidth="1.5"
                 />
-              )}
-              
-              {/* Inactive hover backplate */}
-              {!active && (
-                <span className="absolute inset-0 rounded-[14px] bg-white/40 border-[1px] border-white/30 shadow-[0_2px_8px_rgba(0,0,0,0.05),_inset_0_1px_2px_rgba(255,255,255,0.8)] opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-              )}
+              </motion.svg>
+            )}
 
-              {/* The Icon itself, colored with gradients and a 3D drop-shadow */}
+            {/* Active state liquid background - Mobile (Horizontal) */}
+            {active && isMobile && (
+              <motion.svg
+                layoutId={`${layoutId}-bg`}
+                transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                className="absolute bottom-0 w-[100px] h-[100px] left-[50%] -translate-x-1/2 z-0 pointer-events-none drop-shadow-[0px_-4px_12px_rgba(70,40,140,0.2)]"
+                viewBox="0 0 100 100"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M0 100 L0 32 C15 32, 20 28, 26 20 C35 8, 42 0, 50 0 C58 0, 65 8, 74 20 C80 28, 85 32, 100 32 L100 100 Z"
+                  fill="url(#glass-gradient)"
+                  stroke="rgba(255, 255, 255, 0.9)"
+                  strokeWidth="1.5"
+                />
+              </motion.svg>
+            )}
+
+            {/* Inactive hover backplate (keeps the pill shape for inactive items) */}
+            {!active && (
+              <span className="absolute inset-0 m-auto w-[52px] h-[52px] rounded-[16px] bg-white/40 border-[1px] border-white/30 shadow-[0_2px_8px_rgba(0,0,0,0.05)] opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            )}
+
+            {/* 3D Icon Slot Container */}
+            <span
+              className={`relative z-10 flex items-center justify-center w-11 h-11 transition-transform duration-300 ${
+                active && !isMobile ? "translate-x-2" : ""
+              } ${active && isMobile ? "-translate-y-2.5" : ""}`}
+            >
               <Icon
-                className="relative z-10 w-5 h-5 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5"
+                className={`relative z-10 w-5 h-5 transition-transform duration-300 ${
+                  !active && "group-hover:scale-110 group-hover:-translate-y-0.5"
+                }`}
                 style={{
                   stroke: active ? `url(#${grad})` : "#8A8F93",
-                  filter: active ? "drop-shadow(0px 2px 2px rgba(0,0,0,0.15))" : "none"
+                  filter: active ? "drop-shadow(0px 3px 3px rgba(0,0,0,0.2))" : "none",
                 }}
                 strokeWidth={active ? 2.5 : 2}
               />
@@ -79,10 +119,12 @@ function RailItems({ layoutId }: { layoutId: string }) {
 
             {/* Label */}
             <span
-              className={`text-[10px] leading-none transition-colors duration-150 ${
+              className={`relative z-10 text-[10px] leading-none transition-transform duration-300 ${
                 active
                   ? "font-bold text-[#171226]"
                   : "font-medium text-[#8A8F93] group-hover:text-[#171226]"
+              } ${active && !isMobile ? "translate-x-2" : ""} ${
+                active && isMobile ? "-translate-y-2" : ""
               }`}
             >
               {label}
@@ -101,9 +143,9 @@ export function SideRail({ embedded = false }: { embedded?: boolean }) {
     return (
       <nav
         aria-label="Primary"
-        className="hidden lg:flex shrink-0 w-[72px] rounded-l-[28px] flex-col items-center justify-center gap-3 bg-white/40 backdrop-blur-xl border-r border-white/50 shadow-[inset_-1px_0_4px_rgba(255,255,255,0.5)] self-stretch"
+        className="hidden lg:flex shrink-0 w-[72px] rounded-l-[28px] flex-col items-center justify-center gap-0 py-4 bg-white/40 backdrop-blur-xl border-r border-white/50 shadow-[inset_-1px_0_4px_rgba(255,255,255,0.5)] self-stretch"
       >
-        <RailItems layoutId="rail-active-desktop" />
+        <RailItems layoutId="rail-active-desktop" isMobile={false} />
       </nav>
     );
   }
@@ -113,17 +155,17 @@ export function SideRail({ embedded = false }: { embedded?: boolean }) {
       {pathname !== "/" && (
         <nav
           aria-label="Primary"
-          className="hidden lg:flex fixed left-0 inset-y-0 w-[72px] z-[60] flex-col items-center justify-center gap-3 bg-white/40 backdrop-blur-xl border-r border-white/50 shadow-[8px_0_32px_rgba(70,40,140,0.12),_inset_1px_0_4px_rgba(255,255,255,0.7)]"
+          className="hidden lg:flex fixed left-0 inset-y-0 w-[72px] z-[60] flex-col items-center justify-center gap-0 py-4 bg-white/40 backdrop-blur-xl border-r border-white/50 shadow-[8px_0_32px_rgba(70,40,140,0.12),_inset_1px_0_4px_rgba(255,255,255,0.7)]"
         >
-          <RailItems layoutId="rail-active-desktop" />
+          <RailItems layoutId="rail-active-desktop" isMobile={false} />
         </nav>
       )}
 
       <nav
         aria-label="Primary mobile"
-        className="flex lg:hidden fixed bottom-0 inset-x-0 z-[60] h-[68px] flex-row items-center justify-around bg-white/60 backdrop-blur-xl border-t border-white/60 shadow-[0_-8px_24px_rgba(70,40,140,0.10)] overflow-x-auto"
+        className="flex lg:hidden fixed bottom-0 inset-x-0 z-[60] h-[68px] flex-row items-center justify-around gap-0 bg-white/60 backdrop-blur-xl border-t border-white/60 shadow-[0_-8px_24px_rgba(70,40,140,0.10)] overflow-x-auto"
       >
-        <RailItems layoutId="rail-active-mobile" />
+        <RailItems layoutId="rail-active-mobile" isMobile={true} />
       </nav>
     </>
   );
