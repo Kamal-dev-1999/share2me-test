@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { PdfTool } from "@/lib/pdfTools";
 import { categoryLabel } from "@/lib/pdfTools";
+import { useRouter } from "next/navigation";
 import { useToolProcessor } from "@/hooks/useToolProcessor";
 import { ActionPanel } from "@/components/tools/ActionPanel";
 
@@ -66,6 +67,7 @@ export function PdfToolShell({
   const [isDragging, setIsDragging] = useState(false);
   const [showChainPicker, setShowChainPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const { status, progress, progressMessage, output, error, process, reset, isWorkerSupported } =
     useToolProcessor(tool.slug);
@@ -149,15 +151,26 @@ export function PdfToolShell({
 
         {/* Breadcrumb */}
         <nav className="mb-4 flex items-center gap-2 text-[13px] text-on-surface-variant">
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center justify-center p-1 -ml-1 hover:bg-surface-container rounded transition-colors text-on-surface"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-4 h-4" strokeWidth={2.5} />
+          </button>
           <Link
             href="/tools"
-            className="inline-flex items-center gap-1.5 font-medium hover:text-on-surface transition-colors"
+            className="font-medium hover:text-on-surface transition-colors ml-1"
           >
-            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} />
             All Tools
           </Link>
           <ChevronRight className="w-3 h-3" strokeWidth={2} />
-          <span>{categoryLabel(tool.category)}</span>
+          <Link
+            href={`/tools?category=${tool.category}`}
+            className="hover:text-on-surface transition-colors"
+          >
+            {categoryLabel(tool.category)}
+          </Link>
           <ChevronRight className="w-3 h-3" strokeWidth={2} />
           <span className="text-on-surface font-medium">{tool.title}</span>
         </nav>

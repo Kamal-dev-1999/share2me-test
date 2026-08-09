@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { ConfigProps } from "./RotateConfig";
+import { GlassSelect } from "@/components/ui/GlassSelect";
 
 export function PageNumbersConfig({ config, onChange }: ConfigProps) {
   useEffect(() => {
@@ -18,18 +19,18 @@ export function PageNumbersConfig({ config, onChange }: ConfigProps) {
     <div className="flex flex-col gap-4 bg-surface border border-hairline rounded-xl p-5 shadow-soft">
       <div>
         <label className="text-[13px] font-semibold text-on-surface block mb-1.5">Position</label>
-        <select
+        <GlassSelect
           value={position}
-          onChange={(e) => onChange({ ...config, position: e.target.value })}
-          className="w-full h-11 px-3 bg-surface-container border border-hairline rounded-lg text-[14px] text-on-surface focus:border-ink focus:ring-1 focus:ring-ink transition-all outline-none"
-        >
-          <option value="bottom-left">Bottom Left</option>
-          <option value="bottom-center">Bottom Center</option>
-          <option value="bottom-right">Bottom Right</option>
-          <option value="top-left">Top Left</option>
-          <option value="top-center">Top Center</option>
-          <option value="top-right">Top Right</option>
-        </select>
+          onChange={(val) => onChange({ ...config, position: val })}
+          options={[
+            { label: "Bottom Left", value: "bottom-left" },
+            { label: "Bottom Center", value: "bottom-center" },
+            { label: "Bottom Right", value: "bottom-right" },
+            { label: "Top Left", value: "top-left" },
+            { label: "Top Center", value: "top-center" },
+            { label: "Top Right", value: "top-right" },
+          ]}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { GlassSelect } from "@/components/ui/GlassSelect";
 
 export interface ConfigProps {
   config: Record<string, unknown>;
@@ -22,15 +23,15 @@ export function RotateConfig({ config, onChange }: ConfigProps) {
     <div className="flex flex-col gap-4 bg-surface border border-hairline rounded-xl p-5 shadow-soft">
       <div>
         <label className="text-[13px] font-semibold text-on-surface block mb-1.5">Rotation Angle</label>
-        <select
+        <GlassSelect
           value={degrees}
-          onChange={(e) => onChange({ ...config, degrees: e.target.value })}
-          className="w-full h-11 px-3 bg-surface-container border border-hairline rounded-lg text-[14px] text-on-surface focus:border-ink focus:ring-1 focus:ring-ink transition-all outline-none"
-        >
-          <option value="90">90° Clockwise</option>
-          <option value="180">180° Upside Down</option>
-          <option value="270">90° Counter-Clockwise</option>
-        </select>
+          onChange={(val) => onChange({ ...config, degrees: val })}
+          options={[
+            { label: "90° Clockwise", value: "90" },
+            { label: "180° Upside Down", value: "180" },
+            { label: "270° Counter-Clockwise", value: "270" },
+          ]}
+        />
       </div>
 
       <div>
