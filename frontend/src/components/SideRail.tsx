@@ -7,19 +7,19 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-const ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
-  { href: "/",             icon: Home,       label: "Home" },
-  { href: "/p2p",          icon: Zap,        label: "P2P" },
-  { href: "/g2p",          icon: HardDrive,  label: "Portal" },
-  { href: "/tools",        icon: Wrench,     label: "Tools" },
-  { href: "/how-it-works", icon: HelpCircle, label: "How" },
-  { href: "/about",        icon: Info,       label: "About" },
-  { href: "/pricing",      icon: Tag,        label: "Pricing" },
+const ITEMS: { href: string; icon: LucideIcon; label: string; grad: string; stops: [string, string] }[] = [
+  { href: "/",             icon: Home,       label: "Home",    grad: "grad-home",   stops: ["#38bdf8", "#3b82f6"] },
+  { href: "/p2p",          icon: Zap,        label: "P2P",     grad: "grad-p2p",    stops: ["#fde047", "#f59e0b"] },
+  { href: "/g2p",          icon: HardDrive,  label: "Portal",  grad: "grad-portal", stops: ["#34d399", "#10b981"] },
+  { href: "/tools",        icon: Wrench,     label: "Tools",   grad: "grad-tools",  stops: ["#e879f9", "#d946ef"] },
+  { href: "/how-it-works", icon: HelpCircle, label: "How",     grad: "grad-how",    stops: ["#7dd3fc", "#0ea5e9"] },
+  { href: "/about",        icon: Info,       label: "About",   grad: "grad-about",  stops: ["#f472b6", "#ec4899"] },
+  { href: "/pricing",      icon: Tag,        label: "Pricing", grad: "grad-price",  stops: ["#c084fc", "#9333ea"] },
 ];
 
 /**
- * Apple iPadOS / macOS inspired floating dock sidebar.
- * Features deep frosting, liquid floating layout, and solid monochrome 3D icons.
+ * Apple iPadOS / macOS inspired floating dock sidebar, but with 
+ * vibrant 3D colorful icons.
  */
 function RailItems({ layoutId, horizontal = false }: { layoutId: string; horizontal?: boolean }) {
   const pathname = usePathname();
@@ -28,7 +28,7 @@ function RailItems({ layoutId, horizontal = false }: { layoutId: string; horizon
 
   return (
     <>
-      {ITEMS.map(({ href, icon: Icon, label }) => {
+      {ITEMS.map(({ href, icon: Icon, label, grad }) => {
         const active = isActive(href);
         return (
           <Link
@@ -54,13 +54,13 @@ function RailItems({ layoutId, horizontal = false }: { layoutId: string; horizon
               <span className="absolute inset-0 rounded-[14px] bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             )}
 
-            {/* Icon - Pure White with subtle drop shadow for depth when active, soft grey when inactive */}
+            {/* Icon - Vibrant 3D gradient stroke */}
             <Icon
-              className="relative z-10 w-5 h-5 transition-all duration-300 group-hover:scale-110"
+              className="relative z-10 w-5 h-5 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5"
               style={{
-                filter: active ? "drop-shadow(0px 1px 2px rgba(0,0,0,0.2))" : "none"
+                stroke: `url(#${grad})`,
+                filter: active ? "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" : "drop-shadow(0px 1px 2px rgba(0,0,0,0.1))"
               }}
-              color={active ? "#111827" : "#6B7280"}
               strokeWidth={active ? 2.5 : 2}
             />
           </Link>
@@ -73,6 +73,19 @@ function RailItems({ layoutId, horizontal = false }: { layoutId: string; horizon
 export function SideRail({ embedded = false }: { embedded?: boolean }) {
   const pathname = usePathname();
 
+  const defs = (
+    <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
+      <defs>
+        {ITEMS.map((item) => (
+          <linearGradient key={item.grad} id={item.grad} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor={item.stops[0]} offset="0%" />
+            <stop stopColor={item.stops[1]} offset="100%" />
+          </linearGradient>
+        ))}
+      </defs>
+    </svg>
+  );
+
   // If embedded in the home page hero panel, it hugs the left edge as a pill.
   if (embedded) {
     return (
@@ -80,6 +93,7 @@ export function SideRail({ embedded = false }: { embedded?: boolean }) {
         aria-label="Primary"
         className="hidden lg:flex shrink-0 w-[64px] rounded-l-[32px] flex-col items-center justify-center py-4 bg-white/50 backdrop-blur-3xl border-r border-white/60 shadow-[inset_-1px_0_4px_rgba(255,255,255,0.5)] self-stretch"
       >
+        {defs}
         <RailItems layoutId="rail-active-desktop" />
       </nav>
     );
@@ -87,6 +101,7 @@ export function SideRail({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <>
+      {defs}
       {/* Desktop floating vertical dock */}
       {pathname !== "/" && (
         <nav
