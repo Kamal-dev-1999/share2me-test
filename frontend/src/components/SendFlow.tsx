@@ -326,38 +326,42 @@ export function SendFlow({
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex flex-row gap-3.5 mt-6 sm:mt-auto w-full">
-          <button
-            disabled={!canPrepare}
-            onClick={handleCreateRoom}
-            className={`flex-1 h-12 flex items-center justify-center gap-2 whitespace-nowrap px-4 text-[13px] font-semibold rounded-xl transition-all duration-200 ${
-              !canPrepare
-                ? "bg-[#F7F8F8] text-[#8A8F93] border border-[#E1E3E5] cursor-not-allowed opacity-60"
-                : "bg-black hover:bg-[#262626] text-white shadow-sm hover:-translate-y-0.5 active:translate-y-0"
-            }`}
-          >
-            {isPreparing || isZipping ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : null}
-            {isPreparing || isZipping ? (isZipping ? "Packaging…" : "Encrypting…") : "Generate Transfer Code"}
-          </button>
-          
-          <button
-            disabled={phase !== "key_exchange"}
-            onClick={onStartSend}
-            className={`flex-1 h-12 flex items-center justify-center gap-2 whitespace-nowrap px-4 text-[13px] font-semibold rounded-xl transition-all duration-200 ${
-              phase !== "key_exchange"
-                ? "bg-[#F7F8F8] text-[#8A8F93] border border-[#E1E3E5] cursor-not-allowed opacity-60"
-                : "bg-[#35B94A] hover:bg-[#2e9f3f] text-white shadow-sm hover:-translate-y-0.5 active:translate-y-0"
-            }`}
-          >
-            {phase === "ready" ? (
-              <><Loader2 className="w-4 h-4 animate-spin text-white hidden xs:block" /> Waiting for Receiver…</>
-            ) : phase === "connecting" || phase === "transferring" ? (
-              <><Loader2 className="w-4 h-4 animate-spin text-white hidden xs:block" /> Connecting…</>
-            ) : (
-              <><Wifi className="w-4 h-4 text-white hidden xs:block" /> Begin P2P Transfer</>
-            )}
-          </button>
+        {/* Action Button — one contextual CTA at a time (clean on mobile) */}
+        <div className="mt-6 sm:mt-auto w-full">
+          {(isIdle || isPreparing) && !isDone && (
+            <button
+              disabled={!canPrepare}
+              onClick={handleCreateRoom}
+              className={`w-full h-12 flex items-center justify-center gap-2 px-4 text-[14px] font-semibold rounded-full transition-all duration-200 ${
+                !canPrepare
+                  ? "bg-white/60 text-[#B0B4B8] border border-[#E1E3E5] cursor-not-allowed"
+                  : "bg-black hover:bg-[#262626] text-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] hover:-translate-y-0.5 active:translate-y-0"
+              }`}
+            >
+              {isPreparing || isZipping ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {isPreparing || isZipping ? (isZipping ? "Packaging…" : "Encrypting…") : "Generate Transfer Code"}
+            </button>
+          )}
+
+          {!isIdle && !isPreparing && !isDone && (
+            <button
+              disabled={phase !== "key_exchange"}
+              onClick={onStartSend}
+              className={`w-full h-12 flex items-center justify-center gap-2 px-4 text-[14px] font-semibold rounded-full transition-all duration-200 ${
+                phase !== "key_exchange"
+                  ? "bg-white/60 text-[#8A8F93] border border-[#E1E3E5] cursor-wait"
+                  : "bg-[#35B94A] hover:bg-[#2e9f3f] text-white shadow-[0_8px_20px_rgba(53,185,74,0.3)] hover:-translate-y-0.5 active:translate-y-0"
+              }`}
+            >
+              {phase === "ready" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Waiting for receiver…</>
+              ) : phase === "connecting" || phase === "transferring" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</>
+              ) : (
+                <><Wifi className="w-4 h-4" /> Begin P2P Transfer</>
+              )}
+            </button>
+          )}
         </div>
 
       </div>

@@ -170,7 +170,7 @@ function HomeContent() {
                     className="flex-1 bg-transparent text-[13px] text-[#1E1B2E] placeholder:text-[#6B6480] focus:outline-none min-w-0 uppercase tracking-[0.14em]"
                   />
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <button
                     suppressHydrationWarning
                     type="submit"
@@ -296,14 +296,6 @@ function HomeContent() {
             </div>
           </div>
 
-          {/* Bottom quick links (mobile gets the nav the rail provides on desktop) */}
-          <div className="lg:hidden flex items-center justify-center gap-6 pb-6 text-[12px] font-medium text-[#4B4560]">
-            <Link href="/p2p" className="hover:text-[#171226]">P2P</Link>
-            <Link href="/g2p" className="hover:text-[#171226]">Portal</Link>
-            <Link href="/tools" className="hover:text-[#171226]">Tools</Link>
-            <Link href="/how-it-works" className="hover:text-[#171226]">How</Link>
-            <Link href="/pricing" className="hover:text-[#171226]">Pricing</Link>
-          </div>
           </div>
         </div>
       </div>

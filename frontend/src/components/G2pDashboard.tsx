@@ -85,26 +85,32 @@ function UploadRecordRow({
       {/* Row Header */}
       <div 
         onClick={() => setIsExpanded(!isExpanded)}
-        className="grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-center p-4 hover:bg-white/10 transition-colors cursor-pointer text-sm"
+        className="grid grid-cols-[1fr_auto_auto] md:grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-3 md:gap-4 items-center p-3.5 md:p-4 hover:bg-white/10 transition-colors cursor-pointer text-sm"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-full bg-[#111827] flex items-center justify-center text-xs font-bold text-white shrink-0">
             {record.senderName.charAt(0).toUpperCase()}
           </div>
-          <span className="font-bold text-[#111827] truncate font-display">{record.senderName}</span>
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-[#111827] truncate font-display">{record.senderName}</span>
+            {/* Mobile: date tucks under the name instead of its own column */}
+            <span className="md:hidden text-[10px] text-[#111827]/60 font-mono">
+              {new Date(record.uploadedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+            </span>
+          </div>
         </div>
-        
-        <div className="text-[#111827]/70 truncate italic text-xs">{record.message || "—"}</div>
-        
+
+        <div className="hidden md:block text-[#111827]/70 truncate italic text-xs">{record.message || "—"}</div>
+
         <div>
-          <span className="px-2.5 py-1 rounded-full bg-[#111827]/5 border border-[#111827]/10 text-xs font-bold text-[#111827]">
+          <span className="px-2.5 py-1 rounded-full bg-[#111827]/5 border border-[#111827]/10 text-xs font-bold text-[#111827] whitespace-nowrap">
             {record.files.length} file{record.files.length > 1 ? 's' : ''}
           </span>
         </div>
-        
-        <div className="text-[#111827]/70 font-mono text-xs">{formatSize(totalSize)}</div>
-        
-        <div className="text-[#111827]/70 text-xs font-mono">
+
+        <div className="hidden md:block text-[#111827]/70 font-mono text-xs">{formatSize(totalSize)}</div>
+
+        <div className="hidden md:block text-[#111827]/70 text-xs font-mono">
           {new Date(record.uploadedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
         </div>
         
@@ -433,7 +439,7 @@ export default function G2pDashboard({
     });
 
   return (
-    <div className="flex flex-col md:flex-row w-full h-[calc(100vh-2rem)] sm:h-[calc(100vh-3rem)] text-[#111827] font-sans gap-6">
+    <div className="flex flex-col md:flex-row w-full md:h-[calc(100vh-3rem)] text-[#111827] font-sans gap-4 md:gap-6">
        
       {/* SVG Defs for gradient icons */}
       <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
@@ -462,20 +468,69 @@ export default function G2pDashboard({
       </svg>
       
       {/* SIDEBAR */}
-      <aside className="w-full md:w-[280px] shrink-0 flex flex-col gap-6">
+      <aside className="w-full md:w-[280px] shrink-0 flex flex-col gap-3 md:gap-6">
         {/* Profile Info */}
-        <div className="flex items-center gap-4 p-4 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
-          <img src={user.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} alt="Profile" className="w-12 h-12 rounded-full border border-white/30" />
+        <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+          <img src={user.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} alt="Profile" className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/30" />
           <div className="flex flex-col min-w-0">
             <span className="font-bold text-[15px] truncate text-[#111827] leading-tight">{displayName}</span>
             <span className="text-[13px] text-[#111827]/60">Admin</span>
           </div>
         </div>
-        
-        {/* Dashboard Button */}
+
+        {/* MOBILE — compact horizontal tab pill (same colors, old-UX layout) */}
+        <div className="flex md:hidden items-center justify-around gap-1 p-2 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+          {([
+            { tab: "inbox" as TabMode,     icon: Inbox,    grad: "g2p-dash" },
+            { tab: "share" as TabMode,     icon: QrCode,   grad: "g2p-share" },
+            { tab: "settings" as TabMode,  icon: Settings, grad: "g2p-settings" },
+            { tab: "analytics" as TabMode, icon: PieChart, grad: "g2p-analytics" },
+          ]).map(({ tab, icon: TabIcon, grad }) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              aria-label={tab}
+              className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
+                activeTab === tab
+                  ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)]"
+                  : "hover:bg-white/40"
+              }`}
+            >
+              <TabIcon
+                className="w-5 h-5"
+                style={activeTab === tab ? { stroke: `url(#${grad})`, filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
+                strokeWidth={activeTab === tab ? 2.5 : 2}
+              />
+              {tab === "inbox" && uploads.length > 0 && activeTab !== "inbox" && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+              )}
+            </button>
+          ))}
+          <div className="w-px h-6 bg-white/40 mx-0.5" />
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            aria-label="Toggle alerts"
+            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all"
+          >
+            {soundEnabled ? (
+              <Volume2 className="w-5 h-5" style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }} strokeWidth={2.5} />
+            ) : (
+              <VolumeX className="w-5 h-5" strokeWidth={2} />
+            )}
+          </button>
+          <button
+            onClick={() => setIsUpgradeModalOpen(true)}
+            aria-label="Pro plan"
+            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all"
+          >
+            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white text-[10px] font-black flex items-center justify-center">LL</span>
+          </button>
+        </div>
+
+        {/* Dashboard Button (desktop) */}
         <button
           onClick={() => setActiveTab("inbox")}
-          className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${
+          className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${
             activeTab === "inbox" 
               ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]" 
               : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
@@ -492,8 +547,8 @@ export default function G2pDashboard({
           )}
         </button>
 
-        {/* 4-Grid Secondary Menu */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        {/* 4-Grid Secondary Menu (desktop) */}
+        <div className="hidden md:grid grid-cols-2 gap-3 sm:gap-4">
           <button
             onClick={() => setActiveTab("share")}
             className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${
@@ -559,8 +614,8 @@ export default function G2pDashboard({
           </button>
         </div>
 
-        {/* Pro Plan Banner */}
-        <div className="mt-auto">
+        {/* Pro Plan Banner (desktop — mobile reaches it via the LL pill button) */}
+        <div className="mt-auto hidden md:block">
           <button onClick={() => setIsUpgradeModalOpen(true)} className="w-full text-left bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.25)] flex flex-col group hover:scale-[1.02] transition-transform">
             {/* Minimal truck graphic / decoration */}
             <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none" />
@@ -585,7 +640,9 @@ export default function G2pDashboard({
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 min-w-0 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-[32px] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col">
+      {/* Mobile: no outer shell — the inner card is the single box.
+          Desktop: full glass panel as before. */}
+      <main className="flex-1 min-w-0 md:bg-white/20 md:backdrop-blur-[32px] md:border md:border-white/30 md:rounded-[32px] p-0 md:p-6 md:shadow-[0_8px_32px_rgba(0,0,0,0.08)] md:overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">
           
           {/* --- INBOX VIEW --- */}
@@ -596,10 +653,10 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col gap-6 h-full min-h-0"
+              className="flex flex-col gap-4 md:gap-6 md:h-full md:min-h-0"
             >
-              {/* TOP METRICS BENTO BOXES */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+              {/* TOP METRICS BENTO BOXES — desktop only; mobile goes straight to uploads */}
+              <div className="hidden md:grid md:grid-cols-3 gap-4 sm:gap-6">
                 <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#111827]/70 font-display">Active Requests</span>
@@ -636,7 +693,7 @@ export default function G2pDashboard({
               </div>
 
               {/* MAIN DATA TABLE */}
-              <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col flex-1 min-h-[calc(100dvh-190px)] md:min-h-0 overflow-hidden">
                 <div className="p-4 sm:p-6 border-b border-white/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
                   <h2 className="text-lg font-bold text-[#111827] font-display">Uploads</h2>
                   
@@ -661,10 +718,10 @@ export default function G2pDashboard({
                   </div>
                 </div>
 
-                <div className="flex-1 flex flex-col overflow-x-auto min-h-0">
-                  <div className="min-w-[800px] flex flex-col flex-1 min-h-0">
-                    {/* Table Header */}
-                    <div className="grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-center p-4 border-b border-white/30 bg-[#111827]/5 text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">
+                <div className="flex flex-col flex-1 md:overflow-x-auto md:min-h-0">
+                  <div className="md:min-w-[800px] flex flex-col flex-1 md:min-h-0">
+                    {/* Table Header — desktop only; mobile rows carry their own labels */}
+                    <div className="hidden md:grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-center p-4 border-b border-white/30 bg-[#111827]/5 text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">
                       <div>Sender</div>
                       <div>Message</div>
                       <div>Files</div>
@@ -672,29 +729,36 @@ export default function G2pDashboard({
                       <div>Date</div>
                       <div className="text-right pr-2">Actions</div>
                     </div>
-                    
+
                     {/* Table Body */}
-                    <div className="flex flex-col bg-white/20 flex-1 overflow-y-auto min-h-0 relative">
+                    <div className="flex flex-col flex-1 bg-white/20 md:overflow-y-auto md:min-h-0 md:relative">
                       <AnimatePresence mode="popLayout">
                         {processedUploads.map((record) => (
-                          <UploadRecordRow 
-                            key={record.uploadId} 
-                            record={record} 
-                            onDelete={handleDeleteUpload} 
+                          <UploadRecordRow
+                            key={record.uploadId}
+                            record={record}
+                            onDelete={handleDeleteUpload}
                             onAction={handleAction}
                           />
                         ))}
                       </AnimatePresence>
 
                       {processedUploads.length === 0 && (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-6 h-full absolute inset-0">
+                        <div className="flex flex-col flex-1 items-center justify-center text-center p-6 md:h-full md:absolute md:inset-0">
                           <div className="w-16 h-16 rounded-2xl bg-white/50 border border-white/60 flex items-center justify-center mb-4 shadow-sm">
                             <Inbox className="w-8 h-8 text-[#111827]/40" />
                           </div>
-                          <h3 className="text-lg font-bold text-[#111827] mb-2 font-display">No uploads found</h3>
+                          <h3 className="text-lg font-bold text-[#111827] mb-2 font-display">Your inbox is empty</h3>
                           <p className="text-sm text-[#111827]/60 max-w-sm">
-                            Waiting for incoming files. Share your portal code with others.
+                            No one has sent you files yet. Share your portal code with others so they can drop files securely into your inbox.
                           </p>
+                          <button
+                            onClick={() => setActiveTab("share")}
+                            className="mt-6 inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
+                          >
+                            View your Share Portal
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -713,7 +777,7 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col items-center justify-center gap-6 h-full p-6 sm:p-12"
+              className="flex flex-col items-center justify-center gap-6 md:h-full p-4 sm:p-12"
             >
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Your Share Portal</h2>
@@ -751,7 +815,7 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="h-full flex flex-col gap-6"
+              className="md:h-full flex flex-col gap-6"
             >
               <div>
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Portal Settings</h2>
@@ -849,7 +913,7 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col items-center justify-center h-full p-6 text-center"
+              className="flex flex-col items-center justify-center md:h-full p-6 text-center min-h-[300px]"
             >
               <div className="w-20 h-20 bg-white/50 border border-white/60 rounded-3xl flex items-center justify-center mb-6 shadow-sm">
                 <BarChart className="w-10 h-10 text-[#111827]/30" />

@@ -117,6 +117,10 @@
   /* Mobile: the rail becomes a floating bottom pill — reserve space for it. */
   @media (max-width: 1023.98px) {
     body { padding-bottom: 96px; }
+
+    /* iOS Safari auto-zooms when a focused field is under 16px — force all
+       form fields to 16px on touch layouts so the page never jumps on tap. */
+    input, textarea, select { font-size: 16px !important; }
   }
 
   /* Pages paint `bg-background` on their root div — make it transparent so

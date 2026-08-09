@@ -40,7 +40,7 @@ function G2PContent() {
   if (g2pUser) {
     // Render the new full-page app layout for the Dashboard
     return (
-      <div className="min-h-screen bg-background text-on-surface font-body p-4 sm:p-6 overflow-hidden flex flex-col">
+      <div className="min-h-screen bg-background text-on-surface font-body p-4 sm:p-6 md:overflow-hidden flex flex-col">
         <G2pDashboard user={g2pUser} onLogout={() => signOut()} />
       </div>
     );

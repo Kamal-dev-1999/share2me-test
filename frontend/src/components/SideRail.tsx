@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Home, Zap, HardDrive, Wrench, HelpCircle, Info, Tag,
+  Home, Zap, HardDrive, Wrench, HelpCircle, Info, Tag, BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -13,6 +13,7 @@ const ITEMS: { href: string; icon: LucideIcon; label: string; grad: string; stop
   { href: "/g2p",          icon: HardDrive,  label: "Portal",  grad: "grad-portal", stops: ["#34d399", "#10b981"] },
   { href: "/tools",        icon: Wrench,     label: "Tools",   grad: "grad-tools",  stops: ["#e879f9", "#d946ef"] },
   { href: "/how-it-works", icon: HelpCircle, label: "How",     grad: "grad-how",    stops: ["#7dd3fc", "#0ea5e9"] },
+  { href: "/blog",         icon: BookOpen,   label: "Blog",    grad: "grad-blog",   stops: ["#fb923c", "#ea580c"] },
   { href: "/about",        icon: Info,       label: "About",   grad: "grad-about",  stops: ["#f472b6", "#ec4899"] },
   { href: "/pricing",      icon: Tag,        label: "Pricing", grad: "grad-price",  stops: ["#c084fc", "#9333ea"] },
 ];
@@ -35,8 +36,8 @@ function RailItems({ layoutId, horizontal = false }: { layoutId: string; horizon
             key={href}
             href={href}
             title={label}
-            className={`relative flex items-center justify-center group ${
-              horizontal ? "w-12 h-12" : "w-12 h-12 mb-2 last:mb-0"
+            className={`relative flex items-center justify-center group shrink-0 ${
+              horizontal ? "w-10 h-10" : "w-12 h-12 mb-2 last:mb-0"
             }`}
           >
             {/* Active state backplate (Apple style subtle translucent pill) */}
@@ -115,7 +116,7 @@ export function SideRail({ embedded = false }: { embedded?: boolean }) {
       {/* Mobile floating horizontal dock */}
       <nav
         aria-label="Primary mobile"
-        className="flex lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] h-[64px] px-2 flex-row items-center justify-around gap-1 rounded-[32px] bg-white/50 backdrop-blur-[32px] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.12),_inset_0_1px_1px_rgba(255,255,255,0.9)] max-w-[90vw] overflow-x-auto"
+        className="flex lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] h-[56px] px-1.5 flex-row items-center justify-around gap-0.5 rounded-[28px] bg-white/50 backdrop-blur-[32px] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.12),_inset_0_1px_1px_rgba(255,255,255,0.9)] max-w-[95vw] overflow-x-auto scrollbar-hide"
       >
         <RailItems layoutId="rail-active-mobile" horizontal />
       </nav>
