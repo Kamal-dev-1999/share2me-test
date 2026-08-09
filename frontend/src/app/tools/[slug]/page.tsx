@@ -1,13 +1,28 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { notFound } from "next/navigation";
 import { PdfToolShell } from "@/components/PdfToolShell";
 import { getToolBySlug } from "@/lib/pdfTools";
+import * as Configs from "@/components/tools/configs";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
+
+const ConfigMap: Record<string, React.ComponentType<Configs.ConfigProps>> = {
+  "rotate-pdf": Configs.RotateConfig,
+  "split-pdf": Configs.SplitConfig,
+  "page-numbers": Configs.PageNumbersConfig,
+  "watermark-pdf": Configs.WatermarkConfig,
+  "protect-pdf": Configs.ProtectConfig,
+  "unlock-pdf": Configs.UnlockConfig,
+  "compress-pdf": Configs.CompressConfig,
+  "crop-pdf": Configs.CropConfig,
+  "organize-pdf": Configs.OrganizeConfig,
+  "jpg-to-pdf": Configs.JpgToPdfConfig,
+  "pdf-to-jpg": Configs.PdfToJpgConfig,
+};
 
 /**
  * Dynamic PDF-tool page. Looks the tool up from the registry and hands off to
@@ -17,6 +32,8 @@ interface PageProps {
 export default function ToolPage({ params }: PageProps) {
   const { slug } = use(params);
   const tool = getToolBySlug(slug);
+
+  const [config, setConfig] = useState<Record<string, unknown>>({});
 
   if (!tool) {
     notFound();
@@ -49,12 +66,17 @@ export default function ToolPage({ params }: PageProps) {
     "redact-pdf",
   ]);
 
+  const ConfigComponent = ConfigMap[tool.slug];
+
   return (
     <PdfToolShell
       tool={tool}
       multiple={!singleFileTools.has(tool.slug)}
-      // onProcess intentionally omitted — Phase 1 is frontend-only.
-      // Phase 2 will import per-tool engines and pass them in here.
+      toolConfig={config}
+      configSidebar={
+        ConfigComponent ? <ConfigComponent config={config} onChange={setConfig} /> : undefined
+      }
     />
   );
 }
+

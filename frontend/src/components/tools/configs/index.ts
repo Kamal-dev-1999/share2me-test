@@ -1,0 +1,12 @@
+export { RotateConfig } from "./RotateConfig";
+export { SplitConfig } from "./SplitConfig";
+export { PageNumbersConfig } from "./PageNumbersConfig";
+export { WatermarkConfig } from "./WatermarkConfig";
+export { ProtectConfig } from "./ProtectConfig";
+export { UnlockConfig } from "./UnlockConfig";
+export { CompressConfig } from "./CompressConfig";
+export { CropConfig } from "./CropConfig";
+export { OrganizeConfig } from "./OrganizeConfig";
+export { JpgToPdfConfig } from "./JpgToPdfConfig";
+export { PdfToJpgConfig } from "./PdfToJpgConfig";
+export type { ConfigProps } from "./RotateConfig";
