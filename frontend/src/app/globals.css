@@ -109,15 +109,14 @@
 
   /* When the fixed left rail is present (every page except home, which
      embeds the rail inside its glass panel), shift content right so the
-     68px strip never overlaps it. The active item's white circle
-     intentionally bulges over this seam. */
+     floating 64px pill never overlaps it. */
   @media (min-width: 1024px) {
-    body:has(> nav[aria-label="Primary"].fixed) { padding-left: 68px; }
+    body:has(> nav[aria-label="Primary"].fixed) { padding-left: 96px; }
   }
 
-  /* Mobile: the rail becomes a fixed bottom bar — reserve space for it. */
+  /* Mobile: the rail becomes a floating bottom pill — reserve space for it. */
   @media (max-width: 1023.98px) {
-    body { padding-bottom: 64px; }
+    body { padding-bottom: 96px; }
   }
 
   /* Pages paint `bg-background` on their root div — make it transparent so
