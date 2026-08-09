@@ -1,5 +1,4 @@
 "use client";
-import { TopNav } from "@/components/TopNav";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, HelpCircle, Zap, Shield, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
@@ -64,7 +63,6 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col justify-between font-sans selection:bg-primary/20">
       <div>
-        <TopNav />
         
         <main className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-16">
           {/* Back Button */}

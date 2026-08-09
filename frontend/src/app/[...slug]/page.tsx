@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
-import { TopNav } from "@/components/TopNav";
 import { Zap, Sparkles } from "lucide-react";
 import { LANDING_PAGES } from "./data";
 import { TransferCalculator } from "@/components/TransferCalculator";
@@ -143,7 +142,6 @@ export default async function NicheLandingPage({ params }: PageProps) {
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[#B967FF]/10 blur-[120px] pointer-events-none" />
 
-      <TopNav />
 
       <main className="flex-1 w-full max-w-[900px] mx-auto px-6 py-16 relative z-10 pt-28">
         

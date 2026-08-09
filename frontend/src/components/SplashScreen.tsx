@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 export function SplashScreen() {
   const [show, setShow] = useState(true);
@@ -56,22 +57,15 @@ export function SplashScreen() {
           initial={{ scale: 0.5, opacity: 0, rotate: -15 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           transition={{ duration: 0.8, type: "spring", bounce: 0.4 }}
-          className="relative z-10 w-24 h-24 rounded-2xl bg-primary flex items-center justify-center border-2 border-ink shadow-hard"
+          className="relative z-10 w-24 h-24 rounded-2xl overflow-hidden bg-black flex items-center justify-center shadow-[0_8px_32px_rgba(17,17,17,0.16)]"
         >
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-ink">
-            <motion.path 
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: 1.2, ease: "easeInOut", delay: 0.3 }}
-              d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-            />
-            <motion.path 
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: 1.2, ease: "easeInOut", delay: 0.7 }}
-              d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-            />
-          </svg>
+          <Image
+            src="/logo.png"
+            alt="Share2Me Logo"
+            width={96}
+            height={96}
+            className="w-full h-full object-cover"
+          />
         </motion.div>
 
         {/* Brand Text & Loading indicator */}
@@ -80,7 +74,7 @@ export function SplashScreen() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut", delay: 1.4 }}
-            className="text-3xl font-display font-bold text-on-surface uppercase tracking-wider"
+            className="text-[22px] font-semibold text-on-surface tracking-tight"
           >
             Share2Me
           </motion.h1>

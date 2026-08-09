@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { TopNav } from "@/components/TopNav";
 import {
   Upload, QrCode, Wifi, Lock, ShieldCheck,
   Server, Eye, Key, Zap, ArrowRight, Monitor, Smartphone,
@@ -243,7 +242,6 @@ export default function HowItWorksClient() {
       <div className="absolute top-[40%] left-[-10%] w-[30%] h-[30%] rounded-full bg-[#B967FF]/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[10%] w-[40%] h-[40%] rounded-full bg-status-success/10 blur-[120px] pointer-events-none" />
 
-      <TopNav />
 
       {/* Hero */}
       <motion.div 

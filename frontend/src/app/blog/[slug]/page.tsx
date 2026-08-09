@@ -1,4 +1,3 @@
-import { TopNav } from "@/components/TopNav";
 import Link from "next/link";
 import { ArrowLeft, Calendar, BookOpen, Share2 } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -94,7 +93,6 @@ export default async function BlogPostPage({ params }: PageProps) {
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[20%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[#B967FF]/10 blur-[120px] pointer-events-none" />
 
-      <TopNav />
 
       <main className="flex-1 w-full max-w-[800px] mx-auto px-6 py-16 relative z-10 pt-28">
         

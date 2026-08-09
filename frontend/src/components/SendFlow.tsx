@@ -199,28 +199,28 @@ export function SendFlow({
 
   return (
     <>
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in w-full">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in w-full relative z-10 text-on-surface">
       
       {/* ── LEFT PANEL: UPLOAD & CONTROLS ── */}
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-6">
         
         {/* Type Selector */}
-        <div className="flex p-1.5 bg-surface-container rounded-2xl border-2 border-ink wobble">
+        <div className="flex p-1 bg-[#F7F8F8] rounded-xl border border-[#E1E3E5]">
           <button
             onClick={() => setTransferType("file")}
             disabled={!isIdle}
-            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-bold py-2.5 rounded-xl transition-all font-display uppercase tracking-tight
-              ${transferType === "file" ? "bg-signal-yellow text-ink border-2 border-ink shadow-hard-sm" : "text-outline hover:text-ink disabled:opacity-40"}`}
+            className={`flex-1 flex items-center justify-center gap-2 text-[13px] font-medium py-2 rounded-lg transition-all duration-150
+              ${transferType === "file" ? "bg-white text-black shadow-sm border border-[#E1E3E5]" : "text-[#5F6368] hover:text-black disabled:opacity-40"}`}
           >
-            <FileUp className="w-[18px] h-[18px]" /> Files
+            <FileUp className="w-[15px] h-[15px]" strokeWidth={1.75} /> Files
           </button>
           <button
             onClick={() => setTransferType("text")}
             disabled={!isIdle}
-            className={`flex-1 flex items-center justify-center gap-2 text-[14px] font-bold py-2.5 rounded-xl transition-all font-display uppercase tracking-tight
-              ${transferType === "text" ? "bg-signal-yellow text-ink border-2 border-ink shadow-hard-sm" : "text-outline hover:text-ink disabled:opacity-40"}`}
+            className={`flex-1 flex items-center justify-center gap-2 text-[13px] font-medium py-2 rounded-lg transition-all duration-150
+              ${transferType === "text" ? "bg-white text-black shadow-sm border border-[#E1E3E5]" : "text-[#5F6368] hover:text-black disabled:opacity-40"}`}
           >
-            <Type className="w-[18px] h-[18px]" /> Text
+            <Type className="w-[15px] h-[15px]" strokeWidth={1.75} /> Text
           </button>
         </div>
 
@@ -232,28 +232,30 @@ export function SendFlow({
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
               onClick={() => isIdle && fileInputRef.current?.click()}
-              className={`relative bg-surface rounded-[22px] border-[3px] border-dashed border-ink p-10 text-center transition-all duration-300 select-none wobble-soft
-                ${!isIdle ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-surface-container hover:shadow-hard-sm hover:-translate-y-0.5"}
-                ${dragging ? "bg-signal-yellow/20 border-signal-yellow" : ""}
-                ${files.length > 0 ? "bg-surface-container/50" : ""}
+              className={`relative bg-white rounded-2xl border border-dashed border-[#8A8F93]/50 px-6 py-8 text-center transition-all duration-200 select-none
+                ${!isIdle ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-[#F7F8F8] hover:border-[#8A8F93]"}
+                ${dragging ? "bg-[#EEF6F2] border-[#35B94A]" : ""}
+                ${files.length > 0 ? "bg-[#F7F8F8]/40" : ""}
               `}
             >
               <input ref={fileInputRef} type="file" className="hidden" multiple onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }} disabled={!isIdle} />
               
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-background-elevated border-2 border-primary flex items-center justify-center">
-                  {files.length > 0 ? <FileText className="w-8 h-8 text-primary" /> : <Upload className="w-8 h-8 text-primary" />}
-                </div>
+              <div className="flex flex-col items-center gap-3">
+                <span className={`icon-tile-lg w-12 h-12 rounded-xl ${
+                  files.length > 0 ? "text-[#35B94A]" : ""
+                }`}>
+                  {files.length > 0 ? <FileText className="w-5 h-5" strokeWidth={1.75} /> : <Upload className="w-5 h-5" strokeWidth={1.75} />}
+                </span>
                 <div>
-                  <p className="text-text-primary text-[15px] font-semibold">
-                    {files.length > 0 
-                      ? (files.length === 1 ? files[0].name : `${files.length} files selected`) 
-                      : "Drag & drop files here"}
+                  <p className="text-[#111111] text-[14px] font-semibold">
+                    {files.length > 0
+                      ? (files.length === 1 ? files[0].name : `${files.length} files selected`)
+                      : "Drop files here or click to browse"}
                   </p>
-                  <p className="text-text-secondary text-[13px] mt-1.5">
-                    {files.length > 0 
-                      ? `${formatBytes(files.reduce((acc, f) => acc + f.size, 0))} total size`
-                      : "Up to 10 files · Max 1.5 GB total"}
+                  <p className="text-[#8A8F93] text-[12px] mt-1">
+                    {files.length > 0
+                      ? `${formatBytes(files.reduce((acc, f) => acc + f.size, 0))} total`
+                      : "Up to 1.5 GB · Everything stays end-to-end encrypted"}
                   </p>
                 </div>
               </div>
@@ -262,16 +264,16 @@ export function SendFlow({
             {/* File List Queue */}
             <AnimatePresence>
               {files.length > 0 && isIdle && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-2.5 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                   {files.map((f, i) => (
-                    <div key={i} className="flex items-center justify-between bg-background-card px-4 py-3 rounded-xl border border-primary/50 group">
+                    <div key={i} className="flex items-center justify-between bg-[#F7F8F8] px-4 py-3 rounded-2xl border border-[#E1E3E5] group hover:border-[#8A8F93]/60 transition-all duration-150 shadow-sm">
                       <div className="flex items-center gap-3 overflow-hidden">
-                        <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-                        <span className="text-[13px] text-text-primary truncate">{f.name}</span>
+                        <FileText className="w-4 h-4 text-[#5F6368] flex-shrink-0" />
+                        <span className="text-[13px] text-[#111111] font-semibold truncate">{f.name}</span>
                       </div>
-                      <div className="flex items-center gap-4 pl-3">
-                        <span className="text-[12px] text-text-tertiary whitespace-nowrap">{formatBytes(f.size)}</span>
-                        <button onClick={() => setFiles(files.filter((_, idx) => idx !== i))} className="text-text-tertiary hover:text-status-error transition-colors p-1 rounded-md hover:bg-status-error/10">
+                      <div className="flex items-center gap-3 pl-3">
+                        <span className="text-[12px] text-[#8A8F93] whitespace-nowrap font-mono">{formatBytes(f.size)}</span>
+                        <button onClick={() => setFiles(files.filter((_, idx) => idx !== i))} className="text-[#8A8F93] hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50">
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -287,17 +289,17 @@ export function SendFlow({
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               disabled={!isIdle}
-              placeholder="Paste or type any text here..."
+              placeholder="Type, paste, or drop your text here..."
               rows={8}
-              className="w-full bg-background-card border-2 border-primary rounded-[22px] p-5 text-text-primary text-[14px] font-mono resize-y focus:outline-none placeholder:text-text-tertiary disabled:opacity-50"
+              className="w-full bg-[#F7F8F8] border border-[#E1E3E5] rounded-[24px] p-5 text-[#111111] text-[14px] font-mono resize-y focus:outline-none focus:bg-white focus:border-black transition-all placeholder:text-[#8A8F93] disabled:opacity-50"
             />
             <div className="absolute bottom-4 left-5 right-5 flex justify-between items-center">
-              <span className="text-[12px] text-text-tertiary bg-background px-2 py-1 rounded-md border border-primary/40">
+              <span className="text-[11px] text-[#8A8F93] bg-white px-2 py-0.5 rounded border border-[#E1E3E5] font-mono">
                 {textInput.length.toLocaleString()} chars · {formatBytes(textBytes)}
               </span>
               {isIdle && textInput.length === 0 && (
-                <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setTextInput(t); } catch {} }} className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary bg-background hover:bg-primary/10 hover:text-primary hover:border-primary px-3 py-1.5 rounded-lg border border-primary/40 transition-all">
-                  <ClipboardPaste className="w-3.5 h-3.5" /> Paste
+                <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setTextInput(t); } catch {} }} className="flex items-center gap-1.5 text-[11px] font-semibold text-[#5F6368] bg-white hover:bg-[#F7F8F8] hover:text-black px-3 py-1.5 rounded-lg border border-[#E1E3E5] transition-all">
+                  <ClipboardPaste className="w-3.5 h-3.5 text-[#35B94A]" /> Paste
                 </button>
               )}
             </div>
@@ -305,35 +307,35 @@ export function SendFlow({
         )}
 
         {/* Action Buttons */}
-        <div className="flex flex-row gap-3 mt-4 sm:mt-auto w-full">
+        <div className="flex flex-row gap-3.5 mt-6 sm:mt-auto w-full">
           <button
             disabled={!canPrepare}
             onClick={handleCreateRoom}
-            className={`flex-1 h-[48px] flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
+            className={`flex-1 h-12 flex items-center justify-center gap-2 whitespace-nowrap px-4 text-[13px] font-semibold rounded-xl transition-all duration-200 ${
               !canPrepare
-                ? "bg-surface-container text-outline border-2 border-outline border-dashed rounded-xl opacity-60 cursor-not-allowed font-display font-bold uppercase tracking-tight"
-                : "btn-brutalist wobble-hard"
+                ? "bg-[#F7F8F8] text-[#8A8F93] border border-[#E1E3E5] cursor-not-allowed opacity-60"
+                : "bg-black hover:bg-[#262626] text-white shadow-sm hover:-translate-y-0.5 active:translate-y-0"
             }`}
           >
-            {isPreparing || isZipping ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-            {isPreparing || isZipping ? (isZipping ? "Packaging…" : "Encrypting…") : "Generate Code"}
+            {isPreparing || isZipping ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : null}
+            {isPreparing || isZipping ? (isZipping ? "Packaging…" : "Encrypting…") : "Generate Transfer Code"}
           </button>
           
           <button
             disabled={phase !== "key_exchange"}
             onClick={onStartSend}
-            className={`flex-1 h-[48px] flex items-center justify-center gap-2 whitespace-nowrap px-2 transition-all duration-200 ${
+            className={`flex-1 h-12 flex items-center justify-center gap-2 whitespace-nowrap px-4 text-[13px] font-semibold rounded-xl transition-all duration-200 ${
               phase !== "key_exchange"
-                ? "bg-surface-container text-outline border-2 border-outline border-dashed rounded-xl opacity-60 cursor-not-allowed font-display font-bold uppercase tracking-tight"
-                : "btn-brutalist wobble-hard"
+                ? "bg-[#F7F8F8] text-[#8A8F93] border border-[#E1E3E5] cursor-not-allowed opacity-60"
+                : "bg-[#35B94A] hover:bg-[#2e9f3f] text-white shadow-sm hover:-translate-y-0.5 active:translate-y-0"
             }`}
           >
             {phase === "ready" ? (
-              <><Loader2 className="w-4 h-4 animate-spin hidden xs:block" /> Waiting for Receiver…</>
+              <><Loader2 className="w-4 h-4 animate-spin text-white hidden xs:block" /> Waiting for Receiver…</>
             ) : phase === "connecting" || phase === "transferring" ? (
-              <><Loader2 className="w-4 h-4 animate-spin hidden xs:block" /> Connecting…</>
+              <><Loader2 className="w-4 h-4 animate-spin text-white hidden xs:block" /> Connecting…</>
             ) : (
-              <><Wifi className="w-4 h-4 hidden xs:block" /> Start Transfer</>
+              <><Wifi className="w-4 h-4 text-white hidden xs:block" /> Begin P2P Transfer</>
             )}
           </button>
         </div>
@@ -341,32 +343,33 @@ export function SendFlow({
       </div>
 
       {/* ── RIGHT PANEL: STATUS & DASHBOARD ── */}
-      <div className="card-brutalist flex flex-col h-full min-h-[400px] border-[3px] border-ink bg-surface wobble-soft overflow-hidden">
-        
+      <div className="bg-white border border-[#E1E3E5] rounded-2xl overflow-hidden flex flex-col relative">
+
         {/* Connection Header */}
-        <div className="px-6 py-4 border-b-2 border-ink bg-surface-container flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-[#E1E3E5] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full border-2 border-ink ${isIdle ? "bg-surface-dim" : isDone ? "bg-status-success" : "bg-signal-yellow"}`} />
-            <span className="label-caps">Connection Status</span>
+            <span className={`w-2 h-2 rounded-full ${isIdle ? "bg-[#8A8F93]" : isDone ? "bg-[#35B94A]" : "bg-[#E98B32] animate-pulse"}`} />
+            <span className="text-[12px] font-medium text-on-surface-variant">Transfer connection</span>
           </div>
-          <div className="flex items-center gap-1.5 bg-status-success/20 border-2 border-status-success px-2.5 py-1 rounded-md">
-            <Shield className="w-3.5 h-3.5 text-status-success" />
-            <span className="font-mono text-[11px] font-bold uppercase text-status-success">E2E Secured</span>
+          <div className="flex items-center gap-1.5 bg-[#EEF6F2] px-2 py-0.5 rounded-full">
+            <Shield className="w-3 h-3 text-[#35B94A]" strokeWidth={2} />
+            <span className="text-[11px] font-semibold text-[#2E9F3F]">E2E secured</span>
           </div>
         </div>
 
         {/* Dynamic Content Body */}
-        <div className="flex-1 flex flex-col justify-center p-6 relative">
+        <div className="flex-1 flex flex-col justify-center p-8 relative">
           
           <AnimatePresence mode="wait">
             {isIdle ? (
-              <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center text-center gap-4">
-                <div className="w-20 h-20 rounded-full border border-border flex items-center justify-center bg-background">
-                  <Activity className="w-8 h-8 text-text-tertiary" />
-                </div>
+              <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center text-center gap-3 py-6">
+                <span className="icon-tile-lg w-14 h-14 relative">
+                  <span className="absolute inset-0 rounded-2xl border-2 border-[#35B94A]/20 animate-[radar-spin_6s_linear_infinite] border-t-[#35B94A]/60" />
+                  <Activity className="w-6 h-6 text-[#5F6368]" strokeWidth={1.75} />
+                </span>
                 <div>
-                  <p className="text-text-primary font-medium">Ready to Transfer</p>
-                  <p className="text-text-tertiary text-[13px] mt-1 max-w-[200px]">Select files or text and generate a code to connect.</p>
+                  <p className="text-on-surface font-semibold text-[14px]">Awaiting payload</p>
+                  <p className="text-on-surface-variant text-[12px] mt-1 max-w-[240px] leading-relaxed">Select files or text above and generate a transfer code to connect.</p>
                 </div>
               </motion.div>
             ) : null}
@@ -376,28 +379,28 @@ export function SendFlow({
                 {/* OTC Display */}
                 <div 
                   onClick={copyToClipboard}
-                  className="w-full bg-background border border-border rounded-[16px] p-5 mb-6 text-center relative group cursor-pointer hover:border-primary active:scale-[0.99] transition-all duration-200 select-none"
+                  className="w-full bg-[#F7F8F8] border border-[#E1E3E5] rounded-2xl p-6 mb-6 text-center relative group cursor-pointer hover:border-[#8A8F93] hover:bg-white active:scale-[0.99] transition-all duration-200 select-none"
                   title="Click to copy code"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-text-tertiary uppercase tracking-[0.1em]">Share this code</span>
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-tertiary group-hover:text-primary transition-colors duration-200">
-                      {copied ? <Check className="w-3.5 h-3.5 text-status-success" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span className="text-[11px] font-medium text-[#8A8F93]">Single-use connection code</span>
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8A8F93] group-hover:text-black transition-colors duration-150">
+                      {copied ? <Check className="w-3.5 h-3.5 text-[#35B94A]" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copied ? "Copied" : "Copy"}</span>
                     </div>
                   </div>
-                  <div className="font-mono text-[40px] leading-tight font-bold text-primary tracking-[0.25em] mt-2 pr-[0.25em]">{otc}</div>
+                  <div className="font-mono text-[38px] leading-tight font-bold text-black tracking-[0.25em] mt-2 pl-[0.125em]">{otc}</div>
                 </div>
 
                 {/* QR Code */}
-                <div className="bg-primary p-2 rounded-[20px] border border-primary">
+                <div className="bg-[#EEF6F2] p-3.5 rounded-[24px] border border-[#E1E3E5] shadow-sm">
                   {qrDataUrl ? (
-                    <Image src={qrDataUrl} alt="QR Code" width={200} height={200} className="rounded-xl" />
+                    <Image src={qrDataUrl} alt="QR Code" width={180} height={180} className="rounded-xl" />
                   ) : (
-                    <div className="w-[200px] h-[200px] bg-background-elevated rounded-xl" />
+                    <div className="w-[180px] h-[180px] bg-[#F7F8F8] rounded-xl animate-pulse" />
                   )}
                 </div>
-                <p className="text-[13px] text-text-secondary mt-5 font-medium">Scan QR with receiver device</p>
+                <p className="text-[12px] text-[#8A8F93] mt-4 text-center max-w-[220px]">Scan the QR with the receiving device to connect</p>
               </motion.div>
             )}
 
@@ -405,19 +408,19 @@ export function SendFlow({
               <motion.div key="transfer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full h-full justify-center">
                 
                 {/* Big Circular/Visual Progress Area */}
-                <div className="flex flex-col items-center justify-center mb-10">
-                  <div className="relative w-40 h-40 flex items-center justify-center">
+                <div className="flex flex-col items-center justify-center mb-8">
+                  <div className="relative w-36 h-36 flex items-center justify-center">
                     {/* Background Circle */}
                     <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-                      <circle cx="80" cy="80" r="76" fill="none" stroke="currentColor" strokeWidth="6" className="text-border" />
-                      <circle cx="80" cy="80" r="76" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="477.5" strokeDashoffset={477.5 - (477.5 * progress) / 100} className="text-primary transition-all duration-500 ease-out" />
+                      <circle cx="72" cy="72" r="68" fill="none" stroke="currentColor" strokeWidth="5" className="text-[#E1E3E5]" />
+                      <circle cx="72" cy="72" r="68" fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray="427" strokeDashoffset={427 - (427 * progress) / 100} className="text-[#35B94A] transition-all duration-350 ease-out" />
                     </svg>
                     <div className="flex flex-col items-center justify-center z-10">
-                      <span className="text-[32px] font-display font-bold text-text-primary leading-none">{progress}%</span>
+                      <span className="text-[28px] font-mono font-bold text-black leading-none">{progress}%</span>
                       {isDone ? (
-                        <span className="text-[12px] font-bold text-status-success mt-1 uppercase tracking-wider">Complete</span>
+                        <span className="text-[11px] font-semibold text-[#35B94A] mt-1.5">Complete</span>
                       ) : (
-                        <span className="text-[12px] font-medium text-text-tertiary mt-1 uppercase tracking-wider">Sending</span>
+                        <span className="text-[11px] font-semibold text-[#35B94A] mt-1.5 animate-pulse">Sending…</span>
                       )}
                     </div>
                   </div>
@@ -425,13 +428,13 @@ export function SendFlow({
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-3 w-full">
-                  <div className="bg-background border border-border rounded-xl p-4 flex flex-col">
-                    <span className="text-[12px] text-text-tertiary font-medium mb-1">Transferred</span>
-                    <span className="text-[15px] font-semibold text-text-primary font-mono">{formatBytes(bytesTransferred)}</span>
+                  <div className="bg-[#F7F8F8] rounded-xl p-4 flex flex-col">
+                    <span className="text-[11px] text-[#8A8F93] font-medium mb-1">Data transferred</span>
+                    <span className="text-[15px] font-semibold text-black font-mono">{formatBytes(bytesTransferred)}</span>
                   </div>
-                  <div className="bg-background border border-border rounded-xl p-4 flex flex-col">
-                    <span className="text-[12px] text-text-tertiary font-medium mb-1">Current Speed</span>
-                    <span className="text-[15px] font-semibold text-primary font-mono">{speedBps > 0 ? formatSpeed(speedBps) : "--"}</span>
+                  <div className="bg-[#F7F8F8] rounded-xl p-4 flex flex-col">
+                    <span className="text-[11px] text-[#8A8F93] font-medium mb-1">Transfer speed</span>
+                    <span className="text-[15px] font-semibold text-[#35B94A] font-mono">{speedBps > 0 ? formatSpeed(speedBps) : "--"}</span>
                   </div>
                 </div>
               </motion.div>
@@ -440,10 +443,10 @@ export function SendFlow({
         </div>
 
         {/* Persistent Status Bar at Bottom */}
-        <div className="w-full p-4 border-t border-border bg-background/50 backdrop-blur-md shrink-0">
-          <div className="flex items-center gap-3">
-            {isPreparing ? <Loader2 className="w-4 h-4 text-primary animate-spin" /> : <HardDrive className="w-4 h-4 text-text-tertiary" />}
-            <span className={`text-[13px] font-medium truncate ${phase === "error" ? "text-status-error" : "text-text-secondary"}`}>
+        <div className="w-full px-4 py-3 border-t border-[#E1E3E5] shrink-0">
+          <div className="flex items-center gap-2">
+            {isPreparing ? <Loader2 className="w-3.5 h-3.5 text-[#35B94A] animate-spin" /> : <HardDrive className="w-3.5 h-3.5 text-[#8A8F93]" strokeWidth={1.75} />}
+            <span className={`text-[12px] truncate ${phase === "error" ? "text-[#D9534F] font-medium" : "text-[#5F6368]"}`}>
               {status}
             </span>
           </div>
@@ -458,21 +461,21 @@ export function SendFlow({
           initial={{ opacity: 0, y: 50, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          className="fixed bottom-8 right-8 z-[100] bg-background-elevated border border-primary/50 shadow-[0_8px_32px_rgba(252,213,53,0.15)] rounded-[20px] p-6 flex flex-col gap-5 w-full max-w-[340px]"
+          className="fixed bottom-8 right-8 z-[100] bg-white border border-[#E1E3E5] shadow-xl rounded-[24px] p-6 flex flex-col gap-5 w-full max-w-[340px]"
         >
           <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
-                <Wifi className="w-5 h-5 text-primary" />
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-[#EEF6F2] flex items-center justify-center border border-[#35B94A]/25 shrink-0 text-[#35B94A]">
+                <Wifi className="w-5.5 h-5.5" />
               </div>
               <div>
-                <h4 className="text-[15px] font-bold text-text-primary leading-tight">Receiver is Ready!</h4>
-                <p className="text-[13px] text-text-secondary mt-1 leading-snug">Connection established. They are waiting for you to start.</p>
+                <h4 className="text-[14px] font-bold text-black leading-tight">Receiver Connected!</h4>
+                <p className="text-[12px] text-[#8A8F93] mt-1.5 leading-snug">Secure connection established. Click below to begin the transfer.</p>
               </div>
             </div>
             <button 
               onClick={() => setShowNudge(false)} 
-              className="text-text-tertiary hover:text-text-primary transition-colors p-1 shrink-0 bg-background rounded-full border border-border"
+              className="text-[#8A8F93] hover:text-[#111111] transition-colors p-1 shrink-0 bg-[#F7F8F8] rounded-full border border-[#E1E3E5]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -482,9 +485,9 @@ export function SendFlow({
               setShowNudge(false);
               onStartSend();
             }}
-            className="w-full bg-primary text-background font-bold text-[14px] h-[44px] rounded-xl shadow-glow hover:-translate-y-0.5 transition-transform"
+            className="w-full bg-black text-white hover:bg-[#262626] font-semibold text-[13px] h-11 rounded-xl transition-all"
           >
-            Start Transfer Now
+            Begin P2P Transfer
           </button>
         </motion.div>
       )}
@@ -497,36 +500,36 @@ export function SendFlow({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-background/60 backdrop-blur-md p-4"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-[#111111]/30 backdrop-blur-sm p-4"
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="bg-background-card border border-border shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-[24px] p-8 flex flex-col items-center gap-5 w-full max-w-[400px] relative"
+            className="bg-white border border-[#E1E3E5] shadow-2xl rounded-[28px] p-8 flex flex-col items-center gap-6 w-full max-w-[400px] relative text-black"
           >
             <button
               onClick={() => setShowCompletionPopup(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-background-elevated transition-colors text-text-secondary hover:text-text-primary"
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-[#F7F8F8] transition-colors text-[#8A8F93] hover:text-black"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-20 h-20 rounded-full bg-status-success/20 flex items-center justify-center mb-2">
-              <CheckCircle2 className="w-10 h-10 text-status-success" />
+            <div className="w-20 h-20 rounded-full bg-[#EEF6F2] border border-[#35B94A]/20 flex items-center justify-center mb-1 text-[#35B94A]">
+              <CheckCircle2 className="w-10 h-10" />
             </div>
             <div className="text-center">
-              <h3 className="text-[22px] font-bold text-text-primary">Transfer Completed!</h3>
-              <p className="text-[14px] text-text-secondary mt-2">
-                Your data has been successfully sent. The peer-to-peer connection is now closed.
+              <h3 className="text-[22px] font-bold text-black">Direct Transfer Complete</h3>
+              <p className="text-[13.5px] text-[#8A8F93] mt-2.5 leading-relaxed">
+                Your payload has been successfully sent. The direct encrypted channel is now closed.
               </p>
             </div>
             
-            <div className="flex gap-3 w-full mt-4">
+            <div className="flex gap-3 w-full mt-2">
               <button
                 onClick={() => window.location.href = "/"}
-                className="w-full bg-primary text-background font-bold text-[15px] h-[48px] rounded-xl shadow-glow hover:-translate-y-0.5 transition-transform"
+                className="w-full bg-black text-white hover:bg-[#262626] font-semibold text-[14px] h-12 rounded-xl transition-all"
               >
-                New Transfer
+                Send Another Payload
               </button>
             </div>
           </motion.div>

@@ -1,99 +1,113 @@
 "use client";
-import { Shield, Zap, Lock, HardDrive, Wifi, Smartphone } from "lucide-react";
+import { Shield, Zap, Lock, HardDrive, Wifi, Smartphone, type LucideIcon } from "lucide-react";
 
 export function SeoContent() {
   return (
-    <section className="w-full max-w-[1440px] mx-auto px-6 lg:px-8 pb-24 text-text-primary">
-      <div className="flex flex-col gap-16">
-        
-        {/* Main SEO Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-6">
-          <h2 className="text-3xl md:text-5xl font-display font-bold tracking-tight text-text-primary leading-tight">
-            The Secure, Zero-Cloud Way to Share Large Files & Text Online
+    <section className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pb-16 text-on-surface">
+      <div className="flex flex-col gap-10 md:gap-14">
+
+        {/* Main SEO Header — compact, sentence case */}
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-[26px] md:text-[32px] font-semibold tracking-tight text-on-surface leading-tight">
+            The secure, zero-cloud way to share large files and text online
           </h2>
-          <p className="text-[16px] md:text-[18px] text-text-secondary leading-relaxed">
-            Share2Me (also commonly searched as Share 2 Me, Share To, or Share2) is a next-generation peer-to-peer (P2P) file sharing and text sharing platform that connects devices directly in the browser. 
-            By utilizing modern WebRTC technology, your files and text clipboard data travel straight from your browser to the receiver&apos;s browser. 
-            Enjoy unlimited file transfers, zero sign-ups, and military-grade encryption without the cloud storage middleman.
+          <p className="mt-3 text-[14px] md:text-[15px] text-on-surface-variant leading-relaxed">
+            Share2Me is a next-generation peer-to-peer file and text sharing platform that connects
+            devices directly in the browser. Using WebRTC, your data travels straight from your
+            browser to the receiver&apos;s — no cloud storage, no sign-ups, no size limits.
           </p>
         </div>
 
-        {/* Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Feature 1 */}
-          <div className="bg-background-elevated border border-border rounded-[20px] p-8 shadow-soft hover:border-primary/30 transition-all duration-300">
-            <div className="w-12 h-12 bg-primary/10 rounded-[12px] flex items-center justify-center mb-6">
-              <Zap className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-xl font-bold mb-3">No File Size Limits</h3>
-            <p className="text-text-secondary text-[15px] leading-relaxed">
-              Why pay for premium cloud storage to send a 20GB video? Because Share2Me transfers files directly between devices without uploading them to a middleman server, there are absolutely zero file size restrictions or bandwidth throttling.
-            </p>
-          </div>
-
-          {/* Feature 2 */}
-          <div className="bg-background-elevated border border-border rounded-[20px] p-8 shadow-soft hover:border-primary/30 transition-all duration-300">
-            <div className="w-12 h-12 bg-primary/10 rounded-[12px] flex items-center justify-center mb-6">
-              <Lock className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-xl font-bold mb-3">End-to-End Encrypted (AES-256)</h3>
-            <p className="text-text-secondary text-[15px] leading-relaxed">
-              Every file sharing and text sharing session is secured with military-grade AES-GCM-256 encryption. We don&apos;t store your files, we can&apos;t see your data, and nobody else can intercept it. Your keys are derived locally via ECDH key exchange.
-            </p>
-          </div>
-
-          {/* Feature 3 */}
-          <div className="bg-background-elevated border border-border rounded-[20px] p-8 shadow-soft hover:border-primary/30 transition-all duration-300">
-            <div className="w-12 h-12 bg-primary/10 rounded-[12px] flex items-center justify-center mb-6">
-              <Shield className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-xl font-bold mb-3">Absolute User Privacy</h3>
-            <p className="text-text-secondary text-[15px] leading-relaxed">
-              Unlike traditional file transfer apps or cloud drives, Share2Me requires no account registration, no sign-ups, and no passwords. Just generate a secure 6-digit one-time code, share it, and start transferring your data instantly.
-            </p>
-          </div>
+        {/* Feature grid — clean cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
+          <FeatureCard
+            icon={Zap}
+            title="No file size limits"
+            body="Files travel directly between browsers, so there are no size caps or bandwidth throttling — send a 20 GB video as easily as a photo."
+          />
+          <FeatureCard
+            icon={Lock}
+            title="End-to-end encrypted"
+            body="Every session is secured with AES-GCM-256. Keys are derived locally via ECDH exchange, so no server can decrypt your traffic."
+          />
+          <FeatureCard
+            icon={Shield}
+            title="No accounts, ever"
+            body="No sign-ups, no passwords. Just generate a 6-digit one-time code, share it with the receiver, and start transferring."
+          />
         </div>
 
-        {/* Deep Dive SEO Text section */}
-        <div className="bg-background-elevated border border-border rounded-[24px] p-8 md:p-12 mt-8 shadow-soft">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <h2 className="text-2xl md:text-3xl font-display font-bold">
-                How Peer-to-Peer (P2P) File Transfer Works
+        {/* Deep dive */}
+        <div className="card-brutalist p-6 md:p-10">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+            <div>
+              <h2 className="text-[22px] md:text-[26px] font-semibold text-on-surface tracking-tight">
+                How peer-to-peer transfer actually works
               </h2>
-              <div className="space-y-4 text-text-secondary text-[15px] leading-relaxed">
+              <div className="mt-4 space-y-3 text-[14px] text-on-surface-variant leading-relaxed">
                 <p>
-                  Traditional file sharing websites force you to upload your sensitive data to their cloud servers. Then, the receiver has to download it from that server. This wastes time, compromises your privacy, and imposes strict file size limits.
+                  Traditional file-sharing sites force you to upload sensitive data to their cloud
+                  first, then have the recipient download it back. That wastes time, compromises
+                  privacy, and imposes strict size limits.
                 </p>
                 <p>
-                  Share2Me (also known as Share 2 Me, Share To, or Share2) uses a technology called <strong>WebRTC</strong>. When you enter a 6-digit code, our signaling server introduces the two devices to each other. Once connected, a secure, direct tunnel is created. 
+                  Share2Me uses <strong className="text-on-surface font-semibold">WebRTC</strong>.
+                  When you enter a 6-digit code, our signaling server introduces the two devices to
+                  each other — then steps out. A direct, encrypted tunnel does the rest.
                 </p>
-                <ul className="list-disc pl-5 space-y-2 mt-4 text-text-primary">
-                  <li><strong>Fastest Transfer Speeds:</strong> Share files over your local WiFi network instantly at maximum bandwidth.</li>
-                  <li><strong>Cross-Platform Compatibility:</strong> Send files from iPhone to PC, Android to Mac, or anywhere else.</li>
-                  <li><strong>Secure Text Sharing:</strong> Send secure clipboard text, links, code, and passwords instantly.</li>
-                </ul>
               </div>
+              <ul className="mt-5 space-y-2.5">
+                <BulletRow label="Fastest speeds" body="Files move at your local network's maximum bandwidth." />
+                <BulletRow label="Cross-platform" body="Send from iPhone to PC, Android to Mac, or any modern browser." />
+                <BulletRow label="Text and code" body="Share clipboard text, links, and passwords the same way." />
+              </ul>
             </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               <div className="bg-background p-6 rounded-[16px] border border-border/80 flex flex-col items-center text-center gap-3 shadow-inner">
-                 <Wifi className="w-8 h-8 text-primary/80" />
-                 <span className="font-semibold text-text-primary">Local WiFi Sync</span>
-               </div>
-               <div className="bg-background p-6 rounded-[16px] border border-border/80 flex flex-col items-center text-center gap-3 shadow-inner">
-                 <HardDrive className="w-8 h-8 text-primary/80" />
-                 <span className="font-semibold text-text-primary">No Server Storage</span>
-               </div>
-               <div className="bg-background p-6 rounded-[16px] border border-border/80 flex flex-col items-center text-center gap-3 sm:col-span-2 shadow-inner">
-                 <Smartphone className="w-8 h-8 text-primary/80" />
-                 <span className="font-semibold text-text-primary">Works on all Desktop & Mobile Browsers</span>
-               </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <MiniStat icon={Wifi} label="Local WiFi sync" />
+              <MiniStat icon={HardDrive} label="No server storage" />
+              <MiniStat icon={Smartphone} label="Works on every browser" wide />
             </div>
           </div>
         </div>
 
       </div>
     </section>
+  );
+}
+
+function FeatureCard({
+  icon: Icon, title, body,
+}: { icon: LucideIcon; title: string; body: string }) {
+  return (
+    <div className="card-brutalist p-6">
+      <div className="w-10 h-10 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
+        <Icon className="w-5 h-5 text-on-surface" strokeWidth={1.75} />
+      </div>
+      <h3 className="text-[15px] font-semibold text-on-surface mb-1.5">{title}</h3>
+      <p className="text-[13px] text-on-surface-variant leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function BulletRow({ label, body }: { label: string; body: string }) {
+  return (
+    <li className="flex gap-3 text-[13px]">
+      <span className="mt-1.5 w-1 h-1 rounded-full bg-on-surface flex-none" />
+      <span className="text-on-surface-variant leading-relaxed">
+        <strong className="text-on-surface font-semibold">{label}.</strong> {body}
+      </span>
+    </li>
+  );
+}
+
+function MiniStat({
+  icon: Icon, label, wide = false,
+}: { icon: LucideIcon; label: string; wide?: boolean }) {
+  return (
+    <div className={`card-analytics p-4 flex flex-col items-center gap-2 text-center ${wide ? "col-span-2" : ""}`}>
+      <Icon className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
+      <span className="text-[13px] font-medium text-on-surface">{label}</span>
+    </div>
   );
 }

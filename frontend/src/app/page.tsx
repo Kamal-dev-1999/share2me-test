@@ -1,510 +1,319 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { TopNav } from "@/components/TopNav";
-import { SeoContent } from "@/components/SeoContent";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { SideRail } from "@/components/SideRail";
 import {
-  ArrowRight,
-  Lock,
-  Zap,
-  HardDrive,
-  Shield,
-  Globe,
-  ChevronDown,
-  FileText,
-  FileImage,
-  FileSpreadsheet,
-  FileType2,
-  Download,
-  Upload,
+  Search, FileText, ImageIcon, FileImage, Film, PenTool,
+  FileSpreadsheet, FileType2, AlignLeft, Table,
+  Zap, ArrowRight,
+  type LucideIcon,
 } from "lucide-react";
 
-// Two-lane bidirectional transport between the laptop (top-left) and phone
-// (bottom-right). TOP lane carries files LAPTOP → PHONE; BOTTOM lane carries
-// files PHONE → LAPTOP. Files alternate lanes in a sequential loop so exactly
-// one card is visible at a time.
-const TOP_LANE = {
-  start: { x: 240, y: 120 }, // laptop's upper-right area
-  end:   { x: 330, y: 200 }, // phone's top-left area
-};
-const BOTTOM_LANE = {
-  start: { x: 330, y: 320 }, // phone's lower-left area
-  end:   { x: 240, y: 200 }, // laptop's lower-right area
-};
+// File-format tiles that orbit the logo — documents (PDF, DOCX, TXT,
+// CSV, XLSX) and images (JPG, PNG, GIF, SVG).
+const ORBIT_TILES: { label: string; icon: LucideIcon; from: string; to: string }[] = [
+  { label: "PDF",  icon: FileText,        from: "#F87171", to: "#DC2626" },
+  { label: "DOCX", icon: FileType2,       from: "#60A5FA", to: "#2563EB" },
+  { label: "TXT",  icon: AlignLeft,       from: "#94A3B8", to: "#475569" },
+  { label: "CSV",  icon: Table,           from: "#2DD4BF", to: "#0D9488" },
+  { label: "XLSX", icon: FileSpreadsheet, from: "#4ADE80", to: "#16A34A" },
+  { label: "JPG",  icon: FileImage,       from: "#FBBF24", to: "#D97706" },
+  { label: "PNG",  icon: ImageIcon,       from: "#A78BFA", to: "#7C3AED" },
+  { label: "GIF",  icon: Film,            from: "#F472B6", to: "#DB2777" },
+  { label: "SVG",  icon: PenTool,         from: "#818CF8", to: "#4F46E5" },
+];
 
-// dir "down" = TOP lane (laptop → phone). dir "up" = BOTTOM lane (phone → laptop).
-const FILE_STREAM = [
-  { label: "PDF", icon: FileText,        bg: "bg-signal-yellow", dir: "down" },
-  { label: "DOC", icon: FileType2,       bg: "bg-surface",       dir: "up"   },
-  { label: "XLS", icon: FileSpreadsheet, bg: "bg-signal-yellow", dir: "down" },
-  { label: "JPG", icon: FileImage,       bg: "bg-surface",       dir: "up"   },
-] as const;
-
-// Timing: each card takes CARD_DURATION seconds to cross, and the whole
-// sequence repeats every CARD_DURATION × FILE_STREAM.length. Cards are
-// staggered by CARD_DURATION so they never overlap on screen.
-const CARD_DURATION = 2;
-const CYCLE_LENGTH  = CARD_DURATION * 4;
-import { motion, AnimatePresence } from "framer-motion";
-
-function HomeContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const [activeFaq, setActiveFaq] = useState<number | null>(null);
-
-  useEffect(() => {
-    const mode = searchParams.get("mode");
-    if (mode === "send" || mode === "receive") {
-      router.push(`/p2p?mode=${mode}`);
-    }
-  }, [searchParams, router]);
-
-  const FAQS = [
-    {
-      q: "What is the maximum file size limit?",
-      a: "There are absolutely no file size limits for Direct (P2P) transfers. Connections are established directly between browser clients via WebRTC, so data never touches a cloud server.",
-    },
-    {
-      q: "Is my data secure?",
-      a: "Yes. All transfers are end-to-end encrypted using AES-GCM-256. The encryption key is derived locally, so it never leaves your browser.",
-    },
-    {
-      q: "Do both devices need to be online?",
-      a: "For Direct (P2P) transfers, yes. For Permanent Portals (G2P), senders can upload files to your dashboard even while you are offline.",
-    },
-    {
-      q: "Does this work on mobile?",
-      a: "Absolutely. Share2Me is browser-native and works seamlessly across iOS, Android, macOS, Windows, and Linux — no app installs.",
-    },
-  ];
-
+// Brand icons — inline SVGs (this lucide version has no brand set).
+function GithubSvg({ className }: { className?: string }) {
   return (
-    <div className="min-h-screen bg-background text-on-surface flex flex-col font-body">
-      <TopNav />
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.17c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.69 5.39-5.25 5.67.41.36.78 1.05.78 2.13v3.16c0 .31.21.67.8.55A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z" />
+    </svg>
+  );
+}
+function LinkedinSvg({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M19 0h-14c-2.76 0-5 2.24-5 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5v-14c0-2.76-2.24-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.27c-.97 0-1.75-.78-1.75-1.75s.78-1.75 1.75-1.75 1.75.78 1.75 1.75-.78 1.75-1.75 1.75zm13.5 12.27h-3v-5.6c0-3.37-4-3.11-4 0v5.6h-3v-11h3v1.77c1.4-2.59 7-2.78 7 2.47v6.76z" />
+    </svg>
+  );
+}
+function TwitterSvg({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64z" />
+    </svg>
+  );
+}
+function InstagramSvg({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" />
+    </svg>
+  );
+}
 
-      {/* ============================================================ */}
-      {/*  HERO                                                        */}
-      {/* ============================================================ */}
-      <section className="relative w-full border-b-2 border-ink">
-        <div className="max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12 py-16 md:py-24 lg:py-28">
-          <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-            {/* Left column — typography + CTAs */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="lg:col-span-7 flex flex-col gap-8"
-            >
-              {/* Status badge */}
-              <div className="inline-flex items-center gap-2 self-start bg-surface border-2 border-ink rounded-md px-3 py-1.5 shadow-hard-sm">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-signal-yellow border border-ink" />
-                <span className="label-caps text-ink">Share2Me v3.0 · Live</span>
-              </div>
+// ────────────────────────────────────────────────────────────
+// Glassmorphism landing — gradient blobs + frosted panel +
+// left icon rail + floating file-type tiles (Share2Me features).
+// Self-contained styling: this page carries its own palette and
+// does not depend on the app-wide dashboard tokens.
+// ────────────────────────────────────────────────────────────
 
-              {/* Headline */}
-              <h1 className="font-display font-bold uppercase leading-[0.95] tracking-tight text-ink text-[48px] sm:text-[64px] md:text-[80px] lg:text-[96px]">
-                File transfer,
-                <br />
-                <span className="inline-block bg-signal-yellow text-ink px-2 -mx-1 border-2 border-ink rounded-md">
-                  reimagined.
-                </span>
-              </h1>
-
-              <p className="text-on-surface-variant text-lg sm:text-xl max-w-xl leading-relaxed">
-                Tunnel files directly between devices with zero latency, or spin up a
-                permanent cryptographic inbox to receive payloads from anyone.
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row items-stretch gap-4 pt-2">
-                <Link
-                  href="/p2p"
-                  className="btn-brutalist text-base sm:text-lg py-4 px-8"
-                >
-                  <Zap className="w-5 h-5" strokeWidth={2.5} />
-                  Start P2P Tunnel
-                </Link>
-                <Link
-                  href="/g2p"
-                  className="btn-brutalist-ghost text-base sm:text-lg py-4 px-8"
-                >
-                  <HardDrive className="w-5 h-5" strokeWidth={2.5} />
-                  Create Inbox
-                </Link>
-              </div>
-
-              {/* Share code entry */}
-              <div className="pt-4 w-full max-w-lg">
-                <label className="label-caps text-on-surface-variant block mb-2">
-                  Have a Share Code? Enter it below
-                </label>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const target = e.currentTarget.elements.namedItem("heroShareCode") as HTMLInputElement;
-                    const code = target.value.trim();
-                    if (code) router.push(`/g2p/${code.toUpperCase()}`);
-                  }}
-                  className="flex items-center gap-0 bg-surface border-2 border-ink rounded-lg overflow-hidden shadow-hard focus-within:shadow-[6px_6px_0_0_rgba(30,27,21,1)] transition-shadow"
-                >
-                  <input
-                    suppressHydrationWarning
-                    type="text"
-                    name="heroShareCode"
-                    placeholder="ABC123"
-                    autoComplete="off"
-                    className="flex-1 bg-transparent border-none font-mono uppercase tracking-[0.25em] text-lg font-bold text-ink placeholder:text-outline px-5 py-3.5 focus:outline-none focus:ring-0 w-full min-w-0"
-                  />
-                  <button
-                    suppressHydrationWarning
-                    type="submit"
-                    className="bg-ink text-signal-yellow hover:bg-signal-yellow hover:text-ink border-l-2 border-ink font-display font-bold uppercase text-base px-6 py-3.5 tracking-tight transition-colors shrink-0"
-                  >
-                    Connect →
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-
-            {/* Right column — diagonal composition, bidirectional file stream.
-                Hidden below xl (1280px) — narrower columns squeeze devices together. */}
-            <div className="lg:col-span-5 relative h-[440px] hidden xl:flex items-center justify-center">
-              <div className="relative w-full max-w-[500px] h-full">
-                {/* No tunnel lines — the motion of the file cards is enough to
-                    communicate the transfer path. */}
-
-                {/* Laptop — pinned top-left */}
-                <motion.div
-                  animate={{ y: [-3, 3, -3] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute left-0 top-[10px] w-[270px] h-[200px] bg-surface border-2 border-ink rounded-xl shadow-hard flex flex-col overflow-hidden z-10"
-                >
-                  <div className="h-8 bg-ink flex items-center px-3 gap-1.5 shrink-0">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
-                  </div>
-                  <div className="p-4 flex-1 flex flex-col gap-2.5">
-                    <div className="w-2/3 h-2.5 bg-surface-container rounded" />
-                    <div className="w-1/2 h-2.5 bg-surface-container rounded" />
-                    <div className="mt-auto w-full h-10 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center">
-                      <span className="label-caps text-ink">Sending Data…</span>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Sequential loop — one card at a time, invisible tracks.
-                    Each card fires for CARD_DURATION s, then the next in sequence.
-                    Subtle rotation during flight + a yellow glow on the icon
-                    tile give the cards a "hot payload in transit" feel. */}
-                {FILE_STREAM.map((f, i) => {
-                  const lane = f.dir === "down" ? TOP_LANE : BOTTOM_LANE;
-                  const startX = lane.start.x - 26, startY = lane.start.y - 28;
-                  const endX   = lane.end.x   - 26, endY   = lane.end.y   - 28;
-                  const repeatDelay = CYCLE_LENGTH - CARD_DURATION;
-                  const tilt = f.dir === "down" ? [-6, 6] : [6, -6];
-                  return (
-                    <motion.div
-                      key={f.label}
-                      initial={{ left: `${startX}px`, top: `${startY}px`, opacity: 0, scale: 0.7, rotate: tilt[0] }}
-                      animate={{
-                        left:    [`${startX}px`, `${endX}px`],
-                        top:     [`${startY}px`, `${endY}px`],
-                        opacity: [0, 1, 1, 0],
-                        scale:   [0.75, 1.05, 1.05, 0.75],
-                        rotate:  tilt,
-                      }}
-                      transition={{
-                        duration: CARD_DURATION,
-                        repeat: Infinity,
-                        repeatDelay,
-                        ease: [0.25, 0.1, 0.25, 1],
-                        delay: i * CARD_DURATION,
-                      }}
-                      className="absolute z-30 w-[52px] flex flex-col items-center gap-1 pointer-events-none will-change-transform"
-                    >
-                      <div
-                        className={`w-[52px] h-14 border-2 border-ink rounded-md flex items-center justify-center ${f.bg}`}
-                        style={{ boxShadow: "0 4px 0 0 rgba(30,27,21,1), 0 0 18px rgba(255,215,0,0.55)" }}
-                      >
-                        <f.icon className="w-6 h-6 text-ink" strokeWidth={2.5} />
-                      </div>
-                      <span className="bg-ink text-signal-yellow font-mono uppercase text-[9px] font-black tracking-widest px-1.5 py-[1px] rounded-sm">
-                        {f.label}
-                      </span>
-                    </motion.div>
-                  );
-                })}
-
-                {/* Phone — pinned bottom-right (diagonal from laptop) */}
-                <motion.div
-                  animate={{ y: [3, -3, 3] }}
-                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute right-0 top-[145px] w-[140px] h-[280px] bg-surface border-2 border-ink rounded-2xl shadow-hard flex flex-col overflow-hidden z-10"
-                >
-                  <div className="h-4 w-14 bg-ink mx-auto rounded-b-lg" />
-                  <div className="p-4 flex-1 flex items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-signal-yellow border-2 border-ink flex items-center justify-center relative shadow-[0_0_28px_rgba(255,215,0,0.7)]">
-                      <div className="absolute inset-0 rounded-full bg-signal-yellow animate-ping opacity-30" />
-                      <Download className="w-7 h-7 text-ink relative z-10" strokeWidth={2.5} />
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================================ */}
-      {/*  MODE COMPARISON                                             */}
-      {/* ============================================================ */}
-      <section className="w-full bg-surface-container-low border-b-2 border-ink py-20 md:py-24">
-        <div className="max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12">
-          <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
-            <div>
-              <span className="label-caps text-on-surface-variant">// 01 · Modes</span>
-              <h2 className="font-display font-bold uppercase text-[40px] md:text-[56px] leading-[1.05] text-ink mt-2">
-                Two ways to share
-              </h2>
-            </div>
-            <p className="text-on-surface-variant max-w-md">
-              Pick the transport that matches your workflow — instant peer tunnel or
-              always-on portal.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6 lg:gap-8">
-            {/* P2P Card */}
-            <div className="card-brutalist p-8 group">
-              <div className="flex items-start justify-between mb-8">
-                <div className="w-14 h-14 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center shadow-hard-sm">
-                  <Zap className="w-7 h-7 text-ink" strokeWidth={2.5} />
-                </div>
-                <span className="chip-outline">P2P · WebRTC</span>
-              </div>
-              <h3 className="font-display font-bold uppercase text-3xl text-ink mb-3">
-                Direct Transfer
-              </h3>
-              <p className="text-on-surface-variant leading-relaxed mb-8">
-                A direct WebRTC tunnel between two browsers. Files stream securely
-                without ever touching a server.
-              </p>
-              <ul className="space-y-3 mb-8">
-                <FeatureLine>Zero file size limits</FeatureLine>
-                <FeatureLine>Both users must be online</FeatureLine>
-                <FeatureLine>No server storage — ever</FeatureLine>
-              </ul>
-              <Link
-                href="/p2p"
-                className="inline-flex items-center gap-2 label-caps text-ink hover:gap-3 transition-all border-b-2 border-ink pb-1"
-              >
-                Start Direct Transfer <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
-              </Link>
-            </div>
-
-            {/* G2P Card */}
-            <div className="card-brutalist p-8 group bg-signal-yellow">
-              <div className="flex items-start justify-between mb-8">
-                <div className="w-14 h-14 bg-ink border-2 border-ink rounded-md flex items-center justify-center shadow-hard-sm">
-                  <HardDrive className="w-7 h-7 text-signal-yellow" strokeWidth={2.5} />
-                </div>
-                <span className="inline-flex items-center bg-ink text-signal-yellow border-2 border-ink rounded-md px-2 py-0.5 font-mono uppercase text-[11px] font-black">
-                  G2P · Persistent
-                </span>
-              </div>
-              <h3 className="font-display font-bold uppercase text-3xl text-ink mb-3">
-                Permanent Portal
-              </h3>
-              <p className="text-ink leading-relaxed mb-8 font-medium">
-                Claim a personal Share Code and QR. Anyone can upload files to your
-                secure dashboard, even while you are offline.
-              </p>
-              <ul className="space-y-3 mb-8">
-                <FeatureLine dark>Receive from many senders</FeatureLine>
-                <FeatureLine dark>Works while you&apos;re offline</FeatureLine>
-                <FeatureLine dark>Encrypted at rest</FeatureLine>
-              </ul>
-              <Link
-                href="/g2p"
-                className="inline-flex items-center gap-2 label-caps text-ink hover:gap-3 transition-all border-b-2 border-ink pb-1"
-              >
-                Create Your Portal <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================================ */}
-      {/*  FEATURES                                                    */}
-      {/* ============================================================ */}
-      <section className="w-full py-20 md:py-24 border-b-2 border-ink">
-        <div className="max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12">
-          <div className="mb-10">
-            <span className="label-caps text-on-surface-variant">// 02 · Guarantees</span>
-            <h2 className="font-display font-bold uppercase text-[40px] md:text-[56px] leading-[1.05] text-ink mt-2">
-              Built for trust
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <FeatureCard
-              icon={<Shield className="w-6 h-6 text-ink" strokeWidth={2.5} />}
-              title="End-to-End Encrypted"
-              body="AES-GCM-256 protects your payloads before they ever leave your device."
-              tag="AES-256"
-            />
-            <FeatureCard
-              icon={<Globe className="w-6 h-6 text-ink" strokeWidth={2.5} />}
-              title="Browser Native"
-              body="No apps, no extensions. Runs on any modern web browser, everywhere."
-              tag="WEB API"
-            />
-            <FeatureCard
-              icon={<Lock className="w-6 h-6 text-ink" strokeWidth={2.5} />}
-              title="Privacy First"
-              body="P2P transfers are anonymous and untraceable. We don't retain metadata."
-              tag="ZERO-LOG"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================================ */}
-      {/*  FAQ                                                         */}
-      {/* ============================================================ */}
-      <section className="w-full py-20 md:py-24 bg-surface-container-low border-b-2 border-ink">
-        <div className="max-w-3xl mx-auto px-5 md:px-8">
-          <div className="mb-10 text-center">
-            <span className="label-caps text-on-surface-variant">// 03 · FAQ</span>
-            <h2 className="font-display font-bold uppercase text-[40px] md:text-[56px] leading-[1.05] text-ink mt-2">
-              Questions
-            </h2>
-          </div>
-          <div className="flex flex-col gap-4">
-            {FAQS.map((faq, idx) => {
-              const open = activeFaq === idx;
-              return (
-                <div
-                  key={idx}
-                  className={`card-brutalist-flat overflow-hidden transition-all ${
-                    open ? "shadow-hard" : ""
-                  }`}
-                >
-                  <button
-                    suppressHydrationWarning
-                    onClick={() => setActiveFaq(open ? null : idx)}
-                    className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-signal-yellow transition-colors"
-                  >
-                    <span className="font-display font-bold uppercase text-lg text-ink">
-                      {faq.q}
-                    </span>
-                    <ChevronDown
-                      className={`w-5 h-5 text-ink transition-transform shrink-0 ml-4 ${
-                        open ? "rotate-180" : ""
-                      }`}
-                      strokeWidth={2.5}
-                    />
-                  </button>
-                  <AnimatePresence>
-                    {open && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden border-t-2 border-ink"
-                      >
-                        <p className="px-5 py-4 text-on-surface-variant leading-relaxed">
-                          {faq.a}
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <SeoContent />
-
-      {/* ============================================================ */}
-      {/*  FOOTER                                                      */}
-      {/* ============================================================ */}
-      <footer className="w-full bg-ink text-surface py-10 mt-auto">
-        <div className="max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-signal-yellow border-2 border-signal-yellow rounded-md flex items-center justify-center">
-              <Upload className="w-4 h-4 text-ink" strokeWidth={3} />
-            </div>
-            <span className="font-display font-bold uppercase tracking-tight text-xl">
-              Share2Me
-            </span>
-          </div>
-          <div className="label-caps text-surface/70">© 2026 Share2Me — All Rights Reserved</div>
-          <div className="flex items-center gap-6">
-            <a href="https://www.linkedin.com/company/share2me" target="_blank" rel="noopener noreferrer" className="text-surface/70 hover:text-signal-yellow transition-colors" aria-label="LinkedIn">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path fillRule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clipRule="evenodd" />
-              </svg>
-            </a>
-            <Link href="/privacy" className="label-caps text-surface/70 hover:text-signal-yellow transition-colors">
-              Privacy
-            </Link>
-            <Link href="/terms" className="label-caps text-surface/70 hover:text-signal-yellow transition-colors">
-              Terms
-            </Link>
-          </div>
-        </div>
-      </footer>
+function GradientBlobs() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {/* top-right purple */}
+      <div className="absolute -top-24 right-[8%] w-[380px] h-[380px] rounded-full bg-gradient-to-br from-[#8B5CF6] via-[#7C3AED] to-[#6D28D9] opacity-90" />
+      {/* right green */}
+      <div className="absolute top-[38%] -right-28 w-[340px] h-[340px] rounded-full bg-gradient-to-br from-[#A3E635] via-[#4ADE80] to-[#16A34A] opacity-90" />
+      {/* bottom-right orange */}
+      <div className="absolute -bottom-32 right-[16%] w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-[#F97316] via-[#FB923C] to-[#FBBF24] opacity-90" />
+      {/* left pink glow behind the rail */}
+      <div className="absolute top-[22%] -left-24 w-[320px] h-[420px] rounded-full bg-gradient-to-b from-[#EC4899] to-[#D946EF] opacity-60 blur-3xl" />
+      {/* soft ambient wash */}
+      <div className="absolute top-[10%] left-[30%] w-[500px] h-[500px] rounded-full bg-white/30 blur-[120px]" />
     </div>
   );
 }
 
-function FeatureLine({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
+function Sparkle({ className }: { className: string }) {
   return (
-    <li className="flex items-center gap-3">
-      <span className={`w-5 h-5 border-2 border-ink rounded-md flex items-center justify-center shrink-0 ${dark ? "bg-ink" : "bg-signal-yellow"}`}>
-        <svg className={`w-3 h-3 ${dark ? "text-signal-yellow" : "text-ink"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-      </span>
-      <span className={`${dark ? "text-ink" : "text-on-surface"} font-medium`}>{children}</span>
-    </li>
+    <span className={`absolute text-[#7C3AED] font-bold select-none ${className}`} aria-hidden="true">
+      +
+    </span>
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  body,
-  tag,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  tag: string;
-}) {
+function HomeContent() {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+
+  const openPortal = (e: React.FormEvent) => {
+    e.preventDefault();
+    // With a code → that sender portal; without → your own portal dashboard.
+    if (code.trim()) router.push(`/g2p/${code.trim().toUpperCase()}`);
+    else router.push("/g2p");
+  };
+
   return (
-    <div className="card-brutalist p-6 md:p-8">
-      <div className="flex items-start justify-between mb-6">
-        <div className="w-12 h-12 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center">
-          {icon}
+    <div className="min-h-screen bg-[#CDC3E4] relative flex items-center justify-center p-4 sm:p-6 lg:py-10 lg:pr-10 lg:pl-5 font-body">
+      <GradientBlobs />
+
+      {/* Shell: glass panel with the rail fused into its left edge */}
+      <div className="relative z-10 w-full max-w-[1200px] flex items-center">
+        {/* Frosted glass panel */}
+        <div className="flex-1 rounded-[28px] bg-white/30 backdrop-blur-2xl border border-white/50 shadow-[0_24px_80px_rgba(70,40,140,0.25)] overflow-visible flex">
+          <SideRail embedded />
+          <div className="flex-1 min-w-0">
+
+          {/* Top bar */}
+          <header className="flex items-center gap-4 px-6 sm:px-8 pt-6 flex-wrap">
+            <Link href="/" className="flex items-center gap-2.5 shrink-0">
+              <span className="w-9 h-9 rounded-xl overflow-hidden bg-black flex items-center justify-center">
+                <Image src="/logo.png" alt="Share2Me" width={36} height={36} className="object-cover w-full h-full" priority />
+              </span>
+              <span className="font-semibold text-[15px] tracking-tight text-[#1E1B2E]">Share2Me</span>
+            </Link>
+
+            {/* Search / share-code quick open */}
+            <form
+              onSubmit={openPortal}
+              className="hidden md:flex items-center flex-1 max-w-[280px] ml-auto bg-white/50 border border-white/70 rounded-full px-4 py-2"
+            >
+              <input
+                suppressHydrationWarning
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Enter share code…"
+                className="flex-1 bg-transparent text-[13px] text-[#1E1B2E] placeholder:text-[#6B6480] focus:outline-none min-w-0 uppercase tracking-wider"
+              />
+              <button suppressHydrationWarning type="submit" aria-label="Open portal">
+                <Search className="w-4 h-4 text-[#6B6480]" strokeWidth={2} />
+              </button>
+            </form>
+
+          </header>
+
+          {/* Body: copy left, floating tiles right */}
+          <div className="grid lg:grid-cols-2 gap-8 px-6 sm:px-8 lg:pl-12 pb-10 pt-8 lg:pt-12 items-center">
+
+            {/* Left column */}
+            <div className="max-w-[440px]">
+              <p className="text-[11px] font-bold tracking-[0.18em] text-[#5B5470] uppercase">
+                Do more with us!
+              </p>
+              <h1 className="mt-3 text-[36px] sm:text-[44px] leading-[1.08] font-bold text-[#171226] tracking-tight text-balance">
+                Share Files<br />Instantly
+              </h1>
+              <p className="mt-4 text-[13px] leading-relaxed text-[#4B4560]">
+                Send files and text directly between devices — end-to-end encrypted,
+                no cloud storage, no size limits, no sign-ups. Or claim a permanent
+                portal so anyone can drop files into your inbox.
+              </p>
+
+              {/* Share-code input (the email field in the reference) */}
+              <form onSubmit={openPortal} className="mt-7 flex flex-col gap-3">
+                <div className="flex items-center bg-white/55 border border-white/80 rounded-full px-5 py-3">
+                  <input
+                    suppressHydrationWarning
+                    type="text"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="Your share code…"
+                    className="flex-1 bg-transparent text-[13px] text-[#1E1B2E] placeholder:text-[#6B6480] focus:outline-none min-w-0 uppercase tracking-[0.14em]"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    suppressHydrationWarning
+                    type="submit"
+                    className="h-11 px-8 rounded-full bg-[#171226] text-white text-[12px] font-bold tracking-[0.12em] uppercase hover:bg-[#2A2140] transition-colors flex items-center gap-2"
+                  >
+                    Open portal
+                    <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </button>
+                  <Link
+                    href="/p2p"
+                    className="h-11 px-6 rounded-full bg-white/55 border border-white/80 text-[#171226] text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-white/80 transition-colors flex items-center gap-2"
+                  >
+                    <Zap className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    P2P transfer
+                  </Link>
+                </div>
+              </form>
+
+              {/* Social row */}
+              <div className="mt-8 flex items-center gap-3">
+                {[
+                  { Svg: GithubSvg,    href: "https://github.com/share2me",               label: "GitHub" },
+                  { Svg: LinkedinSvg,  href: "https://www.linkedin.com/company/share2me", label: "LinkedIn" },
+                  { Svg: TwitterSvg,   href: "https://twitter.com",                       label: "Twitter" },
+                  { Svg: InstagramSvg, href: "https://instagram.com",                     label: "Instagram" },
+                ].map(({ Svg, href, label }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="w-9 h-9 rounded-full bg-white/50 border border-white/70 flex items-center justify-center text-[#4B4560] hover:text-[#171226] hover:bg-white/80 transition-colors"
+                  >
+                    <Svg className="w-4 h-4" />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Right column — file-format icons orbiting the centered logo */}
+            <div className="relative h-[340px] sm:h-[400px] hidden lg:flex items-center justify-center">
+              <div className="relative w-[340px] h-[340px] flex items-center justify-center">
+                {/* Center logo medallion — flex-centered normal-flow child,
+                    immune to transform/margin drift */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6 }}
+                  className="w-28 h-28 rounded-[28px] overflow-hidden bg-black shadow-[0_24px_60px_rgba(30,20,60,0.35)] z-10"
+                >
+                  <Image src="/logo.png" alt="" width={112} height={112} className="object-cover w-full h-full" />
+                </motion.div>
+
+                {/* Orbit ring — every rotation happens on a full-size (inset-0)
+                    layer so its origin is exactly the container center; the
+                    counter-spin happens on the 58px tile box itself so its
+                    origin is exactly the tile center. No drift possible. */}
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 32, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0"
+                >
+                  {ORBIT_TILES.map((t, i) => {
+                    const angle = (360 / ORBIT_TILES.length) * i;
+                    return (
+                      /* Angular placement layer — full size, origin = center */
+                      <div
+                        key={t.label}
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ transform: `rotate(${angle}deg)` }}
+                      >
+                        {/* Tile slot at 12 o'clock, radius 140px from center:
+                            top = 170 (center) - 140 (radius) - 29 (half tile) */}
+                        <div className="absolute left-1/2 -translate-x-1/2" style={{ top: "1px" }}>
+                          <motion.div
+                            initial={{ rotate: -angle }}
+                            animate={{ rotate: [-angle, -angle - 360] }}
+                            transition={{ duration: 32, repeat: Infinity, ease: "linear" }}
+                            className="w-[58px] h-[58px] pointer-events-auto"
+                          >
+                            {/* 3D glossy tile — icon + extension label */}
+                            <div
+                              title={t.label}
+                              className="relative w-full h-full rounded-[18px] flex flex-col items-center justify-center gap-0.5 overflow-hidden"
+                              style={{
+                                background: `linear-gradient(145deg, ${t.from} 0%, ${t.to} 100%)`,
+                                boxShadow: [
+                                  "0 14px 28px rgba(30, 20, 60, 0.30)",     // drop
+                                  "0 4px 8px rgba(30, 20, 60, 0.18)",       // contact
+                                  "inset 0 2px 3px rgba(255,255,255,0.55)", // top bevel
+                                  "inset 0 -3px 6px rgba(0,0,0,0.25)",      // bottom bevel
+                                ].join(", "),
+                              }}
+                            >
+                              {/* Gloss highlight — top half sheen */}
+                              <span
+                                aria-hidden="true"
+                                className="absolute inset-x-0 top-0 h-1/2 rounded-t-[18px]"
+                                style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0))" }}
+                              />
+                              <t.icon
+                                className="w-5 h-5 text-white relative z-10 drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]"
+                                strokeWidth={2.25}
+                              />
+                              <span className="relative z-10 text-[8px] font-bold tracking-[0.08em] text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
+                                {t.label}
+                              </span>
+                            </div>
+                          </motion.div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+
+                {/* Decorative sparkles */}
+                <Sparkle className="left-[10%] top-[16%] text-[18px]" />
+                <Sparkle className="right-[8%] top-[30%] text-[14px]" />
+                <Sparkle className="left-[16%] bottom-[10%] text-[16px]" />
+                <Sparkle className="right-[14%] bottom-[16%] text-[20px]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom quick links (mobile gets the nav the rail provides on desktop) */}
+          <div className="lg:hidden flex items-center justify-center gap-6 pb-6 text-[12px] font-medium text-[#4B4560]">
+            <Link href="/p2p" className="hover:text-[#171226]">P2P</Link>
+            <Link href="/g2p" className="hover:text-[#171226]">Portal</Link>
+            <Link href="/tools" className="hover:text-[#171226]">Tools</Link>
+            <Link href="/how-it-works" className="hover:text-[#171226]">How</Link>
+            <Link href="/pricing" className="hover:text-[#171226]">Pricing</Link>
+          </div>
+          </div>
         </div>
-        <span className="chip-outline">{tag}</span>
       </div>
-      <h3 className="font-display font-bold uppercase text-2xl text-ink mb-2">{title}</h3>
-      <p className="text-on-surface-variant leading-relaxed">{body}</p>
     </div>
   );
 }
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#CDC3E4]" />}>
       <HomeContent />
     </Suspense>
   );

@@ -7,7 +7,6 @@ import {
   ArrowLeft, ChevronRight, Upload, X, FileText, Sparkles, Download, Loader2,
   ShieldCheck, CheckCircle2, AlertCircle,
 } from "lucide-react";
-import { TopNav } from "@/components/TopNav";
 import type { PdfTool } from "@/lib/pdfTools";
 import { categoryLabel } from "@/lib/pdfTools";
 
@@ -134,47 +133,44 @@ export function PdfToolShell({
 
   return (
     <div className="min-h-screen bg-background flex flex-col text-on-surface font-body">
-      <TopNav />
 
       <main className="w-full max-w-[1200px] mx-auto px-5 md:px-8 lg:px-12 pt-8 pb-24 flex-1">
         {/* Breadcrumb */}
-        <nav className="mb-6 flex items-center gap-2 flex-wrap">
+        <nav className="mb-4 flex items-center gap-2 text-[13px] text-on-surface-variant">
           <Link
             href="/tools"
-            className="inline-flex items-center gap-2 border-2 border-ink rounded-md px-3 py-1.5 bg-surface hover:bg-signal-yellow transition-colors label-caps text-ink shadow-hard-sm"
+            className="inline-flex items-center gap-1.5 font-medium hover:text-on-surface transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" strokeWidth={2.5} />
+            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} />
             All Tools
           </Link>
-          <span className="label-caps text-on-surface-variant flex items-center gap-1 ml-2">
-            <ChevronRight className="w-3 h-3" strokeWidth={2.5} />
-            {categoryLabel(tool.category)}
-          </span>
+          <ChevronRight className="w-3 h-3" strokeWidth={2} />
+          <span>{categoryLabel(tool.category)}</span>
         </nav>
 
-        {/* Tool header */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-          <div className="flex items-start gap-4 flex-1 min-w-0">
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center shadow-hard shrink-0">
-              <Icon className="w-8 h-8 md:w-10 md:h-10 text-ink" strokeWidth={2.5} />
-            </div>
+        {/* Tool header — compact */}
+        <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <span className="icon-tile-lg shrink-0">
+              <Icon className="w-6 h-6" strokeWidth={1.75} />
+            </span>
             <div className="min-w-0">
-              <span className="label-caps text-on-surface-variant">// {categoryLabel(tool.category)}</span>
-              <h1 className="font-display font-bold uppercase text-[40px] md:text-[56px] leading-[1.05] text-ink mt-2">
+              <h1 className="text-[22px] md:text-[26px] font-semibold text-on-surface leading-tight tracking-tight">
                 {tool.title}
               </h1>
-              <p className="text-on-surface-variant mt-3 max-w-[650px] leading-relaxed">
+              <p className="text-[13px] text-on-surface-variant mt-0.5 max-w-[600px] line-clamp-2">
                 {tool.description}
               </p>
             </div>
           </div>
-          <div className="hidden md:flex flex-col items-end gap-2 shrink-0">
-            <span className={`chip-outline ${isReady ? "" : "opacity-60"}`}>
+          <div className="hidden md:flex items-center gap-2 shrink-0">
+            <span className="status-pill text-[12px]">
+              <span className={`status-dot ${isReady ? "status-dot-success" : "status-dot-warning"}`} />
               {isReady ? "Ready" : "Coming Soon"}
             </span>
-            {tool.tag && <span className="chip-yellow">{tool.tag}</span>}
+            {tool.tag && <span className="chip-outline">{tool.tag}</span>}
             <span className="chip-outline flex items-center gap-1.5">
-              <ShieldCheck className="w-3 h-3" strokeWidth={2.5} /> In-browser
+              <ShieldCheck className="w-3 h-3" strokeWidth={2} /> In-browser
             </span>
           </div>
         </div>
@@ -212,7 +208,7 @@ export function PdfToolShell({
                 <div className="w-14 h-14 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center mb-4 shadow-hard-sm">
                   <Upload className="w-7 h-7 text-ink" strokeWidth={2.5} />
                 </div>
-                <p className="font-display font-bold uppercase text-lg text-ink">
+                <p className="text-[15px] font-semibold text-on-surface">
                   {isDragging ? "Drop files here" : "Click or drag files"}
                 </p>
                 <p className="label-caps text-on-surface-variant mt-2">
@@ -292,7 +288,7 @@ export function PdfToolShell({
                       <div className="flex items-center gap-3">
                         <CheckCircle2 className="w-6 h-6 text-ink shrink-0" strokeWidth={2.5} />
                         <div>
-                          <p className="font-display font-bold uppercase text-ink">Ready to download</p>
+                          <p className="text-[15px] font-semibold text-on-surface">Ready to download</p>
                           <p className="label-caps text-ink/70">{result.filename} · {formatSize(result.blob.size)}</p>
                         </div>
                       </div>
@@ -369,13 +365,13 @@ export function PdfToolShell({
         </div>
       </main>
 
-      <footer className="w-full bg-ink text-surface py-10">
-        <div className="max-w-[1200px] mx-auto px-5 md:px-8 lg:px-12 flex flex-col md:flex-row justify-between items-center gap-4">
-          <span className="font-display font-bold uppercase tracking-tight text-xl">Share2Me</span>
-          <div className="label-caps text-surface/70">© 2026 Share2Me — All Rights Reserved</div>
-          <div className="flex items-center gap-6">
-            <Link href="/privacy" className="label-caps text-surface/70 hover:text-signal-yellow transition-colors">Privacy</Link>
-            <Link href="/terms" className="label-caps text-surface/70 hover:text-signal-yellow transition-colors">Terms</Link>
+      <footer className="w-full border-t border-hairline bg-surface py-6">
+        <div className="max-w-[1200px] mx-auto px-5 md:px-8 lg:px-12 flex flex-col md:flex-row justify-between items-center gap-3 text-[12px] text-on-surface-variant">
+          <span className="font-semibold text-on-surface">Share2Me</span>
+          <span>© 2026 Share2Me — All rights reserved</span>
+          <div className="flex items-center gap-5">
+            <Link href="/privacy" className="hover:text-on-surface transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-on-surface transition-colors">Terms</Link>
           </div>
         </div>
       </footer>

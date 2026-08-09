@@ -596,7 +596,7 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="bg-surface-card border border-outline-variant rounded-2xl p-4 sm:p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden h-full min-h-[500px] justify-center shadow-lg"
+              className="bg-surface-card border border-outline-variant rounded-2xl p-5 sm:p-6 md:p-8 relative overflow-hidden h-full shadow-lg"
             >
               {/* Settings Toggle Button */}
               <button
@@ -607,61 +607,45 @@ export default function G2pDashboard({
                 <Settings className="w-5 h-5 text-primary group-hover:rotate-90 transition-transform duration-300" />
               </button>
 
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary/10 border border-primary rounded-full flex items-center justify-center mb-6 sm:mb-8 relative z-10 shrink-0 shadow-sm">
-                <QrCode className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
-              </div>
+              {/* QR-first compact layout — the QR and code ARE the page.
+                  Display-name editing lives in the Settings drawer. */}
+              <div className="flex flex-col items-center justify-center gap-5 relative z-10 h-full py-2">
 
-              <h2 className="text-xl sm:text-2xl font-bold text-on-surface mb-2 sm:mb-3 relative z-10 font-display">Your Share Portal</h2>
-              <p className="text-xs sm:text-sm text-text-secondary mb-6 sm:mb-8 max-w-md relative z-10 leading-relaxed px-2 font-body">
-                Scan the QR code or share your unique code. Anyone with this code can upload files directly to your inbox, even if you are offline.
-              </p>
+                {/* One-line heading */}
+                <div className="text-center">
+                  <h2 className="text-lg sm:text-xl font-bold text-on-surface font-display">Your Share Portal</h2>
+                  <p className="text-[12px] text-text-secondary mt-1 font-body">
+                    Scan the QR or share the code — uploads land in your inbox even while you&apos;re offline.
+                  </p>
+                </div>
 
-              {/* Display Name Setting Box */}
-              <div className="w-full max-w-sm bg-surface-container-low border border-outline rounded-2xl p-3.5 sm:p-4 mb-6 relative z-10 flex flex-col items-start gap-2 text-left shadow-sm">
-                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider font-mono">Your Display Name</label>
-                <div className="flex gap-2 w-full items-center">
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="flex-1 min-w-0 bg-surface-container border border-outline rounded-lg px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-primary transition-colors"
-                  />
+                {/* QR hero */}
+                <div className="bg-surface-container-low rounded-3xl border border-outline p-4 sm:p-5 shadow-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={qrImageUrl} alt="QR Code" className="w-48 h-48 sm:w-56 sm:h-56 rounded-2xl border border-outline-variant/30" />
+                </div>
+
+                {/* Share code bar */}
+                <div className="w-full max-w-sm flex flex-col sm:flex-row items-center gap-2 sm:gap-0 bg-surface-container-low border border-outline rounded-2xl p-2 sm:pl-5 transition-colors shadow-sm">
+                  <span className="w-full sm:flex-1 text-center sm:text-left text-base sm:text-lg font-bold tracking-[0.15em] sm:tracking-[0.2em] text-primary uppercase font-mono py-1">
+                    {user.shareCode || activeShareCode || "LOADING..."}
+                  </span>
                   <button
-                    onClick={handleUpdateName}
-                    disabled={isUpdatingName || !displayName.trim()}
-                    className="bg-primary hover:bg-[#ffe170] text-on-primary border border-transparent px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 shrink-0"
+                    onClick={copyToClipboard}
+                    disabled={!user.shareCode && !activeShareCode}
+                    className="w-full sm:w-auto bg-primary text-on-primary hover:bg-[#ffe170] px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 border border-transparent disabled:opacity-50 shrink-0"
                   >
-                    {isUpdatingName ? "Saving..." : "Save"}
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied ? "Copied" : "Copy Code"}
                   </button>
                 </div>
-                {nameUpdateStatus && (
-                  <p className={`text-[10px] font-bold mt-0.5 font-mono ${
-                    nameUpdateStatus.includes("successfully") ? "text-status-success" : "text-status-error"
-                  }`}>
-                    {nameUpdateStatus}
-                  </p>
-                )}
-              </div>
 
-              {/* QR Code Container */}
-              <div className="w-full max-w-xs sm:max-w-sm bg-surface-container-low rounded-2xl border border-outline p-4 sm:p-6 flex justify-center mb-6 sm:mb-8 relative z-10 shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrImageUrl} alt="QR Code" className="w-44 h-44 sm:w-56 sm:h-56 rounded-xl border border-outline-variant/30" />
-              </div>
-              
-              {/* Share Code Bar */}
-              <div className="w-full max-w-sm flex flex-col sm:flex-row items-center gap-2 sm:gap-0 bg-surface-container-low border border-outline rounded-2xl p-2 sm:pl-5 relative z-10 transition-colors shadow-sm">
-                <span className="w-full sm:flex-1 text-center sm:text-left text-base sm:text-lg font-bold tracking-[0.15em] sm:tracking-[0.2em] text-primary uppercase font-mono py-1">
-                  {user.shareCode || activeShareCode || "LOADING..."}
-                </span>
+                {/* Hint to where display-name editing went */}
                 <button
-                  onClick={copyToClipboard}
-                  disabled={!user.shareCode && !activeShareCode}
-                  className="w-full sm:w-auto bg-primary text-on-primary hover:bg-[#ffe170] px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 border border-transparent disabled:opacity-50 shrink-0"
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="text-[11px] text-text-secondary hover:text-on-surface transition-colors underline underline-offset-2"
                 >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Copied" : "Copy Code"}
+                  Change display name &amp; QR colors in settings
                 </button>
               </div>
               <AnimatePresence>

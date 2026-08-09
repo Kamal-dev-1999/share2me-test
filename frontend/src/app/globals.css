@@ -1,221 +1,410 @@
-@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Comic+Neue:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   Share2Me — Kinetic Grid light theme
-   Cream surface, ink borders, signal-yellow accent, hard shadows.
+   Share2Me — "LoadLogic" design language.
+   Cool blue-gray ground, pure-white cards, black primary actions,
+   pale mint reserved for analytics surfaces, subtle 1px borders,
+   no shadow drama. Status colours live on small dots only.
    ============================================================ */
 :root {
   color-scheme: light;
 
-  --surface: #F2F0EF;
-  --surface-dim: #d4d4d4;
-  --surface-bright: #F2F0EF;
-  --surface-container-lowest: #ffffff;
-  --surface-container-low: #f5f5f5;
-  --surface-container: #f0f0f0;
-  --surface-container-high: #ebebeb;
-  --surface-container-highest: #e5e5e5;
+  /* Surfaces */
+  --background:              #E9EDF1;   /* Overall application background */
+  --surface:                 #FFFFFF;   /* Cards, sidebar, tables */
+  --surface-soft:            #EEF6F2;   /* Analytics / chart panels */
+  --surface-muted:           #F7F8F8;   /* Secondary surfaces (inputs, hover) */
+  --surface-card:            #FFFFFF;
+  --surface-container-lowest:#FFFFFF;
+  --surface-container-low:   #F7F8F8;
+  --surface-container:       #FFFFFF;
+  --surface-container-high:  #F7F8F8;
+  --surface-container-highest:#EAEDF0;
+  --surface-bright:          #E9EDF1;
+  --surface-dim:             #DDE2E7;
+  --mint:                    #EEF6F2;
 
-  --on-surface: #1e1b15;
-  --on-surface-variant: #525252;
-  --inverse-surface: #262626;
-  --inverse-on-surface: #f5f5f5;
+  /* Text hierarchy */
+  --on-surface:              #111111;   /* Headings, primary values */
+  --on-surface-variant:      #5F6368;   /* Supporting text */
+  --text-muted:              #8A8F93;   /* Metadata, labels */
 
-  --outline: #737373;
-  --outline-variant: #d4d4d4;
+  /* Borders */
+  --border:                  #E1E3E5;
+  --border-hover:            #CFD2D5;
+  --hairline:                #E1E3E5;
+  --hairline-strong:         #CFD2D5;
+  --outline:                 #8A8F93;
+  --outline-variant:         #E1E3E5;
 
-  --surface-tint: #FFD700;
-  --primary: #FFD700;
-  --on-primary: #1e1b15;
-  --primary-container: #FFD700;
-  --on-primary-container: #1e1b15;
-  --inverse-primary: #705d00;
+  /* Primary — black, used for primary buttons + active navigation */
+  --black:                   #090909;
+  --ink:                     #111111;
+  --primary:                 #090909;
+  --on-primary:              #FFFFFF;
+  --primary-container:       #262626;
+  --on-primary-container:    #FFFFFF;
+  --inverse-surface:         #111111;
+  --inverse-on-surface:      #FFFFFF;
+  --inverse-primary:         #FFFFFF;
+  --signal-yellow:           #090909;  /* legacy alias, contrast enforced below */
 
-  --secondary: #5e5e5e;
-  --on-secondary: #ffffff;
-  --secondary-container: #e1dfdf;
-  --on-secondary-container: #3d3d3d;
+  /* Semantic status — only for shipment/transfer indicators */
+  --status-success: #35B94A;   /* in-transit, delivered, sent */
+  --status-warning: #E98B32;   /* picked-up, in-progress */
+  --status-danger:  #D9534F;   /* delayed, failed, expired */
+  --error:          #D9534F;
+  --on-error:       #FFFFFF;
+  --error-container:#FEECEB;
+  --on-error-container: #A82520;
 
-  --tertiary: #454747;
-  --on-tertiary: #ffffff;
-  --tertiary-container: #5d5f5f;
-  --on-tertiary-container: #d8d9d9;
+  --secondary:               #5F6368;
+  --on-secondary:            #FFFFFF;
+  --secondary-container:     #F7F8F8;
+  --on-secondary-container:  #111111;
+  --tertiary:                #5F6368;
+  --on-tertiary:             #FFFFFF;
+  --tertiary-container:      #EAEDF0;
+  --on-tertiary-container:   #111111;
 
-  --error: #ba1a1a;
-  --on-error: #ffffff;
-  --error-container: #ffdad6;
-  --on-error-container: #93000a;
+  --on-background:           #111111;
+  --pure-white:              #FFFFFF;
 
-  --background: #F2F0EF;
-  --on-background: #1e1b15;
-  --surface-card: #f0f0f0;
-  --text-muted: #737373;
-  --pure-white: #ffffff;
+  /* Radii */
+  --radius-card:    1rem;      /* 16px — LoadLogic card standard */
+  --radius-control: 0.75rem;   /* 12px — small controls */
+  --radius-pill:    9999px;
 
-  --ink: #1e1b15;
-  --signal-yellow: #FFD700;
-  --hard-shadow: 4px 4px 0 0 rgba(30, 27, 21, 1);
-  --hard-shadow-sm: 2px 2px 0 0 rgba(30, 27, 21, 1);
+  /* Shadows (very subtle only) */
+  --soft-shadow:    0 1px 2px rgba(17, 17, 17, 0.03);
+  --soft-shadow-lg: 0 8px 24px rgba(17, 17, 17, 0.06);
 }
 
 @layer base {
-  html {
-    background-color: var(--background);
-  }
+  html { background-color: #CDC3E4; }
   body {
-    @apply bg-background text-on-surface font-body antialiased;
-    background-color: var(--background);
+    @apply text-on-surface antialiased;
     color: var(--on-surface);
-    selection: bg-primary text-on-primary;
-  }
-  ::selection {
-    background: var(--signal-yellow);
-    color: var(--ink);
-  }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-bold uppercase tracking-tight;
-    color: var(--on-surface);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Glassmorphism backdrop — lavender base with fixed gradient blobs
+       (purple top-right, green right, orange bottom, pink left) that show
+       through the frosted surfaces on every page. */
+    background-color: #CDC3E4;
+    background-image:
+      radial-gradient(420px 420px at 88% -4%,  rgba(124, 58, 237, 0.85) 0%, rgba(124, 58, 237, 0) 70%),
+      radial-gradient(380px 380px at 104% 44%, rgba(74, 222, 128, 0.75) 0%, rgba(74, 222, 128, 0) 70%),
+      radial-gradient(460px 460px at 78% 108%, rgba(249, 115, 22, 0.75) 0%, rgba(249, 115, 22, 0) 70%),
+      radial-gradient(400px 520px at -6% 34%,  rgba(236, 72, 153, 0.55) 0%, rgba(236, 72, 153, 0) 70%),
+      radial-gradient(600px 600px at 38% 18%,  rgba(255, 255, 255, 0.5)  0%, rgba(255, 255, 255, 0) 70%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
 
-  /* Custom scrollbar — brutalist, slightly rounded (matches reference). */
-  ::-webkit-scrollbar { width: 12px; height: 12px; }
-  ::-webkit-scrollbar-track {
-    background: var(--surface-container);
-    border-left: 2px solid var(--ink);
+  /* When the fixed left rail is present (every page except home, which
+     embeds the rail inside its glass panel), shift content right so the
+     68px strip never overlaps it. The active item's white circle
+     intentionally bulges over this seam. */
+  @media (min-width: 1024px) {
+    body:has(> nav[aria-label="Primary"].fixed) { padding-left: 68px; }
   }
+
+  /* Mobile: the rail becomes a fixed bottom bar — reserve space for it. */
+  @media (max-width: 1023.98px) {
+    body { padding-bottom: 64px; }
+  }
+
+  /* Pages paint `bg-background` on their root div — make it transparent so
+     the gradient backdrop shows through everywhere. */
+  .bg-background { background-color: transparent !important; }
+
+  /* Sticky bars (e.g. the /tools category tabs) need glass, not transparency,
+     or scrolling content shows through them unblurred. */
+  .sticky.bg-background {
+    background-color: rgba(255, 255, 255, 0.35) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* `bg-surface` surfaces (TopNav, footers, panels) become frosted glass. */
+  .bg-surface {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  /* Dashboard panels (G2P inbox / share tab / drawers) — frosted glass. */
+  .bg-surface-card {
+    background-color: rgba(255, 255, 255, 0.35) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .bg-surface-muted,
+  .bg-surface-container-low {
+    background-color: rgba(255, 255, 255, 0.45) !important;
+  }
+  .bg-surface-container {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+  }
+  .bg-surface-container-lowest {
+    background-color: rgba(255, 255, 255, 0.25) !important;
+  }
+  .bg-surface-container-high,
+  .bg-surface-container-highest {
+    background-color: rgba(255, 255, 255, 0.55) !important;
+  }
+  ::selection { background: var(--black); color: var(--on-primary); }
+
+  /* Headings — Inter 600, sentence case (LoadLogic uses weight 600 across
+     headings, larger for KPIs). No forced uppercase, tight tracking. */
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--on-surface);
+    font-family: "Inter", sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--surface-muted); }
   ::-webkit-scrollbar-thumb {
-    background: var(--ink);
-    border: 2px solid var(--surface-container);
-    border-radius: 6px;
+    background: var(--border-hover);
+    border: 2px solid var(--surface-muted);
+    border-radius: 9999px;
   }
-  ::-webkit-scrollbar-thumb:hover { background: var(--signal-yellow); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--outline); }
 }
 
 @layer components {
-  /* Primary yellow button with hard offset shadow. */
+  /* -------- Buttons -------- */
+  /* Primary — solid black, white text, medium radius (~14px). LoadLogic
+     "Add new shipment" style: h=42px, padding 18–20px horizontal. */
   .btn-brutalist {
-    @apply relative inline-flex items-center justify-center gap-2 bg-primary text-on-primary font-display font-bold uppercase tracking-tight
-           rounded-lg px-6 py-3 transition-all;
-    box-shadow: var(--hard-shadow);
+    @apply inline-flex items-center justify-center gap-2 px-5 font-medium transition-all duration-150;
+    background: #171226;
+    color: var(--on-primary);
+    border-radius: var(--radius-pill);
+    height: 42px;
+    font-size: 14px;
+    box-shadow: 0 10px 24px rgba(23, 18, 38, 0.28);
   }
-  .btn-brutalist:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 0 var(--ink); }
-  .btn-brutalist:active { transform: translate(2px, 2px); box-shadow: 0 0 0 0 var(--ink); }
+  .btn-brutalist:hover  { background: var(--primary-container); }
+  .btn-brutalist:active { transform: scale(0.98); }
 
-  /* Secondary (ghost) button. */
+  /* Secondary — frosted glass pill, ink text. */
   .btn-brutalist-ghost {
-    @apply relative inline-flex items-center justify-center gap-2 bg-surface text-on-surface font-display font-bold uppercase tracking-tight
-           rounded-lg px-6 py-3 transition-all;
+    @apply inline-flex items-center justify-center gap-2 px-5 font-medium transition-all duration-150;
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--on-surface);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: var(--radius-pill);
+    height: 42px;
+    font-size: 14px;
   }
-  .btn-brutalist-ghost:hover { background-color: var(--signal-yellow); }
+  .btn-brutalist-ghost:hover  { background: rgba(255, 255, 255, 0.7); }
+  .btn-brutalist-ghost:active { transform: scale(0.98); }
 
-  /* Card with 2px ink border. */
+  /* -------- Cards (glassmorphism) -------- */
+  /* Frosted glass panels floating over the gradient backdrop. */
   .card-brutalist {
-    @apply relative bg-surface rounded-xl;
-    box-shadow: var(--hard-shadow);
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius-card);
+    box-shadow: 0 16px 48px rgba(70, 40, 140, 0.14);
   }
   .card-brutalist-flat {
-    @apply relative bg-surface rounded-xl;
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-card);
+  }
+  /* Featured / analytics card — mint-tinted glass. */
+  .card-mint,
+  .card-analytics {
+    background: rgba(238, 246, 242, 0.45);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius-card);
+    box-shadow: 0 16px 48px rgba(70, 40, 140, 0.12);
   }
 
-  /* Input field. */
+  /* -------- Inputs (glass pills) -------- */
   .input-brutalist {
-    @apply relative w-full bg-surface text-on-surface rounded-lg px-4 py-3
-           font-body placeholder:text-outline focus:outline-none transition-all;
-    border: 2px solid var(--ink);
-    filter: url(#wobble-soft);
+    @apply w-full px-4 py-2.5 transition-all;
+    background: rgba(255, 255, 255, 0.5);
+    color: var(--on-surface);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: var(--radius-pill);
+    font-family: "Inter", sans-serif;
+    font-size: 14px;
   }
+  .input-brutalist::placeholder { color: var(--text-muted); }
   .input-brutalist:focus {
-    box-shadow: 0 0 0 3px var(--signal-yellow);
+    outline: none;
+    background: rgba(255, 255, 255, 0.75);
+    border-color: rgba(23, 18, 38, 0.4);
+    box-shadow: 0 0 0 3px rgba(23, 18, 38, 0.08);
   }
 
-  /* JetBrains Mono uppercase caps label. */
+  /* -------- Labels -------- */
+  /* Micro-label — small metadata caption. Sentence-case, no uppercase
+     forcing, so every legacy `.label-caps` usage now reads as a modern
+     small-text label rather than shouting caps. */
   .label-caps {
-    @apply font-mono uppercase tracking-[0.1em] text-[12px] font-medium;
+    @apply text-[12px] font-medium;
+    color: var(--on-surface-variant);
+    font-family: "Inter", sans-serif;
+    letter-spacing: 0;
   }
 
-  /* Yellow chip / tag. */
+  /* -------- Icon tiles -------- */
+  /* Small icon container with a soft "3D-lite" treatment — a light neutral
+     gradient + inner highlight + hairline border. Sits under any Lucide icon
+     and gives it that premium tactile feel you see on Linear/Stripe/Vercel. */
+  .icon-tile {
+    @apply inline-flex items-center justify-center rounded-xl transition-all;
+    width: 40px; height: 40px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.45) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 4px 12px rgba(70, 40, 140, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: var(--on-surface);
+  }
+  .icon-tile-lg {
+    @apply inline-flex items-center justify-center rounded-2xl transition-all;
+    width: 56px; height: 56px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 6px 16px rgba(70, 40, 140, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: var(--on-surface);
+  }
+  /* Inverted "featured" tile — dark ink with a soft top highlight. Used to
+     draw the eye to primary feature icons like P2P / Portal in hero panels. */
+  .icon-tile-dark {
+    @apply inline-flex items-center justify-center rounded-2xl transition-all;
+    width: 56px; height: 56px;
+    background: linear-gradient(180deg, #262626 0%, #090909 100%);
+    box-shadow:
+      0 4px 12px rgba(17, 17, 17, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+  }
+  /* Mint accent tile — sits on light or dark grounds and reads as the
+     "secondary featured" moment (like Portal in the mint hero card). */
+  .icon-tile-mint {
+    @apply inline-flex items-center justify-center rounded-2xl transition-all;
+    width: 56px; height: 56px;
+    background: linear-gradient(180deg, #FFFFFF 0%, var(--surface-soft) 100%);
+    border: 1px solid rgba(53, 185, 74, 0.12);
+    box-shadow:
+      0 2px 4px rgba(53, 185, 74, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: var(--on-surface);
+  }
+
+  /* -------- Chips / Status pills -------- */
+  /* Solid black pill — for active tabs / primary chips. */
   .chip-yellow {
-    @apply relative inline-flex items-center bg-primary text-ink rounded-md px-2 py-0.5 font-mono uppercase text-[11px] font-black;
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium;
+    background: var(--black);
+    color: var(--on-primary);
   }
+  /* Outline chip — frosted glass pill. */
   .chip-outline {
-    @apply relative inline-flex items-center bg-surface text-on-surface rounded-md px-2 py-0.5 font-mono uppercase text-[11px] font-black;
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium;
+    background: rgba(255, 255, 255, 0.45);
+    color: var(--on-surface);
+    border: 1px solid rgba(255, 255, 255, 0.7);
   }
 
-  /* -------------------------------------------------------------------
-     Hand-drawn wobble border applied via an SVG-filtered pseudo-element.
-     Keeps children (text, icons) perfectly crisp — only the ::before
-     rectangle is passed through the turbulence displacement filter.
-     -------------------------------------------------------------------
-  */
-  .btn-brutalist::before,
-  .btn-brutalist-ghost::before,
-  .card-brutalist::before,
-  .card-brutalist-flat::before,
-  .chip-yellow::before,
-  .chip-outline::before {
-    content: "";
-    position: absolute;
-    inset: -1px;
-    border: 2px solid var(--ink);
-    border-radius: inherit;
-    pointer-events: none;
-    filter: url(#wobble);
+  /* -------- Status dots -------- */
+  /* Small coloured dot for shipment/transfer state. Text next to it stays
+     dark for readability — only the dot carries the colour. */
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 9999px;
+    flex: none;
   }
-  .chip-yellow::before,
-  .chip-outline::before { inset: 0; border-width: 1.5px; }
+  .status-dot-success { background: var(--status-success); }
+  .status-dot-warning { background: var(--status-warning); }
+  .status-dot-danger  { background: var(--status-danger); }
+
+  .status-pill {
+    @apply inline-flex items-center gap-2 text-[13px] font-medium;
+    color: var(--on-surface);
+  }
 }
 
 @layer utilities {
   .text-gradient-yellow {
-    background: linear-gradient(135deg, #FFD700 0%, #ffe170 100%);
+    background: linear-gradient(135deg, #111111 0%, #333333 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-  /* Drag-over highlight for drop zones. */
   .drag-active {
-    background-color: rgba(255, 215, 0, 0.15);
-    border-color: var(--signal-yellow) !important;
+    background-color: rgba(9, 9, 9, 0.05);
+    border-color: var(--black) !important;
   }
 
-  /* Hard offset shadow utilities. */
-  .shadow-hard { box-shadow: var(--hard-shadow); }
-  .shadow-hard-sm { box-shadow: var(--hard-shadow-sm); }
-
-  /* Wobble the whole element (subtle) — for containers where a pseudo-border
-     isn't practical (e.g. the sticky nav's `border-b-2`). Distorts children
-     slightly, so use sparingly. */
-  .wobble { filter: url(#wobble-soft); }
-  .wobble-hard { filter: url(#wobble); }
+  /* Legacy shadow aliases — softened. */
+  .shadow-hard    { box-shadow: var(--soft-shadow); }
+  .shadow-hard-sm { box-shadow: none; }
+  .wobble       { filter: none; }
+  .wobble-hard  { filter: none; }
+  .wobble-soft  { filter: none; }
 }
 
-/* Wavy borders on raw `border-2 border-ink` elements — but ONLY for those
-   that aren't absolutely positioned. Positioned elements (laptop, phone,
-   floating badges) keep their own layout context; we don't force position
-   on them or we'd break their coordinates. Absolute/fixed/sticky elements
-   already have positioning contexts, so we can still overlay a wavy pseudo
-   without touching position. */
-.border-ink.border-2:not(input):not(textarea):not(nav):not(.card-brutalist):not(.card-brutalist-flat):not(.btn-brutalist):not(.btn-brutalist-ghost):not(.chip-yellow):not(.chip-outline):not(.absolute):not(.fixed):not(.sticky) {
-  position: relative;
-  border-color: transparent !important;
+/* ============================================================
+   Contrast overrides — the codebase uses `bg-signal-yellow` as
+   the primary accent. Now that `signal-yellow` maps to LoadLogic
+   black, force text/borders on those elements to render as white
+   for readability.
+   ============================================================ */
+.bg-signal-yellow          { background-color: var(--black) !important; color: var(--on-primary) !important; }
+.bg-signal-yellow .text-ink { color: var(--on-primary) !important; }
+.bg-signal-yellow > svg     { color: var(--on-primary); }
+.text-signal-yellow        { color: var(--on-primary) !important; }
+.border-signal-yellow      { border-color: var(--black) !important; }
+.hover\:bg-signal-yellow:hover { background-color: var(--black) !important; color: var(--on-primary) !important; }
+.bg-ink .text-ink { color: var(--on-primary) !important; }
+
+/* ─── Premium Dashboard Animations ─── */
+@keyframes scan {
+  0%, 100% {
+    top: 5%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 93%;
+    opacity: 0.8;
+  }
 }
-.border-ink.border-2:not(input):not(textarea):not(nav):not(.card-brutalist):not(.card-brutalist-flat):not(.btn-brutalist):not(.btn-brutalist-ghost):not(.chip-yellow):not(.chip-outline):not(.absolute):not(.fixed):not(.sticky)::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 2px solid var(--ink);
-  border-radius: inherit;
-  pointer-events: none;
-  filter: url(#wobble);
-  z-index: 0;
+
+@keyframes radar-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
+

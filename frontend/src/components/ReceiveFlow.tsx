@@ -83,7 +83,23 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
     setVideoReady(false);
   }, []);
 
-  useEffect(() => () => stopCamera(), [stopCamera]);
+  useEffect(() => () => {
+    scanningRef.current = false;
+    cancelAnimationFrame(rafRef.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+  }, []);
+
+  const handleJoin = useCallback(async (code: string) => {
+    if (!code || joining) return;
+    setJoining(true);
+    stopCamera();
+    try {
+      await onJoin(code);
+    } catch {
+      setJoining(false);
+      setShowErrorPopup(true);
+    }
+  }, [joining, onJoin, stopCamera]);
 
   const startScan = useCallback(async () => {
     setCameraError(null);
@@ -104,18 +120,6 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
       setCameraError(err instanceof Error ? err.message : "Camera access denied");
     }
   }, []);
-
-  const handleJoin = useCallback(async (code: string) => {
-    if (!code || joining) return;
-    setJoining(true);
-    stopCamera();
-    try {
-      await onJoin(code);
-    } catch {
-      setJoining(false);
-      setShowErrorPopup(true);
-    }
-  }, [joining, onJoin, stopCamera]);
 
   const tick = useCallback(() => {
     if (!scanningRef.current) return;
@@ -169,19 +173,18 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
     return errStatus;
   };
 
-  // Removed unused otcDisplay
   return (
     <>
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in w-full relative">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in w-full relative z-10 text-on-surface">
       {/* ── LEFT PANEL: CODE INPUT & SCANNER ── */}
       <div className="flex flex-col gap-6">
         
         {isIdle ? (
           <div className="flex flex-col gap-6">
             {/* OTC Input Box */}
-            <div className="bg-background-card border-2 border-primary rounded-[22px] p-6">
-              <label className="block text-[13px] font-semibold text-text-tertiary uppercase tracking-wider mb-4">
-                Enter Sender&apos;s Code
+            <div className="bg-white border border-[#E1E3E5] rounded-[24px] p-8 relative z-10 shadow-sm">
+              <label className="block text-[11px] font-semibold text-[#5F6368] uppercase tracking-wider mb-3">
+                Enter 6-Digit Code
               </label>
               
               <div className="flex items-center gap-3">
@@ -195,52 +198,52 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                       handleJoin(otc);
                     }
                   }}
-                  placeholder="6-DIGIT CODE"
-                  className="w-full bg-background border-2 border-primary rounded-xl px-5 py-4 text-primary font-mono text-[20px] font-bold tracking-[0.2em] focus:outline-none transition-all uppercase placeholder:text-border placeholder:font-sans placeholder:tracking-normal"
+                  placeholder="ENTER CODE"
+                  className="w-full bg-[#F7F8F8] border border-[#E1E3E5] rounded-xl px-4 py-3.5 text-black font-mono text-[22px] font-bold tracking-[0.25em] text-center focus:outline-none focus:bg-white focus:border-black transition-all uppercase placeholder:text-[#E1E3E5] placeholder:font-sans placeholder:tracking-normal"
                 />
               </div>
               
               <button
                 disabled={otc.length !== 6 || joining}
                 onClick={() => handleJoin(otc)}
-                className={`w-full mt-4 font-bold text-[15px] h-[48px] rounded-xl flex items-center justify-center gap-2 transition-all duration-200 ${
+                className={`w-full mt-4 font-semibold text-[13px] h-12 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 ${
                   otc.length !== 6 || joining
-                    ? "bg-background-elevated text-text-tertiary border border-primary/40 opacity-50 cursor-not-allowed"
-                    : "bg-primary text-background hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 border-2 border-primary"
+                    ? "bg-[#F7F8F8] text-[#8A8F93] border border-[#E1E3E5] cursor-not-allowed opacity-60 h-12 rounded-xl flex items-center justify-center gap-2"
+                    : "bg-black text-white hover:bg-[#262626] hover:-translate-y-0.5 active:translate-y-0 shadow-sm"
                 }`}
               >
-                {joining ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                {joining ? "Joining Room…" : "Join Transfer"}
+                {joining ? <Loader2 className="w-5 h-5 animate-spin text-white" /> : null}
+                {joining ? "Joining Room…" : "Connect & Receive"}
               </button>
             </div>
 
 
             {/* QR Scanner */}
-            <div className="bg-background-card border-2 border-primary rounded-[22px] overflow-hidden flex flex-col relative">
+            <div className="bg-white border border-[#E1E3E5] rounded-[24px] overflow-hidden flex flex-col relative z-10 shadow-sm">
               
               {!scanning && !scanSuccess && (
                 <div className="p-10 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 rounded-full bg-background-elevated border-2 border-primary flex items-center justify-center mb-4">
-                    <Camera className="w-7 h-7 text-primary" />
+                  <div className="w-14 h-14 rounded-xl bg-[#EEF6F2] flex items-center justify-center text-[#35B94A] border border-[#EEF6F2] mb-4">
+                    <Camera className="w-6 h-6" />
                   </div>
-                  <h3 className="text-[15px] font-semibold text-text-primary">Scan QR Code</h3>
-                  <p className="text-[13px] text-text-tertiary mt-1 mb-5">Quickly connect by scanning the sender&apos;s code.</p>
+                  <h3 className="text-[14px] font-semibold text-[#111111]">Scan Connection QR</h3>
+                  <p className="text-[12px] text-[#8A8F93] mt-1.5 mb-5">Position the QR code in front of the camera to link devices.</p>
                   
                   {cameraError ? (
-                    <p className="text-[13px] text-status-error mb-4 px-4 bg-status-error/10 py-2 rounded-lg border border-status-error/20">{cameraError}</p>
+                    <p className="text-[12px] text-red-400 mb-4 px-4 bg-red-50 py-2 rounded-lg border border-red-100">{cameraError}</p>
                   ) : null}
 
                   <button
                     onClick={startScan}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-background-elevated border border-primary hover:bg-primary/10 text-[14px] font-bold text-text-primary rounded-xl transition-all"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#F7F8F8] border border-[#E1E3E5] hover:bg-white text-[12px] font-semibold text-[#5F6368] hover:text-black rounded-xl transition-all"
                   >
-                    <Camera className="w-4 h-4 text-primary" /> Open Camera
+                    <Camera className="w-3.5 h-3.5 text-[#35B94A]" /> Start Scanner
                   </button>
                 </div>
               )}
 
               {/* Live Camera View */}
-              <div className={`relative bg-black w-full overflow-hidden transition-all duration-300 ${scanning || scanSuccess ? "h-[300px]" : "h-0"}`}>
+              <div className={`relative bg-black w-full overflow-hidden transition-all duration-300 ${scanning || scanSuccess ? "h-[320px]" : "h-0"}`}>
                 <video
                   ref={videoRef}
                   muted
@@ -251,26 +254,28 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                 <canvas ref={canvasRef} className="hidden" />
 
                 {scanSuccess ? (
-                  <div className="absolute inset-0 bg-background-card flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-status-success/20 flex items-center justify-center mb-3">
-                      <CheckCircle2 className="w-8 h-8 text-status-success" />
+                  <div className="absolute inset-0 bg-[#EEF6F2] border-t border-[#E1E3E5] flex flex-col items-center justify-center p-4">
+                    <div className="w-14 h-14 rounded-full bg-[#35B94A]/15 flex items-center justify-center mb-3 text-[#35B94A]">
+                      <CheckCircle2 className="w-6 h-6" />
                     </div>
-                    <p className="text-status-success font-semibold text-[15px]">QR scanned successfully!</p>
+                    <p className="text-[#35B94A] font-semibold text-[14px]">QR scanned successfully!</p>
                   </div>
                 ) : scanning && !videoReady ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-background-card gap-3">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    <p className="text-[13px] text-text-secondary">Starting camera…</p>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F7F8F8] gap-2.5">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#35B94A]" />
+                    <p className="text-[12px] text-[#8A8F93]">Starting camera…</p>
                   </div>
                 ) : scanning && videoReady ? (
                   <div className="absolute inset-0 pointer-events-none">
                     {/* Reticle */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-56 h-56 rounded-[24px] border-2 border-primary/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]">
-                        <span className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl" />
-                        <span className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-xl" />
-                        <span className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-xl" />
-                        <span className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-xl" />
+                      <div className="w-52 h-52 rounded-[24px] border-2 border-[#35B94A]/55 shadow-[0_0_0_9999px_rgba(247,248,248,0.85)] relative">
+                        <span className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-[#35B94A] rounded-tl-lg" />
+                        <span className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-[#35B94A] rounded-tr-lg" />
+                        <span className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-[#35B94A] rounded-bl-lg" />
+                        <span className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-[#35B94A] rounded-br-lg" />
+                        {/* Red Laser Scan Bar */}
+                        <div className="absolute left-1 right-1 h-0.5 bg-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.8)] top-0 animate-[scan_2.5s_ease-in-out_infinite]" />
                       </div>
                     </div>
                     
@@ -278,14 +283,14 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                     <div className="absolute bottom-4 right-4 pointer-events-auto">
                       <button
                         onClick={stopCamera}
-                        className="flex items-center gap-2 bg-black/60 hover:bg-black/80 text-white text-[12px] font-semibold px-4 py-2 rounded-lg backdrop-blur-md transition-colors"
+                        className="flex items-center gap-2 bg-white/90 hover:bg-white text-black text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[#E1E3E5] transition-colors"
                       >
-                        <CameraOff className="w-4 h-4" /> Stop
+                        <CameraOff className="w-3.5 h-3.5" /> Stop
                       </button>
                     </div>
                     <div className="absolute bottom-4 left-4">
-                      <span className="flex items-center gap-2 bg-black/60 text-primary text-[12px] font-semibold px-4 py-2 rounded-lg backdrop-blur-md">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Scanning…
+                      <span className="flex items-center gap-2 bg-[#EEF6F2] text-[#35B94A] text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[#35B94A]/25">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Detecting QR…
                       </span>
                     </div>
                   </div>
@@ -296,19 +301,18 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         ) : (
           <div className="flex flex-col gap-6">
             {/* Connected Info Box */}
-            <div className="bg-background-card border border-border rounded-[20px] p-6 shadow-sm">
-              <label className="block text-[13px] font-semibold text-text-tertiary uppercase tracking-wider mb-2">
-                Connected to Sender
+            <div className="bg-white border border-[#E1E3E5] rounded-[24px] p-8 relative z-10 shadow-sm">
+              <label className="block text-[11px] font-semibold text-[#5F6368] uppercase tracking-wider mb-2">
+                Linked to Sender Device
               </label>
-              <div className="font-mono text-3xl font-bold text-primary tracking-[0.2em]">{otc}</div>
+              <div className="font-mono text-3xl font-bold text-black tracking-[0.25em]">{otc}</div>
               
-              <div className="mt-6 p-4 rounded-xl bg-background border border-border flex items-start gap-3">
-                <Shield className="w-5 h-5 text-status-success mt-0.5" />
+              <div className="mt-6 p-5 rounded-2xl bg-[#EEF6F2] border border-[#35B94A]/20 flex items-start gap-3.5">
+                <Shield className="w-5.5 h-5.5 text-[#35B94A] mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-[14px] font-semibold text-text-primary">End-to-End Encrypted</p>
-                  <p className="text-[13px] text-text-secondary mt-1">
-                    Your connection is secured with AES-256-GCM. 
-                    Only you and the sender can decrypt this transfer.
+                  <p className="text-[13px] font-semibold text-[#35B94A]">Secured Direct Channel</p>
+                  <p className="text-[12.5px] text-[#5F6368] mt-1.5 leading-relaxed">
+                    Your connection is verified. The payload is encrypted end-to-end and streams directly peer-to-peer.
                   </p>
                 </div>
               </div>
@@ -316,19 +320,19 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
 
             {/* Received Text Panel */}
             {receivedText && (
-              <div className="bg-background-card border border-border rounded-[20px] p-6 animate-fade-in shadow-sm">
+              <div className="bg-white border border-[#E1E3E5] rounded-[24px] p-8 animate-fade-in relative z-10 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[13px] font-semibold text-text-tertiary uppercase tracking-wider">Received Text</span>
+                  <span className="text-[11px] font-semibold text-[#5F6368] uppercase tracking-wider">Decrypted Text Payload</span>
                   <button
                     onClick={copyText}
-                    className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary hover:text-text-primary bg-background hover:bg-background-elevated px-3 py-1.5 rounded-lg border border-border transition-colors"
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-[#5F6368] bg-[#F7F8F8] hover:bg-[#E1E3E5] px-3 py-1.5 rounded-lg border border-[#E1E3E5] transition-colors"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-status-success" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? <Check className="w-3.5 h-3.5 text-[#35B94A]" /> : <Copy className="w-3.5 h-3.5" />}
                     {copied ? "Copied!" : "Copy"}
                   </button>
                 </div>
-                <div className="bg-background border border-border rounded-xl p-4 max-h-64 overflow-y-auto custom-scrollbar">
-                  <pre className="text-[14px] font-mono text-text-primary whitespace-pre-wrap word-break-all">
+                <div className="bg-[#F7F8F8] border border-[#E1E3E5] rounded-xl p-4 max-h-64 overflow-y-auto custom-scrollbar">
+                  <pre className="text-[13px] font-mono text-black whitespace-pre-wrap break-all">
                     {receivedText}
                   </pre>
                 </div>
@@ -339,25 +343,25 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
       </div>
 
       {/* ── RIGHT PANEL: STATUS & DASHBOARD ── */}
-      <div className="card-brutalist flex flex-col h-full min-h-[400px] border-[3px] border-ink bg-surface wobble-soft overflow-hidden">
+      <div className="bg-white border border-[#E1E3E5] rounded-[24px] overflow-hidden flex flex-col h-full min-h-[400px] relative shadow-sm">
         
         {/* Connection Header */}
-        <div className="px-6 py-4 border-b-2 border-ink bg-surface-container flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full border-2 border-ink ${isIdle ? "bg-surface-dim" : isDone ? "bg-status-success" : "bg-signal-yellow animate-pulse-ring"}`} />
-            <span className="label-caps">Connection Status</span>
+        <div className="px-6 py-4.5 border-b border-[#E1E3E5] bg-[#F7F8F8] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-2.5 h-2.5 rounded-full ${isIdle ? "bg-[#8A8F93]" : isDone ? "bg-[#35B94A] shadow-[0_0_8px_rgba(53,185,74,0.3)]" : "bg-[#E98B32] shadow-[0_0_8px_rgba(233,139,50,0.3)] animate-pulse"}`} />
+            <span className="text-[11px] font-bold text-[#5F6368] uppercase tracking-wider">Transfer Connection</span>
           </div>
           {(!isIdle) ? (
-            <div className="flex items-center gap-1.5 bg-status-success/20 border-2 border-status-success px-2.5 py-1 rounded-md">
-              <Shield className="w-3.5 h-3.5 text-status-success" />
-              <span className="font-mono text-[11px] font-bold uppercase text-status-success">
+            <div className="flex items-center gap-1.5 bg-[#EEF6F2] border border-[#35B94A]/20 px-2.5 py-1 rounded-md text-[#35B94A]">
+              <Shield className="w-3.5 h-3.5" />
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider">
                 {keyStatus === "ready" ? "Key Ready" : keyStatus === "generated" ? "Key Generated" : "Secured P2P"}
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 bg-surface-container border-2 border-outline px-2.5 py-1 rounded-md">
-              <Activity className="w-3.5 h-3.5 text-outline" />
-              <span className="font-mono text-[11px] font-bold uppercase text-outline">
+            <div className="flex items-center gap-1.5 bg-[#F7F8F8] border border-[#E1E3E5] px-2.5 py-1 rounded text-[#8A8F93]">
+              <Activity className="w-3.5 h-3.5" />
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider">
                 Standby
               </span>
             </div>
@@ -365,30 +369,30 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         </div>
 
         {/* Dynamic Content Body */}
-        <div className="flex-1 flex flex-col justify-center p-6 relative">
+        <div className="flex-1 flex flex-col justify-center p-8 relative">
           
           <AnimatePresence mode="wait">
             {isIdle && (
               <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center text-center gap-4">
-                <div className="w-20 h-20 rounded-full border border-border flex items-center justify-center bg-background/50 relative">
-                  <div className="absolute inset-0 rounded-full border border-primary/20 animate-[radar-spin_4s_linear_infinite] border-t-primary" />
-                  <Activity className="w-8 h-8 text-text-tertiary" />
+                <div className="w-20 h-20 rounded-full border border-[#E1E3E5] flex items-center justify-center bg-[#F7F8F8] text-[#8A8F93] shadow-inner relative">
+                  <div className="absolute inset-0 rounded-full border border-[#35B94A]/10 animate-[radar-spin_6s_linear_infinite] border-t-[#35B94A]/40" />
+                  <Activity className="w-7 h-7" />
                 </div>
                 <div>
-                  <p className="text-text-primary font-medium">Waiting for Connection</p>
-                  <p className="text-text-tertiary text-[13px] mt-1 max-w-[200px]">Enter a code or scan a QR to establish a secure link.</p>
+                  <p className="text-[#111111] font-semibold text-[15px]">Awaiting Connection</p>
+                  <p className="text-[#8A8F93] text-[13px] mt-1.5 max-w-[230px] leading-relaxed">Enter the code or scan the QR code from the sender to start the transfer.</p>
                 </div>
               </motion.div>
             )}
 
             {!isIdle && !isTransferring && !isDone && (
               <motion.div key="connecting" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex flex-col items-center justify-center w-full">
-                <div className="w-24 h-24 rounded-full border border-primary/30 flex items-center justify-center bg-primary/5 relative">
-                  <div className="absolute inset-0 rounded-full border-2 border-primary/50 animate-[radar-spin_2s_linear_infinite] border-t-primary shadow-glow" />
-                  <Key className="w-8 h-8 text-primary" />
+                <div className="w-16 h-16 rounded-full border border-[#E1E3E5] flex items-center justify-center bg-[#F7F8F8] relative text-[#8A8F93]">
+                  <div className="absolute inset-0 rounded-full border border-[#35B94A]/30 animate-[radar-spin_3s_linear_infinite] border-t-[#35B94A]" />
+                  <Key className="w-7 h-7 text-[#111111]" />
                 </div>
-                <h3 className="text-[18px] font-semibold text-text-primary mt-6 mb-1">Negotiating WebRTC</h3>
-                <p className="text-[14px] text-text-tertiary text-center max-w-[250px]">{status}</p>
+                <h3 className="text-[14px] font-semibold text-black mt-5 mb-1">Establishing Encryption Channel</h3>
+                <p className="text-[12px] text-[#8A8F93] text-center max-w-[220px] leading-relaxed">{status}</p>
               </motion.div>
             )}
 
@@ -396,33 +400,33 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
               <motion.div key="transfer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full h-full justify-center">
                 
                 {/* Big Circular/Visual Progress Area */}
-                <div className="flex flex-col items-center justify-center mb-10">
-                  <div className="relative w-40 h-40 flex items-center justify-center">
+                <div className="flex flex-col items-center justify-center mb-8">
+                  <div className="relative w-36 h-36 flex items-center justify-center">
                     {/* Background Circle */}
                     <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-                      <circle cx="80" cy="80" r="76" fill="none" stroke="currentColor" strokeWidth="6" className="text-border" />
-                      <circle cx="80" cy="80" r="76" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="477.5" strokeDashoffset={477.5 - (477.5 * progress) / 100} className="text-primary transition-all duration-500 ease-out" />
+                      <circle cx="72" cy="72" r="68" fill="none" stroke="currentColor" strokeWidth="5" className="text-[#E1E3E5]" />
+                      <circle cx="72" cy="72" r="68" fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray="427" strokeDashoffset={427 - (427 * progress) / 100} className="text-[#35B94A] transition-all duration-350 ease-out" />
                     </svg>
                     <div className="flex flex-col items-center justify-center z-10">
-                      <span className="text-[32px] font-display font-bold text-text-primary leading-none">{progress}%</span>
+                      <span className="text-[28px] font-mono font-bold text-black leading-none">{progress}%</span>
                       {isDone ? (
-                        <span className="text-[12px] font-bold text-status-success mt-1 uppercase tracking-wider">Complete</span>
+                        <span className="text-[10px] font-bold text-[#35B94A] mt-1.5 uppercase tracking-widest">Complete</span>
                       ) : (
-                        <span className="text-[12px] font-medium text-text-tertiary mt-1 uppercase tracking-wider">Receiving</span>
+                        <span className="text-[10px] font-bold text-[#35B94A] mt-1.5 uppercase tracking-widest animate-pulse">Receiving</span>
                       )}
                     </div>
                   </div>
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3 w-full">
-                  <div className="bg-background border border-border rounded-xl p-4 flex flex-col">
-                    <span className="text-[12px] text-text-tertiary font-medium mb-1">Received</span>
-                    <span className="text-[15px] font-semibold text-text-primary font-mono">{formatBytes(bytesTransferred)}</span>
+                <div className="grid grid-cols-2 gap-4 w-full">
+                  <div className="bg-[#F7F8F8] border border-[#E1E3E5] rounded-[20px] p-5 flex flex-col shadow-sm">
+                    <span className="text-[10px] text-[#8A8F93] font-bold uppercase tracking-wider mb-1.5">Data Received</span>
+                    <span className="text-[14px] font-bold text-black font-mono">{formatBytes(bytesTransferred)}</span>
                   </div>
-                  <div className="bg-background border border-border rounded-xl p-4 flex flex-col">
-                    <span className="text-[12px] text-text-tertiary font-medium mb-1">Current Speed</span>
-                    <span className="text-[15px] font-semibold text-primary font-mono">{speedBps > 0 ? formatSpeed(speedBps) : "--"}</span>
+                  <div className="bg-[#F7F8F8] border border-[#E1E3E5] rounded-[20px] p-5 flex flex-col shadow-sm">
+                    <span className="text-[10px] text-[#8A8F93] font-bold uppercase tracking-wider mb-1.5">Transfer Speed</span>
+                    <span className="text-[14px] font-bold text-[#35B94A] font-mono">{speedBps > 0 ? formatSpeed(speedBps) : "--"}</span>
                   </div>
                 </div>
               </motion.div>
@@ -431,10 +435,10 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
         </div>
 
         {/* Persistent Status Bar at Bottom */}
-        <div className="w-full p-4 border-t border-border bg-background/50 backdrop-blur-md shrink-0">
+        <div className="w-full p-4.5 border-t border-[#E1E3E5] bg-[#F7F8F8] shrink-0">
           <div className="flex items-center gap-3">
-            {isTransferring ? <Loader2 className="w-4 h-4 text-primary animate-spin" /> : <HardDrive className="w-4 h-4 text-text-tertiary" />}
-            <span className={`text-[13px] font-medium truncate ${phase === "error" ? "text-status-error" : "text-text-secondary"}`}>
+            {isTransferring ? <Loader2 className="w-4 h-4 text-[#35B94A] animate-spin" /> : <HardDrive className="w-4 h-4 text-[#8A8F93]" />}
+            <span className={`text-[12px] font-semibold truncate ${phase === "error" ? "text-[#D9534F]" : "text-[#5F6368]"}`}>
               {phase === "error" ? getFriendlyError(status) : status}
             </span>
           </div>
@@ -449,36 +453,36 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-background/60 backdrop-blur-md p-4"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-[#111111]/30 backdrop-blur-sm p-4"
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="bg-background-card border border-border shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-[24px] p-8 flex flex-col items-center gap-5 w-full max-w-[400px] relative"
+            className="bg-white border border-[#E1E3E5] shadow-2xl rounded-[28px] p-8 flex flex-col items-center gap-6 w-full max-w-[400px] relative text-black"
           >
             <button
               onClick={() => setShowCompletionPopup(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-background-elevated transition-colors text-text-secondary hover:text-text-primary"
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-[#F7F8F8] transition-colors text-[#8A8F93] hover:text-black"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-20 h-20 rounded-full bg-status-success/20 flex items-center justify-center mb-2">
-              <CheckCircle2 className="w-10 h-10 text-status-success" />
+            <div className="w-20 h-20 rounded-full bg-[#EEF6F2] border border-[#35B94A]/20 flex items-center justify-center mb-1 text-[#35B94A]">
+              <CheckCircle2 className="w-10 h-10" />
             </div>
             <div className="text-center">
-              <h3 className="text-[22px] font-bold text-text-primary">Transfer Completed!</h3>
-              <p className="text-[14px] text-text-secondary mt-2">
-                Your data has been successfully received. The peer-to-peer connection is now closed.
+              <h3 className="text-[22px] font-bold text-black">Direct Transfer Complete</h3>
+              <p className="text-[13.5px] text-[#8A8F93] mt-2.5 leading-relaxed">
+                The data stream completed successfully. The direct encrypted channel is now closed.
               </p>
             </div>
             
-            <div className="flex gap-3 w-full mt-4">
+            <div className="flex gap-3 w-full mt-2">
               <button
                 onClick={() => window.location.href = "/"}
-                className="w-full bg-primary text-background font-bold text-[15px] h-[48px] rounded-xl shadow-glow hover:-translate-y-0.5 transition-transform"
+                className="w-full bg-black text-white hover:bg-[#262626] font-semibold text-[14px] h-12 rounded-xl transition-all"
               >
-                New Transfer
+                Receive Another Payload
               </button>
             </div>
           </motion.div>
@@ -493,22 +497,24 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
           initial={{ opacity: 0, y: -20, x: "-50%" }}
           animate={{ opacity: 1, y: 0, x: "-50%" }}
           exit={{ opacity: 0, y: -20, x: "-50%" }}
-          className="fixed top-24 left-1/2 z-[200] bg-status-error text-background px-6 py-4 rounded-xl shadow-[0_8px_30px_rgba(239,68,68,0.3)] flex items-center gap-3 border border-red-500/50 w-[90%] sm:w-auto min-w-[300px] max-w-[400px] cursor-pointer"
+          className="fixed top-24 left-1/2 z-[200] bg-[#FEECEB] text-[#A82520] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 border border-[#D9534F]/30 w-[90%] sm:w-auto min-w-[300px] max-w-[400px] cursor-pointer"
           onClick={() => setShowErrorPopup(false)}
         >
-          <div className="w-8 h-8 bg-background/20 rounded-full flex items-center justify-center shrink-0">
-            <X className="w-4 h-4" />
+          <div className="w-8 h-8 bg-[#D9534F]/10 rounded-full flex items-center justify-center shrink-0">
+            <X className="w-4 h-4 text-[#D9534F]" />
           </div>
           <div className="flex flex-col flex-1 pr-2">
-            <span className="font-bold text-[15px]">Connection Failed</span>
-            <span className="text-[13px] text-background/90">{getFriendlyError(status)}</span>
+            <span className="font-semibold text-[15px] text-[#A82520]">Connection Failed</span>
+            <span className="text-[13px] text-[#D9534F]/90">{getFriendlyError(status)}</span>
           </div>
           <button className="ml-2 opacity-70 hover:opacity-100 transition-opacity p-1 focus:outline-none">
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 text-[#D9534F]" />
           </button>
         </motion.div>
       )}
     </AnimatePresence>
+
+
     </>
   );
 }

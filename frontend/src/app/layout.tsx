@@ -6,6 +6,7 @@ import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 
 import { SplashScreen } from "@/components/SplashScreen";
+import { SideRail } from "@/components/SideRail";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://share2.me'),
@@ -161,7 +162,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#F2F0EF",
+  themeColor: "#E9EDF1",
 };
 
 export default function RootLayout({
@@ -317,6 +318,7 @@ export default function RootLayout({
           </defs>
         </svg>
         <SplashScreen />
+        <SideRail />
         {children}
         <Analytics />
         <SpeedInsights />

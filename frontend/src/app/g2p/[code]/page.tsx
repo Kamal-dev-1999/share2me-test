@@ -62,10 +62,10 @@ export default function G2pSenderPortal({ params }: PageProps) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 text-on-surface">
         <div className="card-brutalist p-8 max-w-md w-full text-center">
-          <div className="w-14 h-14 bg-error text-surface border-2 border-ink rounded-md flex items-center justify-center mx-auto mb-6 shadow-hard-sm">
-            <AlertCircle className="w-7 h-7" strokeWidth={2.5} />
+          <div className="w-12 h-12 bg-error/10 text-error rounded-xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-6 h-6" strokeWidth={2} />
           </div>
-          <h2 className="font-display font-bold uppercase text-3xl text-ink mb-2">Portal Not Found</h2>
+          <h2 className="text-[22px] font-semibold text-on-surface mb-2">Portal not found</h2>
           <p className="text-on-surface-variant mb-8 leading-relaxed">
             The Share Code <span className="font-mono font-bold text-ink">&quot;{code}&quot;</span> is invalid or has expired.
           </p>
@@ -208,13 +208,13 @@ export default function G2pSenderPortal({ params }: PageProps) {
               className="card-brutalist p-6 sm:p-8"
             >
               {/* Recipient header */}
-              <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-ink">
-                <div className="w-14 h-14 rounded-md bg-signal-yellow border-2 border-ink flex items-center justify-center font-display font-bold uppercase text-2xl text-ink shadow-hard-sm shrink-0">
+              <div className="flex items-center gap-3 mb-6 pb-5 border-b border-hairline">
+                <div className="w-11 h-11 rounded-xl bg-surface-muted flex items-center justify-center font-semibold text-lg text-on-surface shrink-0">
                   {receiver.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="label-caps text-on-surface-variant mb-1">// Sending To</p>
-                  <h1 className="font-display font-bold uppercase text-2xl md:text-3xl text-ink leading-tight truncate">
+                  <p className="text-[12px] text-on-surface-variant">Sending to</p>
+                  <h1 className="text-[18px] font-semibold text-on-surface leading-tight truncate">
                     {receiver.name}
                   </h1>
                 </div>
@@ -253,7 +253,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
                     <div className="w-14 h-14 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center mb-4 shadow-hard-sm">
                       <Upload className="w-7 h-7 text-ink" strokeWidth={2.5} />
                     </div>
-                    <p className="font-display font-bold uppercase text-lg text-ink mb-1">
+                    <p className="text-[15px] font-semibold text-on-surface mb-0.5">
                       Click or drag files here
                     </p>
                     <p className="label-caps text-on-surface-variant">Direct upload via Cloudflare R2</p>
@@ -361,7 +361,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
               <div className="w-16 h-16 bg-signal-yellow border-2 border-ink rounded-md flex items-center justify-center mx-auto mb-6 shadow-hard">
                 <CheckCircle2 className="w-9 h-9 text-ink" strokeWidth={2.5} />
               </div>
-              <h2 className="font-display font-bold uppercase text-3xl text-ink mb-3">Transfer Complete</h2>
+              <h2 className="text-[22px] font-semibold text-on-surface mb-2">Transfer complete</h2>
               <p className="text-on-surface-variant mb-8 max-w-sm mx-auto leading-relaxed">
                 Your files have been securely delivered to{" "}
                 <strong className="text-ink">{receiver.name}</strong>&apos;s inbox.

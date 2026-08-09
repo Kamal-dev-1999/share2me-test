@@ -1,17 +1,25 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Share2Me — "Kinetic Grid" light brutalist theme.
- * Cream surface + deep-black type + signal-yellow accent + hard offset shadows.
- * All token names preserved from the previous config so existing components
- * are re-themed automatically.
+ * Share2Me — "Monochrome Ink" theme.
+ * Warm off-white ground, near-black ink accents, hairline borders,
+ * subtle ambient shadows. No colour accent — the palette IS the neutrals.
+ *
+ * Legacy token names are preserved so existing components auto-retheme.
+ * `signal-yellow` is intentionally mapped to ink; global overrides in
+ * globals.css force contrast on the paired `text-*` classes.
  */
-const INK = "#1e1b15";        // Deep black (text + heavy borders)
-const CREAM = "#F2F0EF";      // Primary surface — warm off-white
-const SIGNAL = "#FFD700";     // Signal yellow (primary accent)
-const SIGNAL_HOVER = "#ffe170";
-const MUTED = "#525252";      // Secondary text — neutral gray
-const SUBTLE = "#737373";     // Tertiary text / outline — neutral gray
+// LoadLogic-inspired palette — modern enterprise SaaS, minimal, data-focused.
+const INK        = "#111111";  // Primary text
+const INK_HOVER  = "#262626";  // Hover state for primary actions
+const BLACK      = "#090909";  // Primary buttons + active navigation
+const GROUND     = "#E9EDF1";  // Overall application background (cool blue-gray)
+const WHITE      = "#FFFFFF";  // Cards, sidebar, table surfaces
+const MUTED      = "#5F6368";  // Supporting text
+const SUBTLE     = "#8A8F93";  // Metadata + placeholders
+const BORDER     = "#E1E3E5";  // Card and input borders
+const MINT_TINT  = "#EEF6F2";  // Reserved for analytics/chart panels only
+const MUTED_BG   = "#F7F8F8";  // Secondary surfaces
 
 const config: Config = {
   content: [
@@ -30,103 +38,117 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // --- Surfaces (neutral off-white family) ---
+        // --- Surfaces (LoadLogic — cool blue-gray ground, pure-white cards) ---
         surface: {
-          DEFAULT: CREAM,
-          dim: "#d4d4d4",
-          bright: CREAM,
-          lowest: "#ffffff",
-          low: "#f5f5f5",
-          container: "#f0f0f0",
-          high: "#ebebeb",
-          highest: "#e5e5e5",
-          card: "#f0f0f0",
-          cardDark: "#ebebeb",
-          elevatedDark: "#f0f0f0",
-          softLight: CREAM,
-          strongLight: "#f0f0f0",
-          tint: SIGNAL,
-          variant: "#e5e5e5",
+          DEFAULT: GROUND,
+          dim: "#DDE2E7",
+          bright: GROUND,
+          lowest: WHITE,
+          low: MUTED_BG,
+          container: WHITE,
+          high: MUTED_BG,
+          highest: "#EAEDF0",
+          card: WHITE,
+          cardDark: WHITE,
+          elevatedDark: WHITE,
+          softLight: GROUND,
+          strongLight: WHITE,
+          soft: MINT_TINT,
+          muted: MUTED_BG,
+          tint: BLACK,
+          variant: "#EAEDF0",
+          mint: MINT_TINT,
         },
+        // Flat aliases the codebase already uses.
+        "surface-container-lowest":  WHITE,
+        "surface-container-low":     MUTED_BG,
+        "surface-container-high":    MUTED_BG,
+        "surface-container-highest": "#EAEDF0",
+        "surface-mint":              MINT_TINT,
+        "surface-soft":              MINT_TINT,
+        "surface-muted":             MUTED_BG,
         "on-surface": INK,
         "on-surface-variant": MUTED,
-        "inverse-surface": "#333029",
-        "inverse-on-surface": "#f7f0e5",
+        "inverse-surface": INK,
+        "inverse-on-surface": WHITE,
 
         outline: {
           DEFAULT: SUBTLE,
-          variant: "#d4d4d4",
+          variant: BORDER,
         },
 
-        // --- Primary (yellow accent) ---
-        // `bg-primary`, `text-primary`, etc. stay yellow so all existing calls read as accent.
+        // --- Primary (LoadLogic black — used for primary buttons + active nav) ---
         primary: {
-          DEFAULT: SIGNAL,
-          light: "#ffe8a0",
-          hover: SIGNAL_HOVER,
-          active: "#e6c200",
-          disabled: "rgba(255, 215, 0, 0.4)",
-          container: SIGNAL,
-          "on-container": INK,
-          "on-primary": INK,          // text on yellow = deep black
-          inverse: "#705d00",
-          fixed: "#ffe170",
-          "fixed-dim": "#e9c400",
-          "on-fixed": "#221b00",
-          "on-fixed-variant": "#544600",
+          DEFAULT: BLACK,
+          light: "#404040",
+          hover: INK_HOVER,
+          active: "#000000",
+          disabled: "rgba(9, 9, 9, 0.4)",
+          container: INK_HOVER,
+          "on-container": WHITE,
+          "on-primary": WHITE,
+          inverse: WHITE,
+          fixed: BLACK,
+          "fixed-dim": INK_HOVER,
+          "on-fixed": WHITE,
+          "on-fixed-variant": WHITE,
         },
-        "on-primary": INK,
-        "primary-container": SIGNAL,
-        "on-primary-container": INK,
+        "on-primary": WHITE,
+        "primary-container": INK_HOVER,
+        "on-primary-container": WHITE,
 
         secondary: {
-          DEFAULT: "#5e5e5e",
-          container: "#e1dfdf",
-          "on-secondary": "#ffffff",
-          "on-container": "#3d3d3d",
-          fixed: "#e4e2e2",
-          "fixed-dim": "#c7c6c6",
-          "on-fixed": "#1b1c1c",
-          "on-fixed-variant": "#464747",
+          DEFAULT: MUTED,
+          container: "#E8E8E6",
+          "on-secondary": WHITE,
+          "on-container": INK,
+          fixed: "#E8E8E6",
+          "fixed-dim": "#D4D4D2",
+          "on-fixed": INK,
+          "on-fixed-variant": MUTED,
         },
         tertiary: {
-          DEFAULT: "#454747",
-          container: "#5d5f5f",
-          "on-tertiary": "#ffffff",
-          "on-container": "#e2e3e2",
-          fixed: "#e2e3e2",
-          "fixed-dim": "#c6c7c6",
-          "on-fixed": "#1a1c1c",
-          "on-fixed-variant": "#454747",
+          DEFAULT: "#404040",
+          container: "#525252",
+          "on-tertiary": WHITE,
+          "on-container": "#E5E5E4",
+          fixed: "#E8E8E6",
+          "fixed-dim": "#D4D4D2",
+          "on-fixed": INK,
+          "on-fixed-variant": "#404040",
         },
         error: {
-          DEFAULT: "#ba1a1a",
-          "on-error": "#ffffff",
-          container: "#ffdad6",
-          "on-container": "#93000a",
+          DEFAULT: "#DC2626",
+          "on-error": "#FFFFFF",
+          container: "#FEE2E2",
+          "on-container": "#991B1B",
         },
 
         background: {
-          DEFAULT: CREAM,
-          lowest: "#ffffff",
-          secondary: "#f5f5f5",
-          elevated: "#f0f0f0",
-          card: "#f0f0f0",
+          DEFAULT: GROUND,
+          lowest: WHITE,
+          secondary: "#F7F7F8",
+          elevated: WHITE,
+          card: WHITE,
+          mint: MINT_TINT,
         },
         "on-background": INK,
         "text-muted": SUBTLE,
-        "pure-white": "#FFFFFF",
+        "pure-white": WHITE,
 
-        // Signal accents used throughout the design system.
-        "signal-yellow": SIGNAL,
-        "error-red": "#ba1a1a",
+        // Legacy tokens — `signal-yellow` now = ink; text/border contrast
+        // is enforced by CSS overrides in globals.css (not the token itself).
+        "signal-yellow": BLACK,
+        "error-red": "#D9534F",
         ink: INK,
+        black: BLACK,
 
-        // --- Semantic tokens used across the codebase ---
+        // Status dots — reserved for shipment/transfer state indicators only.
         status: {
-          success: "#0e8f5f",
-          warning: "#ba8b00",
-          error: "#ba1a1a",
+          success: "#35B94A",  // in-transit / positive
+          warning: "#E98B32",  // picked-up / attention
+          danger:  "#D9534F",  // delayed / failed
+          error:   "#D9534F",  // alias
         },
         text: {
           primary: INK,
@@ -135,64 +157,68 @@ const config: Config = {
           muted: SUBTLE,
         },
         border: {
-          DEFAULT: INK,       // Bold borders are ink black by default
-          hover: INK,
-          active: SIGNAL,
+          DEFAULT: BORDER,
+          hover:   "#CFD2D5",
+          active:  BLACK,
         },
         body: {
           DEFAULT: INK,
-          light: CREAM,
+          light: GROUND,
         },
         muted: {
           DEFAULT: SUBTLE,
           strong: MUTED,
         },
         hairline: {
-          light: "#d4d4d4",
-          dark: "rgba(30, 27, 21, 0.12)",
+          light: BORDER,
+          dark:  "#CFD2D5",
         },
         canvas: {
-          light: CREAM,
-          dark: CREAM,
+          light: GROUND,
+          dark: GROUND,
         },
         trading: {
-          up: "#0e8f5f",
-          down: "#ba1a1a",
+          up: "#35B94A",
+          down: "#D9534F",
         },
       },
 
       fontFamily: {
-        sans: ["'Comic Neue'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        display: ["'Kalam'", "cursive"],
-        body: ["'Comic Neue'", "sans-serif"],
-        mono: ["'Comic Neue'", "sans-serif"],
+        // Inter — the modern SaaS standard. System stack as instant fallback.
+        sans:    ["'Inter'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "sans-serif"],
+        display: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        body:    ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        mono:    ["'JetBrains Mono'", "ui-monospace", "monospace"],
       },
       fontSize: {
-        "headline-xl": ["64px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
-        "headline-lg": ["40px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "700" }],
-        "headline-lg-mobile": ["32px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "700" }],
-        "headline-md": ["28px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "700" }],
-        "body-lg": ["18px", { lineHeight: "1.6", letterSpacing: "0", fontWeight: "400" }],
-        "body-md": ["16px", { lineHeight: "1.6", letterSpacing: "0", fontWeight: "400" }],
-        "body-sm": ["14px", { lineHeight: "1.5", letterSpacing: "0", fontWeight: "400" }],
-        "label-md": ["14px", { lineHeight: "1", letterSpacing: "0.1em", fontWeight: "600" }],
-        "label-sm": ["12px", { lineHeight: "1", letterSpacing: "0.1em", fontWeight: "500" }],
-        "label-caps": ["12px", { lineHeight: "1", letterSpacing: "0.1em", fontWeight: "500" }],
-        hero: ["clamp(40px, 10vw, 80px)", { lineHeight: "1.05", letterSpacing: "-0.02em", fontWeight: "700" }],
-        h1: ["48px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
-        h2: ["32px", { lineHeight: "1.2", letterSpacing: "-0.01em", fontWeight: "700" }],
-        h3: ["24px", { lineHeight: "1.3", letterSpacing: "0", fontWeight: "700" }],
-        body: ["16px", { lineHeight: "1.6", letterSpacing: "0", fontWeight: "400" }],
-        small: ["14px", { lineHeight: "1.5", letterSpacing: "0", fontWeight: "400" }],
-        caption: ["12px", { lineHeight: "1", letterSpacing: "0.1em", fontWeight: "500" }],
+        "display-lg":         ["48px", { lineHeight: "56px", letterSpacing: "-0.028em", fontWeight: "700" }],
+        "headline-xl":        ["48px", { lineHeight: "56px", letterSpacing: "-0.028em", fontWeight: "700" }],
+        "headline-lg":        ["32px", { lineHeight: "40px", letterSpacing: "-0.022em", fontWeight: "700" }],
+        "headline-lg-mobile": ["24px", { lineHeight: "32px", letterSpacing: "-0.02em",  fontWeight: "700" }],
+        "headline-md":        ["24px", { lineHeight: "32px", letterSpacing: "-0.02em",  fontWeight: "700" }],
+        "title-md":           ["18px", { lineHeight: "26px", letterSpacing: "-0.01em",  fontWeight: "600" }],
+        "body-lg":            ["16px", { lineHeight: "24px", letterSpacing: "0", fontWeight: "400" }],
+        "body-md":            ["14px", { lineHeight: "20px", letterSpacing: "0", fontWeight: "400" }],
+        "body-sm":            ["13px", { lineHeight: "18px", letterSpacing: "0", fontWeight: "400" }],
+        "label-md":           ["12px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "500" }],
+        "label-sm":           ["11px", { lineHeight: "14px", letterSpacing: "0.02em", fontWeight: "500" }],
+        "label-caps":         ["11px", { lineHeight: "14px", letterSpacing: "0.08em", fontWeight: "500" }],
+        caption:              ["11px", { lineHeight: "14px", letterSpacing: "0", fontWeight: "400" }],
+        hero:                 ["clamp(40px, 6vw, 72px)", { lineHeight: "1.02", letterSpacing: "-0.028em", fontWeight: "700" }],
+        h1:                   ["48px", { lineHeight: "56px", letterSpacing: "-0.028em", fontWeight: "700" }],
+        h2:                   ["32px", { lineHeight: "40px", letterSpacing: "-0.022em", fontWeight: "700" }],
+        h3:                   ["24px", { lineHeight: "32px", letterSpacing: "-0.02em",  fontWeight: "600" }],
+        body:                 ["16px", { lineHeight: "24px", letterSpacing: "0", fontWeight: "400" }],
+        small:                ["14px", { lineHeight: "20px", letterSpacing: "0", fontWeight: "400" }],
       },
       borderRadius: {
-        sm: "0.25rem",
-        DEFAULT: "0.5rem",
-        md: "0.75rem",
-        lg: "1rem",
-        xl: "1.5rem",
-        "2xl": "1.5rem",
+        sm: "0.5rem",       // 8px  — pill secondaries
+        DEFAULT: "0.75rem", // 12px — small controls
+        md: "0.875rem",     // 14px
+        lg: "1rem",         // 16px — cards
+        xl: "1.125rem",     // 18px — larger cards
+        "2xl": "1.25rem",   // 20px
+        "3xl": "1.5rem",    // 24px — hero surfaces
         full: "9999px",
         pill: "9999px",
       },
@@ -200,7 +226,7 @@ const config: Config = {
         base: "8px",
         "gutter-mobile": "16px",
         "gutter-desktop": "24px",
-        "margin-edge": "48px",
+        "margin-edge": "32px",
         "container-max": "1440px",
         xxs: "4px",
         xs: "8px",
@@ -212,16 +238,18 @@ const config: Config = {
         section: "80px",
       },
       boxShadow: {
-        // "Hard" offset shadows — the Kinetic Grid signature.
-        hard: "4px 4px 0 0 rgba(30, 27, 21, 1)",
-        "hard-sm": "2px 2px 0 0 rgba(30, 27, 21, 1)",
-        "hard-lg": "6px 6px 0 0 rgba(30, 27, 21, 1)",
-        "hard-yellow": "4px 4px 0 0 rgba(255, 215, 0, 1)",
-        "hard-white": "4px 4px 0 0 rgba(255, 255, 255, 1)",
-        // Legacy names retained for existing components.
-        soft: "4px 4px 0 0 rgba(30, 27, 21, 1)",
-        glow: "0 0 0 2px rgba(255, 215, 0, 0.35)",
-        "glow-active": "0 0 0 3px rgba(255, 215, 0, 0.55)",
+        // Subtle ambient shadows only — no more hard offset.
+        soft:       "0 1px 2px rgba(10, 10, 10, 0.04), 0 1px 3px rgba(10, 10, 10, 0.03)",
+        "soft-lg":  "0 4px 12px rgba(10, 10, 10, 0.06), 0 2px 4px rgba(10, 10, 10, 0.04)",
+        ambient:    "0 12px 32px rgba(10, 10, 10, 0.12)",
+        // Legacy names — kept but replaced with soft equivalents.
+        hard:          "0 1px 2px rgba(10, 10, 10, 0.04), 0 1px 3px rgba(10, 10, 10, 0.03)",
+        "hard-sm":     "0 1px 2px rgba(10, 10, 10, 0.04)",
+        "hard-lg":     "0 4px 12px rgba(10, 10, 10, 0.06)",
+        "hard-yellow": "0 4px 12px rgba(10, 10, 10, 0.12)",
+        "hard-white":  "0 4px 12px rgba(255, 255, 255, 0.35)",
+        glow:          "0 0 0 3px rgba(10, 10, 10, 0.12)",
+        "glow-active": "0 0 0 4px rgba(10, 10, 10, 0.2)",
       },
       keyframes: {
         "fade-in": {

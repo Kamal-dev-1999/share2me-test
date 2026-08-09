@@ -1,4 +1,3 @@
-import { TopNav } from "@/components/TopNav";
 import Link from "next/link";
 
 export const metadata = {
@@ -12,7 +11,6 @@ export const metadata = {
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-background">
-      <TopNav />
       <div className="w-full max-w-[800px] mx-auto px-6 lg:px-8 pt-32 pb-24 animate-fade-in">
         <div className="bg-background-elevated rounded-[24px] border border-border p-8 sm:p-12 shadow-soft">
           <h1 className="text-3xl font-display font-bold text-text-primary mb-6">Privacy Policy</h1>

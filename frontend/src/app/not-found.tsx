@@ -1,11 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
-import { TopNav } from "@/components/TopNav";
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background text-text-primary flex flex-col font-body selection:bg-primary/30 selection:text-primary">
-      <TopNav />
       
       <main className="flex-1 flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full text-center flex flex-col items-center gap-8">
