@@ -1,0 +1,310 @@
+/**
+ * useToolProcessor — React hook that acts as the client SDK for the
+ * PDF Processing Worker Microservice (public/workers/pdf-processor.js).
+ *
+ * Responsibilities:
+ *  - Spawns & owns a single Web Worker instance per component mount
+ *  - Manages the full job lifecycle: idle → uploading → processing → complete | error
+ *  - Translates typed worker messages into React state
+ *  - Handles PDF→JPG on the main thread (via PDF.js) as a delegated action
+ *  - Returns a stable `process` function and reactive state to the consumer
+ *
+ * Each call to `process()` generates a unique requestId so concurrent requests
+ * (if ever needed) are safely isolated.
+ */
+
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ProcessorStatus = "idle" | "loading" | "processing" | "complete" | "error";
+
+export interface ProcessedOutput {
+  /** The processed file as a Blob (always available client-side) */
+  blob: Blob;
+  /** Suggested download filename */
+  filename: string;
+  /** MIME type of the output */
+  mimeType: string;
+  /** Original input file sizes for compression ratio display */
+  inputBytes: number;
+  /** Output size */
+  outputBytes: number;
+}
+
+export interface ProcessorState {
+  status: ProcessorStatus;
+  progress: number;
+  progressMessage: string;
+  output: ProcessedOutput | null;
+  error: { code: string; message: string } | null;
+}
+
+export interface UseToolProcessorReturn extends ProcessorState {
+  process: (files: File[], config?: Record<string, unknown>) => Promise<void>;
+  reset: () => void;
+  isWorkerSupported: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+const WORKER_PATH = "/workers/pdf-processor.js";
+
+const INITIAL_STATE: ProcessorState = {
+  status: "idle",
+  progress: 0,
+  progressMessage: "",
+  output: null,
+  error: null,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hook
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function useToolProcessor(slug: string): UseToolProcessorReturn {
+  const [state, setState] = useState<ProcessorState>(INITIAL_STATE);
+  const workerRef = useRef<Worker | null>(null);
+  const requestIdRef = useRef<string>("");
+
+  // Detect Worker support once on mount
+  const isWorkerSupported = typeof Worker !== "undefined";
+
+  // Lazily initialize the worker on first process() call
+  const getWorker = useCallback((): Worker => {
+    if (!workerRef.current) {
+      workerRef.current = new Worker(WORKER_PATH);
+    }
+    return workerRef.current;
+  }, []);
+
+  // Terminate worker on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []);
+
+  const reset = useCallback(() => {
+    setState(INITIAL_STATE);
+  }, []);
+
+  const process = useCallback(
+    async (files: File[], config: Record<string, unknown> = {}) => {
+      if (!isWorkerSupported) {
+        setState(prev => ({
+          ...prev,
+          status: "error",
+          error: { code: "NO_WORKER", message: "Your browser doesn't support Web Workers. Please try a modern browser like Chrome or Firefox." },
+        }));
+        return;
+      }
+
+      if (files.length === 0) {
+        setState(prev => ({
+          ...prev,
+          status: "error",
+          error: { code: "NO_FILES", message: "Please add at least one file before processing." },
+        }));
+        return;
+      }
+
+      // Generate unique request ID for this job
+      const requestId = `${slug}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      requestIdRef.current = requestId;
+
+      setState({
+        status: "loading",
+        progress: 0,
+        progressMessage: "Reading files…",
+        output: null,
+        error: null,
+      });
+
+      const totalInputBytes = files.reduce((sum, f) => sum + f.size, 0);
+
+      // Read all files as ArrayBuffers
+      let buffers: ArrayBuffer[];
+      try {
+        buffers = await Promise.all(
+          files.map(
+            (f) =>
+              new Promise<ArrayBuffer>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as ArrayBuffer);
+                reader.onerror = () => reject(new Error(`Failed to read file: ${f.name}`));
+                reader.readAsArrayBuffer(f);
+              })
+          )
+        );
+      } catch (err) {
+        setState({
+          status: "error",
+          progress: 0,
+          progressMessage: "",
+          output: null,
+          error: { code: "FILE_READ_ERROR", message: (err as Error).message },
+        });
+        return;
+      }
+
+      setState(prev => ({ ...prev, status: "processing", progress: 5, progressMessage: "Starting…" }));
+
+      const worker = getWorker();
+
+      // Set up message handler for this specific request
+      const messageHandler = (event: MessageEvent) => {
+        const { type, requestId: rId } = event.data;
+
+        // Ignore messages for other requests (safety for concurrent calls)
+        if (rId !== requestId) return;
+
+        switch (type) {
+          case "PROGRESS":
+            setState(prev => ({
+              ...prev,
+              progress: event.data.pct,
+              progressMessage: event.data.message || "",
+            }));
+            break;
+
+          case "COMPLETE": {
+            const { buffer, filename, mimeType } = event.data;
+            const blob = new Blob([buffer], { type: mimeType || "application/pdf" });
+            setState({
+              status: "complete",
+              progress: 100,
+              progressMessage: "Done!",
+              output: {
+                blob,
+                filename,
+                mimeType: mimeType || "application/pdf",
+                inputBytes: totalInputBytes,
+                outputBytes: blob.size,
+              },
+              error: null,
+            });
+            worker.removeEventListener("message", messageHandler);
+            break;
+          }
+
+          case "ERROR":
+            setState({
+              status: "error",
+              progress: 0,
+              progressMessage: "",
+              output: null,
+              error: { code: event.data.code, message: event.data.message },
+            });
+            worker.removeEventListener("message", messageHandler);
+            break;
+
+          case "DELEGATE_TO_MAIN":
+            // pdf-to-jpg needs PDF.js (main thread DOM access) — handle here
+            handlePdfToJpgMainThread(event.data, requestId, totalInputBytes, setState);
+            worker.removeEventListener("message", messageHandler);
+            break;
+        }
+      };
+
+      worker.addEventListener("message", messageHandler);
+
+      // Handle worker-level errors (syntax errors, etc.)
+      const errorHandler = (event: ErrorEvent) => {
+        setState({
+          status: "error",
+          progress: 0,
+          progressMessage: "",
+          output: null,
+          error: { code: "WORKER_ERROR", message: event.message || "Worker crashed unexpectedly." },
+        });
+        worker.removeEventListener("error", errorHandler);
+        worker.removeEventListener("message", messageHandler);
+      };
+      worker.addEventListener("error", errorHandler);
+
+      // Post message to worker — transfer buffers for zero-copy performance
+      worker.postMessage({ type: "PROCESS", requestId, slug, buffers, config }, buffers);
+    },
+    [slug, isWorkerSupported, getWorker]
+  );
+
+  return { ...state, process, reset, isWorkerSupported };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PDF → JPG handler (main thread, uses PDF.js via dynamic import)
+// Runs when the worker delegates this tool back to the main thread
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function handlePdfToJpgMainThread(
+  data: { buffers: ArrayBuffer[]; config: Record<string, unknown> },
+  requestId: string,
+  totalInputBytes: number,
+  setState: React.Dispatch<React.SetStateAction<ProcessorState>>
+) {
+  setState(prev => ({ ...prev, progress: 5, progressMessage: "Loading PDF renderer…" }));
+
+  try {
+    // Dynamically load PDF.js only when needed. We use an indirect import via
+    // new Function() to prevent TypeScript from performing static module resolution,
+    // since pdfjs-dist is an optional CDN-loaded dependency, not a hard install.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfjsLib: any = await new Function('specifier', 'return import(specifier)')('pdfjs-dist').catch(() => {
+      throw new Error("PDF renderer failed to load. Please use Download instead.");
+    });
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(data.buffers[0]) }).promise;
+    const scale = parseFloat((data.config.scale as string) || "2");
+    const pageNum = parseInt((data.config.page as string) || "1", 10);
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d")!;
+
+    setState(prev => ({ ...prev, progress: 50, progressMessage: "Rendering page…" }));
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    setState(prev => ({ ...prev, progress: 85, progressMessage: "Encoding image…" }));
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Canvas export failed"))), "image/jpeg", 0.95);
+    });
+
+    setState({
+      status: "complete",
+      progress: 100,
+      progressMessage: "Done!",
+      output: {
+        blob,
+        filename: `page-${pageNum}.jpg`,
+        mimeType: "image/jpeg",
+        inputBytes: totalInputBytes,
+        outputBytes: blob.size,
+      },
+      error: null,
+    });
+  } catch (err) {
+    setState({
+      status: "error",
+      progress: 0,
+      progressMessage: "",
+      output: null,
+      error: { code: "PDF_RENDER_ERROR", message: (err as Error).message },
+    });
+  }
+}
+

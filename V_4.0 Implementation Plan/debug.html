@@ -1,0 +1,49 @@
+# Share2Me v4.0 — Glassmorphism & PDF Tools Integration Plan
+
+The `rishabh` branch introduces a massive frontend pivot. The Neo-Brutalist design has been completely replaced with a **Glassmorphism aesthetic** featuring frosted glass panels over a gradient backdrop. It also introduces a massive new **PDF Tools suite** (31 tools, iLovePDF-style). 
+
+Our goal is to stabilize these new features, merge them with the v3.5 Persona Platform architecture, and prepare the branch for production.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **UI Direction Change:** This branch forces a full Glassmorphism theme (translucent panels, blurs, gradient backgrounds), which completely overwrites the "Soft UI" / dashboard concept we just discussed. 
+> **Are you 100% committed to this Glassmorphism aesthetic as the final Share2Me brand identity?**
+
+> [!WARNING]
+> **PDF Tools Backend:** The new branch scaffolds 31 PDF tools in the frontend (`PdfToolShell`), but the backend engines for these tools do not exist yet. We will need to build a robust PDF processing pipeline (likely using `pdf-lib` or similar) to make the 12 "ready" tools functional.
+
+## Open Questions
+
+1. **Merge Conflicts:** The previous merge attempt between `main` (which had our root reorganization and `v3.5` docs) and `rishabh` resulted in heavy UI conflicts in `G2pDashboard.tsx` and `layout.tsx`. Do you want me to manually resolve these conflicts first, or should we build the PDF backend engines first?
+2. **SideRail vs TopNav:** The `rishabh` branch replaces the top navigation with a `SideRail` (left sidebar on desktop, bottom bar on mobile). Are you happy with this navigation pattern?
+
+## Proposed Changes
+
+### 1. UI Stabilization & Merge Resolution
+We need to carefully merge the `main` branch into `rishabh` without breaking the new UI.
+- Apply the Glassmorphism styling (frosted glass, `backdrop-blur-xl`) to the `G2pDashboard.tsx` and `SendFlow`/`ReceiveFlow` components that were conflicting.
+- Ensure the new `SideRail` navigation is fully integrated and handles the G2P Persona states (e.g., hiding Analytics/Team tabs if the user is on the `PERSONAL` persona).
+- Audit the contrast ratios of text on the new gradient backgrounds to ensure readability.
+
+### 2. PDF Tools Engine Implementation (Backend)
+The frontend `PdfToolShell.tsx` is ready, but it needs an API to send files to.
+- Create a new backend module `backend/pdf-engine/`.
+- Implement endpoints for the 12 Phase-1 tools:
+  - `merge-pdf`, `split-pdf`, `rotate-pdf`, `organize-pdf`, `crop-pdf`, `page-numbers`
+  - `jpg-to-pdf`, `pdf-to-jpg`, `watermark-pdf`, `protect-pdf`, `unlock-pdf`, `compress-pdf`
+- Wire the frontend `onProcess` handler to proxy files to these endpoints and stream the processed Blob back for download.
+
+### 3. Documentation Update
+- Update `README.md` to feature the new PDF Tools suite as a core product offering alongside P2P and G2P sharing.
+- Save this plan into `v3.0_plan_knowledge/v4.0_glassmorphism_tools_plan.md` as the official roadmap for the `rishabh` branch.
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run build` on frontend to verify no hydration mismatches are present (as the `rishabh` branch specifically targeted fixing these).
+
+### Manual Verification
+- Test all 12 "ready" PDF tools end-to-end to ensure the backend processes the files correctly and returns valid PDFs.
+- Verify the Glassmorphism UI across mobile, tablet, and desktop viewports, paying special attention to the `SideRail` mobile bottom bar.
+- Test G2P Inbox rendering and ensure the frosted glass effects don't break the visibility of the QR codes.

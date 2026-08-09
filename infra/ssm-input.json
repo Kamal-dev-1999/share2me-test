@@ -1,0 +1,32 @@
+{
+  "InstanceIds": [
+    "i-052b3beb6baeff5ca"
+  ],
+  "DocumentName": "AWS-RunShellScript",
+  "Parameters": {
+    "commands": [
+      "useradd --no-create-home --shell /bin/false node_exporter || true",
+      "curl -sL https://github.com/prometheus/node_exporter/releases/download/v1.9.1/node_exporter-1.9.1.linux-amd64.tar.gz | tar xz -C /tmp",
+      "cp /tmp/node_exporter-*/node_exporter /usr/local/bin/",
+      "rm -rf /tmp/node_exporter-*",
+      "cat > /etc/systemd/system/node_exporter.service << EOF",
+      "[Unit]",
+      "Description=Prometheus Node Exporter",
+      "Documentation=https://github.com/prometheus/node_exporter",
+      "After=network.target",
+      "",
+      "[Service]",
+      "User=node_exporter",
+      "ExecStart=/usr/local/bin/node_exporter --web.listen-address=\":9100\"",
+      "Restart=always",
+      "RestartSec=5",
+      "",
+      "[Install]",
+      "WantedBy=multi-user.target",
+      "EOF",
+      "systemctl daemon-reload",
+      "systemctl enable --now node_exporter",
+      "docker run -d --name cadvisor --restart=always --volume=/:/rootfs:ro --volume=/var/run:/var/run:ro --volume=/sys:/sys:ro --volume=/var/lib/docker/:/var/lib/docker:ro --publish=9080:8080 gcr.io/cadvisor/cadvisor:v0.51.0"
+    ]
+  }
+}
