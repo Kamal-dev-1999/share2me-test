@@ -22,9 +22,32 @@ function G2PContent() {
       }
     : null;
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col text-on-surface font-body">
+        <main className="w-full max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12 pt-6 pb-16 flex-1">
+          <div className="card-brutalist p-12 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-8 h-8 rounded-full border-2 border-ink border-t-transparent animate-spin" />
+              <span className="label-caps text-ink">Authenticating…</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (g2pUser) {
+    // Render the new full-page app layout for the Dashboard
+    return (
+      <div className="min-h-screen bg-background text-on-surface font-body p-4 sm:p-6 overflow-hidden flex flex-col">
+        <G2pDashboard user={g2pUser} onLogout={() => signOut()} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col text-on-surface font-body">
-
       <main className="w-full max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12 pt-6 pb-16 flex-1">
         {/* Back link */}
         <div className="mb-4">
@@ -47,97 +70,86 @@ function G2PContent() {
           </p>
         </div>
 
-        {isLoading ? (
-          <div className="card-brutalist p-12 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-8 h-8 rounded-full border-2 border-ink border-t-transparent animate-spin" />
-              <span className="label-caps text-ink">Authenticating…</span>
-            </div>
-          </div>
-        ) : g2pUser ? (
-          <G2pDashboard user={g2pUser} onLogout={() => signOut()} />
-        ) : (
-          <div className="w-full">
-            <AnimatePresence mode="wait">
-              <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-stretch w-full">
-                {/* Login Card */}
-                <motion.div
-                  key="auth"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="card-brutalist p-8 flex flex-col"
-                >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="w-12 h-12 bg-surface-muted rounded-xl flex items-center justify-center">
-                      <HardDrive className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
-                    </div>
-                    <span className="chip-outline">Free · Google auth</span>
+        <div className="w-full">
+          <AnimatePresence mode="wait">
+            <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-stretch w-full">
+              {/* Login Card */}
+              <motion.div
+                key="auth"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="card-brutalist p-8 flex flex-col"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className="w-12 h-12 bg-surface-muted rounded-xl flex items-center justify-center">
+                    <HardDrive className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
                   </div>
-                  <h2 className="text-[20px] md:text-[22px] font-semibold text-on-surface mb-1.5 leading-tight">
-                    Create your portal
-                  </h2>
-                  <p className="text-[13px] text-on-surface-variant mb-6">
-                    Sign in to claim your permanent Share Code and start receiving files.
-                  </p>
-                  <button
-                    onClick={() => signIn("google")}
-                    className="btn-brutalist mt-auto"
-                  >
-                    <UserCheck className="w-5 h-5" strokeWidth={2.5} />
-                    Continue with Google
-                  </button>
-                </motion.div>
+                  <span className="chip-outline">Free · Google auth</span>
+                </div>
+                <h2 className="text-[20px] md:text-[22px] font-semibold text-on-surface mb-1.5 leading-tight">
+                  Create your portal
+                </h2>
+                <p className="text-[13px] text-on-surface-variant mb-6">
+                  Sign in to claim your permanent Share Code and start receiving files.
+                </p>
+                <button
+                  onClick={() => signIn("google")}
+                  className="btn-brutalist mt-auto"
+                >
+                  <UserCheck className="w-5 h-5" strokeWidth={2.5} />
+                  Continue with Google
+                </button>
+              </motion.div>
 
-                {/* Send Files Card */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: 0.08 }}
-                  className="card-mint p-8 flex flex-col"
-                >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                      <Send className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
-                    </div>
-                    <span className="chip-outline">Sender path</span>
+              {/* Send Files Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ delay: 0.08 }}
+                className="card-mint p-8 flex flex-col"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+                    <Send className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
                   </div>
-                  <h3 className="text-[20px] md:text-[22px] font-semibold text-on-surface mb-1.5 leading-tight">
-                    Send files instead?
-                  </h3>
-                  <p className="text-[13px] text-on-surface-variant mb-6">
-                    Enter a receiver&apos;s Share Code to open their portal.
-                  </p>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const target = e.currentTarget.elements.namedItem("shareCodeInput") as HTMLInputElement;
-                      const entered = target.value.trim();
-                      if (entered) window.location.href = `/g2p/${entered.toUpperCase()}`;
-                    }}
-                    className="mt-auto flex flex-col sm:flex-row gap-2"
+                  <span className="chip-outline">Sender path</span>
+                </div>
+                <h3 className="text-[20px] md:text-[22px] font-semibold text-on-surface mb-1.5 leading-tight">
+                  Send files instead?
+                </h3>
+                <p className="text-[13px] text-on-surface-variant mb-6">
+                  Enter a receiver&apos;s Share Code to open their portal.
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const target = e.currentTarget.elements.namedItem("shareCodeInput") as HTMLInputElement;
+                    const entered = target.value.trim();
+                    if (entered) window.location.href = `/g2p/${entered.toUpperCase()}`;
+                  }}
+                  className="mt-auto flex flex-col sm:flex-row gap-2"
+                >
+                  <input
+                    type="text"
+                    name="shareCodeInput"
+                    required
+                    placeholder="STY392"
+                    className="input-brutalist font-mono uppercase tracking-[0.18em] text-[14px] font-semibold"
+                  />
+                  <button
+                    type="submit"
+                    className="btn-brutalist shrink-0"
                   >
-                    <input
-                      type="text"
-                      name="shareCodeInput"
-                      required
-                      placeholder="STY392"
-                      className="input-brutalist font-mono uppercase tracking-[0.18em] text-[14px] font-semibold"
-                    />
-                    <button
-                      type="submit"
-                      className="btn-brutalist shrink-0"
-                    >
-                      Open
-                      <ArrowRight className="w-4 h-4" strokeWidth={2} />
-                    </button>
-                  </form>
-                </motion.div>
-              </div>
-            </AnimatePresence>
-          </div>
-        )}
+                    Open
+                    <ArrowRight className="w-4 h-4" strokeWidth={2} />
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          </AnimatePresence>
+        </div>
       </main>
 
       <footer className="w-full border-t border-hairline bg-surface py-6 mt-auto">
