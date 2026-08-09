@@ -100,6 +100,26 @@ export function SendFlow({
 
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
+
+  // Auto-load file from tools if it exists in sessionStorage
+  useEffect(() => {
+    const stored = sessionStorage.getItem("share2me_tool_output");
+    if (stored) {
+      try {
+        const { dataUrl, filename, mimeType } = JSON.parse(stored);
+        fetch(dataUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const file = new File([blob], filename, { type: mimeType });
+            setFiles([file]);
+            sessionStorage.removeItem("share2me_tool_output");
+          })
+          .catch(err => console.error("Failed to recover tool output blob", err));
+      } catch (e) {
+        console.error("Failed to parse tool output from session storage", e);
+      }
+    }
+  }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [copied, setCopied] = useState(false);
