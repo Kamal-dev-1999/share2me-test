@@ -22,6 +22,9 @@ COPY --from=deps --chown=nodeapp:nodejs /app/node_modules ./node_modules
 COPY --chown=nodeapp:nodejs server.js    ./
 COPY --chown=nodeapp:nodejs package.json ./
 COPY --chown=nodeapp:nodejs public/      ./public/
+COPY --chown=nodeapp:nodejs lib/         ./lib/
+COPY --chown=nodeapp:nodejs p2p/         ./p2p/
+COPY --chown=nodeapp:nodejs g2p/         ./g2p/
 
 USER nodeapp
 
