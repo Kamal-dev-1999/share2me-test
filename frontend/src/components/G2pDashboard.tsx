@@ -4,7 +4,8 @@ import {
   Copy, Check, Search, Download, Trash2, Calendar,
   ArrowUpDown, FileText, FileImage, Film,
   FolderArchive, LogOut, Volume2, VolumeX,
-  Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, PieChart, ArrowRight, BarChart, User
+  Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, PieChart, ArrowRight, BarChart, User,
+  CloudDownload, Share2, Activity, Bell, BellOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
@@ -481,10 +482,10 @@ export default function G2pDashboard({
         {/* MOBILE — compact horizontal tab pill (same colors, old-UX layout) */}
         <div className="flex md:hidden items-center justify-around gap-1 p-2 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
           {([
-            { tab: "inbox" as TabMode,     icon: Inbox,    grad: "g2p-dash" },
-            { tab: "share" as TabMode,     icon: QrCode,   grad: "g2p-share" },
+            { tab: "inbox" as TabMode,     icon: CloudDownload,    grad: "g2p-dash" },
+            { tab: "share" as TabMode,     icon: Share2,   grad: "g2p-share" },
             { tab: "settings" as TabMode,  icon: Settings, grad: "g2p-settings" },
-            { tab: "analytics" as TabMode, icon: PieChart, grad: "g2p-analytics" },
+            { tab: "analytics" as TabMode, icon: Activity, grad: "g2p-analytics" },
           ]).map(({ tab, icon: TabIcon, grad }) => (
             <button
               key={tab}
@@ -513,9 +514,9 @@ export default function G2pDashboard({
             className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all"
           >
             {soundEnabled ? (
-              <Volume2 className="w-5 h-5" style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }} strokeWidth={2.5} />
+              <Bell className="w-5 h-5" style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }} strokeWidth={2.5} />
             ) : (
-              <VolumeX className="w-5 h-5" strokeWidth={2} />
+              <BellOff className="w-5 h-5" strokeWidth={2} />
             )}
           </button>
           <button
@@ -536,7 +537,7 @@ export default function G2pDashboard({
               : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
           }`}
         >
-          <Inbox 
+          <CloudDownload 
             className="w-5 h-5 transition-transform duration-300"
             style={activeTab === "inbox" ? { stroke: "url(#g2p-dash)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
             strokeWidth={activeTab === "inbox" ? 2.5 : 2}
@@ -557,7 +558,7 @@ export default function G2pDashboard({
                 : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
             }`}
           >
-            <QrCode 
+            <Share2 
               className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" 
               style={activeTab === "share" ? { stroke: "url(#g2p-share)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
               strokeWidth={activeTab === "share" ? 2.5 : 2}
@@ -589,7 +590,7 @@ export default function G2pDashboard({
                 : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
             }`}
           >
-            <PieChart 
+            <Activity 
               className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
               style={activeTab === "analytics" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
               strokeWidth={activeTab === "analytics" ? 2.5 : 2}
@@ -602,13 +603,13 @@ export default function G2pDashboard({
             className="flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] bg-white/20 hover:bg-white/40 border-white/30 text-[#111827] group"
           >
             {soundEnabled ? (
-              <Volume2 
+              <Bell 
                 className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" 
                 style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }}
                 strokeWidth={2.5}
               />
             ) : (
-              <VolumeX className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+              <BellOff className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
             )}
             <span className="text-[13px] font-bold">Alerts</span>
           </button>

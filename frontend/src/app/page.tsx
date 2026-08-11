@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { SideRail } from "@/components/SideRail";
+import { signIn } from "next-auth/react";
 import {
   Search, FileText, ImageIcon, FileImage, Film, PenTool,
   FileSpreadsheet, FileType2, AlignLeft, Table,
@@ -121,23 +122,21 @@ function HomeContent() {
               <span className="font-semibold text-[15px] tracking-tight text-[#1E1B2E]">Share2Me</span>
             </Link>
 
-            {/* Search / share-code quick open */}
-            <form
-              onSubmit={openPortal}
-              className="hidden md:flex items-center flex-1 max-w-[280px] ml-auto bg-white/50 border border-white/70 rounded-full px-4 py-2"
-            >
-              <input
-                suppressHydrationWarning
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="Enter share code…"
-                className="flex-1 bg-transparent text-[13px] text-[#1E1B2E] placeholder:text-[#6B6480] focus:outline-none min-w-0 uppercase tracking-wider"
-              />
-              <button suppressHydrationWarning type="submit" aria-label="Open portal">
-                <Search className="w-4 h-4 text-[#6B6480]" strokeWidth={2} />
+            {/* Auth buttons */}
+            <div className="hidden md:flex items-center gap-3 ml-auto">
+              <button
+                onClick={() => signIn("google", { callbackUrl: "/g2p" })}
+                className="px-5 py-2 text-[13px] font-bold text-[#1E1B2E] hover:text-[#4B4560] transition-colors"
+              >
+                Log In
               </button>
-            </form>
+              <button
+                onClick={() => signIn("google", { callbackUrl: "/g2p" })}
+                className="px-5 py-2 rounded-full bg-[#171226] text-white text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-[#2A2140] transition-colors shadow-sm"
+              >
+                Sign Up
+              </button>
+            </div>
 
           </header>
 
