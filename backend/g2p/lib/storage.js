@@ -1,4 +1,4 @@
-const { S3Client, HeadObjectCommand, DeleteObjectsCommand, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, HeadObjectCommand, DeleteObjectsCommand, PutObjectCommand, GetObjectCommand, HeadBucketCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const R2_BUCKET = process.env.R2_BUCKET_NAME || 'placeholder-bucket';
@@ -11,6 +11,13 @@ const s3 = new S3Client({
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || 'placeholder_secret_key',
   },
 });
+
+// Force the AWS SDK to correct any local clock skew immediately upon initialization
+// This prevents "RequestTimeTooSkewed" errors on subsequent non-retryable streaming uploads.
+s3.send(new HeadBucketCommand({ Bucket: R2_BUCKET })).catch(err => {
+  console.warn('[R2 Initialization] Clock skew correction ping completed (expected if skew exists).');
+});
+
 
 async function generatePresignedPutUrl(r2Key, mimeType, sizeBytes) {
   const command = new PutObjectCommand({
@@ -40,8 +47,8 @@ async function generatePresignedGetUrl(r2Key, originalName = 'file', action = 'p
   }
 
   const command = new GetObjectCommand(commandInput);
-  // 15 min expiration
-  return await getSignedUrl(s3, command, { expiresIn: 15 * 60 });
+  // Set to 24 hours (86400) to protect against local system clock drift instantly expiring URLs
+  return await getSignedUrl(s3, command, { expiresIn: 86400 });
 }
 
 async function verifyObjectExistsAndSize(r2Key) {

@@ -5,7 +5,8 @@ import {
   ArrowUpDown, FileText, FileImage, Film,
   FolderArchive, LogOut, Volume2, VolumeX,
   Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, PieChart, ArrowRight, BarChart, User,
-  CloudDownload, Share2, Activity, Bell, BellOff
+  CloudDownload, Share2, Activity, Bell, BellOff, CheckCircle2,
+  FileCode, FileSpreadsheet, FileAudio, FileQuestion
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
@@ -40,11 +41,39 @@ type TabMode = "inbox" | "share" | "settings" | "analytics";
 
 const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
 
-function getFileIcon(type: string) {
-  if (type.startsWith("image/")) return FileImage;
-  if (type.startsWith("video/")) return Film;
-  if (type.includes("zip") || type.includes("rar")) return FolderArchive;
-  return FileText;
+function getIconMetadata(mimeType: string, filename: string) {
+  const name = filename.toLowerCase();
+  
+  if (name.endsWith(".pdf") || mimeType === "application/pdf") {
+    return { Icon: FileText, grad: "grad-pdf", label: "PDF" };
+  }
+  if (name.match(/\.(doc|docx)$/) || mimeType.includes("word")) {
+    return { Icon: FileText, grad: "grad-word", label: "DOC" };
+  }
+  if (name.match(/\.(xls|xlsx|csv)$/) || mimeType.includes("excel") || mimeType.includes("spreadsheet")) {
+    return { Icon: FileSpreadsheet, grad: "grad-excel", label: "XLS" };
+  }
+  if (name.match(/\.(ppt|pptx)$/) || mimeType.includes("presentation")) {
+    return { Icon: FileText, grad: "grad-ppt", label: "PPT" };
+  }
+  if (name.match(/\.(png|jpg|jpeg|gif|webp|svg)$/) || mimeType.startsWith("image/")) {
+    const ext = name.split('.').pop()?.toUpperCase().substring(0, 3) || "IMG";
+    return { Icon: FileImage, grad: "grad-image", label: ext };
+  }
+  if (name.match(/\.(mp4|mov|avi|mkv|webm)$/) || mimeType.startsWith("video/")) {
+    return { Icon: Film, grad: "grad-video", label: "VID" };
+  }
+  if (name.match(/\.(mp3|wav|ogg)$/) || mimeType.startsWith("audio/")) {
+    return { Icon: FileAudio, grad: "grad-audio", label: "AUD" };
+  }
+  if (name.match(/\.(zip|rar|7z|tar|gz)$/) || mimeType.includes("zip") || mimeType.includes("compressed")) {
+    return { Icon: FolderArchive, grad: "grad-archive", label: "ZIP" };
+  }
+  if (name.match(/\.(js|ts|html|css|json|jsx|tsx|py|cpp|c|go|rs)$/) || mimeType.includes("json") || mimeType.includes("javascript")) {
+    return { Icon: FileCode, grad: "grad-code", label: "CODE" };
+  }
+  
+  return { Icon: FileQuestion, grad: "grad-default", label: "FILE" };
 }
 
 function formatSize(bytes: number) {
@@ -147,15 +176,31 @@ function UploadRecordRow({
           >
             <div className="p-4 space-y-2">
               {record.files.map((file, idx) => {
-                const Icon = getFileIcon(file.type);
+                const { Icon, grad, label } = getIconMetadata(file.type, file.name);
                 return (
                   <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/40 border border-white/60 hover:bg-white/60 transition-colors">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-white/50 flex items-center justify-center shrink-0">
-                        <Icon className="w-5 h-5 text-[#111827]" />
+                      <div className="relative w-12 h-12 rounded-xl bg-white/60 flex flex-col items-center shrink-0 shadow-sm border border-white/80 overflow-hidden group/icon">
+                        <div className="flex-1 flex items-center justify-center w-full pt-0.5">
+                          <Icon 
+                            className="relative z-10 w-5 h-5 transition-transform duration-300 group-hover/icon:scale-110 group-hover/icon:-translate-y-0.5" 
+                            style={{ stroke: `url(#${grad})`, filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.15))" }}
+                            strokeWidth={2.5}
+                          />
+                        </div>
+                        <div className="w-full h-3.5 bg-[#111827]/[0.03] flex items-center justify-center backdrop-blur-md border-t border-white/60 rounded-b-xl">
+                           <span className="text-[8px] font-black text-[#111827]/60 font-mono tracking-wider translate-y-[0.5px]">{label}</span>
+                        </div>
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-bold text-[#111827] truncate">{file.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-[#111827] truncate">{file.name}</span>
+                          {file.status === 'downloaded' && (
+                            <span title="Viewed / Downloaded">
+                              <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-[#111827]/60 font-mono mt-0.5">{formatSize(file.size)}</span>
                       </div>
                     </div>
@@ -327,6 +372,13 @@ export default function G2pDashboard({
       setUploads(prev => prev.filter(u => u.uploadId !== requestId));
     });
 
+    socket.on("g2p:file_downloaded", ({ fileId }) => {
+      setUploads(prev => prev.map(u => ({
+        ...u,
+        files: u.files.map(f => f.id === fileId ? { ...f, status: 'downloaded' } : f)
+      })));
+    });
+
     socketRef.current = socket;
   }, [user.userId, loadUploads, playChime]);
 
@@ -445,6 +497,7 @@ export default function G2pDashboard({
       {/* SVG Defs for gradient icons */}
       <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
         <defs>
+          {/* Main Layout Gradients */}
           <linearGradient id="g2p-dash" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop stopColor="#38bdf8" offset="0%" />
             <stop stopColor="#3b82f6" offset="100%" />
@@ -457,6 +510,18 @@ export default function G2pDashboard({
             <stop stopColor="#c084fc" offset="0%" />
             <stop stopColor="#9333ea" offset="100%" />
           </linearGradient>
+          
+          {/* File Type Gradients */}
+          <linearGradient id="grad-pdf" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#ef4444" offset="0%" /><stop stopColor="#b91c1c" offset="100%" /></linearGradient>
+          <linearGradient id="grad-word" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#3b82f6" offset="0%" /><stop stopColor="#1d4ed8" offset="100%" /></linearGradient>
+          <linearGradient id="grad-excel" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#22c55e" offset="0%" /><stop stopColor="#15803d" offset="100%" /></linearGradient>
+          <linearGradient id="grad-ppt" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#f97316" offset="0%" /><stop stopColor="#c2410c" offset="100%" /></linearGradient>
+          <linearGradient id="grad-image" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#a855f7" offset="0%" /><stop stopColor="#7e22ce" offset="100%" /></linearGradient>
+          <linearGradient id="grad-video" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#ec4899" offset="0%" /><stop stopColor="#be185d" offset="100%" /></linearGradient>
+          <linearGradient id="grad-audio" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#eab308" offset="0%" /><stop stopColor="#a16207" offset="100%" /></linearGradient>
+          <linearGradient id="grad-archive" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#f59e0b" offset="0%" /><stop stopColor="#b45309" offset="100%" /></linearGradient>
+          <linearGradient id="grad-code" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#06b6d4" offset="0%" /><stop stopColor="#0369a1" offset="100%" /></linearGradient>
+          <linearGradient id="grad-default" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#9ca3af" offset="0%" /><stop stopColor="#4b5563" offset="100%" /></linearGradient>
           <linearGradient id="g2p-analytics" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop stopColor="#f472b6" offset="0%" />
             <stop stopColor="#ec4899" offset="100%" />
