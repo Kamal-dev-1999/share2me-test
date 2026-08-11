@@ -3,19 +3,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Home, ArrowRightLeft, Cloud, LayoutGrid, Lightbulb, Info, CreditCard, Newspaper, Users,
+  Home, Network, Inbox, Wrench, Compass, Coffee, Fingerprint, Rocket,
   type LucideIcon,
 } from "lucide-react";
 
 const ITEMS: { href: string; icon: LucideIcon; label: string; grad: string; stops: [string, string] }[] = [
   { href: "/",             icon: Home,           label: "Home",    grad: "grad-home",   stops: ["#38bdf8", "#3b82f6"] },
-  { href: "/p2p",          icon: ArrowRightLeft, label: "P2P",     grad: "grad-p2p",    stops: ["#fde047", "#f59e0b"] },
-  { href: "/g2p",          icon: Cloud,          label: "Portal",  grad: "grad-portal", stops: ["#34d399", "#10b981"] },
-  { href: "/tools",        icon: LayoutGrid,     label: "Tools",   grad: "grad-tools",  stops: ["#e879f9", "#d946ef"] },
-  { href: "/how-it-works", icon: Lightbulb,      label: "How",     grad: "grad-how",    stops: ["#7dd3fc", "#0ea5e9"] },
-  { href: "/blog",         icon: Newspaper,      label: "Blog",    grad: "grad-blog",   stops: ["#fb923c", "#ea580c"] },
-  { href: "/about",        icon: Users,          label: "About",   grad: "grad-about",  stops: ["#f472b6", "#ec4899"] },
-  { href: "/pricing",      icon: CreditCard,     label: "Pricing", grad: "grad-price",  stops: ["#c084fc", "#9333ea"] },
+  { href: "/p2p",          icon: Network,        label: "P2P",     grad: "grad-p2p",    stops: ["#fde047", "#f59e0b"] },
+  { href: "/g2p",          icon: Inbox,          label: "Portal",  grad: "grad-portal", stops: ["#34d399", "#10b981"] },
+  { href: "/tools",        icon: Wrench,         label: "Tools",   grad: "grad-tools",  stops: ["#e879f9", "#d946ef"] },
+  { href: "/how-it-works", icon: Compass,        label: "How",     grad: "grad-how",    stops: ["#7dd3fc", "#0ea5e9"] },
+  { href: "/blog",         icon: Coffee,         label: "Blog",    grad: "grad-blog",   stops: ["#fb923c", "#ea580c"] },
+  { href: "/about",        icon: Fingerprint,    label: "About",   grad: "grad-about",  stops: ["#f472b6", "#ec4899"] },
+  { href: "/pricing",      icon: Rocket,         label: "Pricing", grad: "grad-price",  stops: ["#c084fc", "#9333ea"] },
 ];
 
 /**
