@@ -259,7 +259,7 @@ export function PdfToolShell({
                       </p>
                       <p className="label-caps text-on-surface-variant mt-2">
                         {tool.accept ? tool.accept.map((a) => a.split("/")[1]).join(" · ").toUpperCase() : "Any file"}
-                        {" · Your files stay in your browser"}
+                        {tool.processingTier === "server" ? " · Cloud Processing" : " · Your files stay in your browser"}
                       </p>
                     </div>
 
@@ -385,7 +385,9 @@ export function PdfToolShell({
                       <ShieldCheck className="w-4 h-4" strokeWidth={2.5} /> Privacy first
                     </span>
                     <p className="text-sm text-on-surface-variant leading-relaxed">
-                      Files never leave your device — everything runs locally in your browser using WebAssembly.
+                      {tool.processingTier === "server" 
+                        ? "This tool requires heavy cloud processing. Files are securely uploaded, processed, and immediately deleted from our servers." 
+                        : "Files never leave your device — everything runs locally in your browser using WebAssembly."}
                     </p>
                   </div>
                   {!isReady && (

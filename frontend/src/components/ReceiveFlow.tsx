@@ -44,11 +44,12 @@ interface Props {
   receivedText: string | null;
   onJoin: (otc: string) => Promise<void>;
   bytesTransferred?: number;
+  initialCode?: string;
 }
 
-export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin, bytesTransferred = 0 }: Props) {
+export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, onJoin, bytesTransferred = 0, initialCode = "" }: Props) {
   const speedBps = useTransferSpeed(bytesTransferred);
-  const [otc, setOtc]         = useState("");
+  const [otc, setOtc]         = useState(initialCode);
   const [joining, setJoining] = useState(false);
   const [copied, setCopied]   = useState(false);
   const [showCompletionPopup, setShowCompletionPopup] = useState(true);
@@ -100,6 +101,13 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
       setShowErrorPopup(true);
     }
   }, [joining, onJoin, stopCamera]);
+
+  useEffect(() => {
+    if (initialCode && initialCode.length === 6) {
+      handleJoin(initialCode);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode]);
 
   const startScan = useCallback(async () => {
     setCameraError(null);

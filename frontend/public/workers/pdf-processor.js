@@ -110,6 +110,11 @@ const TOOL_HANDLERS = {
     const totalPages = src.getPageCount();
     const indices = parsePageRange(config.pageRange, totalPages);
 
+    if (indices.length === 0) {
+      error(requestId, 'INVALID_RANGE', 'The specified page range is out of bounds or invalid.');
+      return;
+    }
+
     progress(requestId, 30, `Extracting ${indices.length} page(s)…`);
     const out = await PDFDocument.create();
     const copied = await out.copyPages(src, indices);
@@ -171,11 +176,16 @@ const TOOL_HANDLERS = {
     progress(requestId, 30, 'Cropping pages…');
     for (const page of pages) {
       const { width, height } = page.getSize();
+      const newWidth = width - parseFloat(left) - parseFloat(right);
+      const newHeight = height - parseFloat(top) - parseFloat(bottom);
+      if (newWidth <= 0 || newHeight <= 0) {
+        throw Object.assign(new Error('The crop margins are too large and result in an invalid page size.'), { code: 'INVALID_CROP' });
+      }
       page.setCropBox(
         parseFloat(left),
         parseFloat(bottom),
-        width - parseFloat(left) - parseFloat(right),
-        height - parseFloat(top) - parseFloat(bottom),
+        newWidth,
+        newHeight,
       );
     }
 
@@ -277,15 +287,22 @@ const TOOL_HANDLERS = {
       const { width, height } = page.getSize();
       const textWidth = font.widthOfTextAtSize(text, fontSize);
 
-      page.drawText(text, {
-        x: (width - textWidth) / 2,
-        y: (height - fontSize) / 2,
-        size: fontSize,
-        font,
-        color: rgb(0.5, 0.5, 0.5),
-        opacity,
-        rotate: degrees(angle),
-      });
+      try {
+        page.drawText(text, {
+          x: (width - textWidth) / 2,
+          y: (height - fontSize) / 2,
+          size: fontSize,
+          font,
+          color: rgb(0.5, 0.5, 0.5),
+          opacity,
+          rotate: degrees(angle),
+        });
+      } catch (err) {
+        if (err.message && err.message.includes('WinAnsi')) {
+          throw Object.assign(new Error('The watermark text contains unsupported characters (e.g., non-English characters or emojis). Please use standard English characters.'), { code: 'UNSUPPORTED_CHARACTERS' });
+        }
+        throw err;
+      }
       progress(requestId, 10 + Math.round(((i + 1) / totalPages) * 80), 'Adding watermark…');
     }
 
@@ -294,35 +311,7 @@ const TOOL_HANDLERS = {
     complete(requestId, bytes.buffer, 'watermarked.pdf');
   },
 
-  // ── PROTECT PDF ───────────────────────────────────────────────────────────
-  // config: { userPassword: string, ownerPassword: string }
-  'protect-pdf': async (requestId, buffers, config) => {
-    progress(requestId, 5, 'Loading document…');
-    const doc = await loadPdf(buffers[0]);
 
-    if (!config.userPassword) {
-      error(requestId, 'MISSING_PASSWORD', 'A user password is required to protect the PDF.');
-      return;
-    }
-
-    progress(requestId, 50, 'Encrypting document…');
-    const bytes = await doc.save({
-      userPassword: config.userPassword,
-      ownerPassword: config.ownerPassword || config.userPassword,
-      permissions: {
-        printing: 'lowResolution',
-        modifying: false,
-        copying: false,
-        annotating: false,
-        fillingForms: true,
-        contentAccessibility: true,
-        documentAssembly: false,
-      },
-    });
-
-    progress(requestId, 95, 'Saving…');
-    complete(requestId, bytes.buffer, 'protected.pdf');
-  },
 
   // ── UNLOCK PDF ────────────────────────────────────────────────────────────
   // config: { password: string }

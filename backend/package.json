@@ -17,9 +17,11 @@
     "file-type": "^22.0.1",
     "http-proxy-middleware": "^4.0.0",
     "jose": "^6.2.3",
+    "multer": "^2.2.0",
     "pg": "^8.22.0",
     "redis": "^6.0.1",
     "socket.io": "^4.7.2",
-    "stripe": "^22.4.0"
+    "stripe": "^22.4.0",
+    "uuid": "^14.0.1"
   }
 }

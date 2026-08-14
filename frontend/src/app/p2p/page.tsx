@@ -13,10 +13,14 @@ import { AnimatePresence } from "framer-motion";
 function P2PContent() {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"send" | "receive">("send");
+  const [initialCode, setInitialCode] = useState<string>("");
 
   useEffect(() => {
     const m = searchParams.get("mode");
     if (m === "receive" || m === "send") setMode(m);
+    
+    const c = searchParams.get("code");
+    if (c) setInitialCode(c);
   }, [searchParams]);
 
   const socket = useSocket();
@@ -101,6 +105,7 @@ function P2PContent() {
                 bytesTransferred={receiverBytes}
                 receivedText={receivedText}
                 onJoin={joinRoom}
+                initialCode={initialCode}
               />
             )}
           </AnimatePresence>

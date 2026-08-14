@@ -3,7 +3,8 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { AlertCircle } from "lucide-react";
 import { SideRail } from "@/components/SideRail";
 import { signIn } from "next-auth/react";
 import {
@@ -94,12 +95,36 @@ function Sparkle({ className }: { className: string }) {
 function HomeContent() {
   const router = useRouter();
   const [code, setCode] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ show: boolean; code: string }>({ show: false, code: "" });
 
-  const openPortal = (e: React.FormEvent) => {
+  const openPortal = async (e: React.FormEvent) => {
     e.preventDefault();
-    // With a code → that sender portal; without → your own portal dashboard.
-    if (code.trim()) router.push(`/g2p/${code.trim().toUpperCase()}`);
-    else router.push("/g2p");
+    const val = code.trim().toUpperCase();
+    if (!val) {
+      router.push("/g2p");
+      return;
+    }
+
+    if (/^\d{6}$/.test(val)) {
+      router.push(`/p2p?mode=receive&code=${val}`);
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || "http://localhost:3000";
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/requests/vendor/${val}`);
+      if (res.ok) {
+        router.push(`/g2p/${val}`);
+      } else {
+        setErrorModal({ show: true, code: val });
+      }
+    } catch (err) {
+      setErrorModal({ show: true, code: val });
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   return (
@@ -173,10 +198,11 @@ function HomeContent() {
                   <button
                     suppressHydrationWarning
                     type="submit"
-                    className="h-11 px-8 rounded-full bg-[#171226] text-white text-[12px] font-bold tracking-[0.12em] uppercase hover:bg-[#2A2140] transition-colors flex items-center gap-2"
+                    disabled={isVerifying}
+                    className="h-11 px-8 rounded-full bg-[#171226] text-white text-[12px] font-bold tracking-[0.12em] uppercase hover:bg-[#2A2140] transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    Open portal
-                    <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    {isVerifying ? "Verifying..." : "Open portal"}
+                    {!isVerifying && <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />}
                   </button>
                   <Link
                     href="/p2p"
@@ -298,6 +324,40 @@ function HomeContent() {
           </div>
         </div>
       </div>
+
+      {/* Error Modal */}
+      <AnimatePresence>
+        {errorModal.show && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/40 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-[#EFEAF6] rounded-3xl p-8 max-w-sm w-full shadow-[0_24px_80px_rgba(70,40,140,0.2)] flex flex-col items-center text-center border border-white/50"
+            >
+              <div className="w-16 h-16 rounded-3xl bg-[#F0D5D8] flex items-center justify-center mb-5 border border-white/50">
+                <AlertCircle className="w-8 h-8 text-[#DC2626]" strokeWidth={2} />
+              </div>
+              <h2 className="text-[22px] font-bold text-[#171226] mb-2 tracking-tight">Portal not found</h2>
+              <p className="text-[14px] text-[#4B4560] leading-relaxed mb-8 px-2">
+                The Share Code <strong className="text-[#171226]">"{errorModal.code}"</strong> is invalid or has expired.
+              </p>
+              <button
+                onClick={() => setErrorModal({ show: false, code: "" })}
+                className="w-full h-12 rounded-full bg-[#171226] text-white text-[13px] font-bold hover:bg-[#2A2140] transition-colors shadow-md"
+              >
+                Return Home
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

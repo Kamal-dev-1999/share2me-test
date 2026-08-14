@@ -13,7 +13,8 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 nodejs && \
+RUN apk add --no-cache qpdf && \
+    addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nodeapp
 
 ENV NODE_ENV=production

@@ -91,7 +91,7 @@ export const PDF_TOOLS: PdfTool[] = [
   { slug: "compare-pdf",   title: "Compare PDF",   description: "Side-by-side visual diff between two PDF versions.",               icon: GitCompare,category: "edit", phase: "soon", processingTier: "client" },
 
   // ---- SECURITY ----
-  { slug: "protect-pdf", title: "Protect PDF", description: "Encrypt a PDF with a password so only holders can open it.",         icon: Lock,     category: "security", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
+  { slug: "protect-pdf", title: "Protect PDF", description: "Encrypt a PDF with a password so only holders can open it.",         icon: Lock,     category: "security", phase: "ready", processingTier: "server", accept: ["application/pdf"] },
   { slug: "unlock-pdf",  title: "Unlock PDF",  description: "Remove password protection from a PDF you have permission to use.",  icon: Unlock,   category: "security", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
   { slug: "sign-pdf",    title: "Sign PDF",    description: "Sign a PDF yourself or send it to others for signature.",            icon: FileText, category: "security", phase: "soon",  processingTier: "server" },
 

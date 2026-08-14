@@ -29,6 +29,7 @@ g2pRouter.use('/health', healthRoutes);
 const requestRoutes = require('./routes/requests');
 const fileRoutes = require('./routes/files');
 const vendorActionsRoutes = require('./routes/vendor-actions');
+const toolsRoutes = require('./routes/tools');
 const { startCleanupWorker } = require('./workers/cleanup');
 
 // Start the 5-min GC and reconciliation loop for G2P
@@ -37,6 +38,7 @@ startCleanupWorker();
 g2pRouter.use('/requests', requestRoutes);
 g2pRouter.use('/files', fileRoutes);
 g2pRouter.use('/vendor', vendorActionsRoutes);
+g2pRouter.use('/tools', toolsRoutes);
 
 module.exports = {
   g2pRouter,

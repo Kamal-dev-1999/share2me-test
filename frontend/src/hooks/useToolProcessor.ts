@@ -16,6 +16,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getToolBySlug } from "../lib/pdfTools";
+import axios from "axios";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -55,6 +57,7 @@ export interface UseToolProcessorReturn extends ProcessorState {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const WORKER_PATH = "/workers/pdf-processor.js";
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
 
 const INITIAL_STATE: ProcessorState = {
   status: "idle",
@@ -129,6 +132,123 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
       });
 
       const totalInputBytes = files.reduce((sum, f) => sum + f.size, 0);
+      const toolInfo = getToolBySlug(slug);
+
+      if (toolInfo?.processingTier === "server") {
+        setState(prev => ({ ...prev, progressMessage: "Requesting upload link…" }));
+        try {
+          const file = files[0]; // For phase 2, assume 1 file for now (OCR, Office conversions are 1-to-1)
+          
+          // 1. Presign
+          const presignRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/tools/presign`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename: file.name }),
+          });
+          
+          if (!presignRes.ok) throw new Error("Failed to get presigned URL");
+          const { r2_key, upload_url } = await presignRes.json();
+
+          // 2. Upload to R2 via Axios to get progress
+          setState(prev => ({ ...prev, progressMessage: "Uploading to cloud…" }));
+          await axios.put(upload_url, file, {
+            headers: { "Content-Type": file.type },
+            onUploadProgress: (progressEvent) => {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+              // Map upload to 0-40% of total progress
+              setState(prev => ({ ...prev, progress: Math.round(percentCompleted * 0.4) }));
+            }
+          });
+
+          // 3. Enqueue Job
+          setState(prev => ({ ...prev, progressMessage: "Queuing job...", progress: 40 }));
+          const enqueueRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/tools/${slug}/enqueue`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              input_r2_key: r2_key,
+              filename: file.name,
+              sizeBytes: file.size,
+              config,
+            }),
+          });
+
+          if (!enqueueRes.ok) throw new Error("Failed to enqueue job");
+          const { job_id } = await enqueueRes.json();
+
+          // 4. SSE Stream
+          const eventSource = new EventSource(`${EXPRESS_BACKEND_URL}/g2p/tools/jobs/${job_id}/stream`);
+
+          eventSource.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'progress') {
+              // Map 0-100% of backend progress to 40-95% of total progress
+              const mappedProgress = 40 + Math.round((data.pct / 100) * 55);
+              setState(prev => ({ ...prev, progress: mappedProgress, progressMessage: data.message }));
+            }
+            
+            if (data.type === 'complete') {
+              eventSource.close();
+              
+              // Get download URL from backend
+              const downloadRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/tools/jobs/${job_id}/download?output_key=${data.output_key}`);
+              const { download_url } = await downloadRes.json();
+
+              // Fetch the final blob so the ActionPanel works exactly as before
+              setState(prev => ({ ...prev, progressMessage: "Fetching output..." }));
+              const outputRes = await fetch(download_url);
+              const blob = await outputRes.blob();
+
+              setState({
+                status: "complete",
+                progress: 100,
+                progressMessage: "Done!",
+                output: {
+                  blob,
+                  filename: `processed-${file.name}`,
+                  mimeType: outputRes.headers.get("Content-Type") || "application/pdf",
+                  inputBytes: totalInputBytes,
+                  outputBytes: data.output_bytes || blob.size,
+                },
+                error: null,
+              });
+            }
+
+            if (data.type === 'error') {
+              eventSource.close();
+              setState({
+                status: "error",
+                progress: 0,
+                progressMessage: "",
+                output: null,
+                error: { code: "SERVER_ERROR", message: data.message || "Failed to process job." },
+              });
+            }
+          };
+
+          eventSource.onerror = () => {
+            eventSource.close();
+            setState({
+              status: "error",
+              progress: 0,
+              progressMessage: "",
+              output: null,
+              error: { code: "STREAM_ERROR", message: "Lost connection to the processing server." },
+            });
+          };
+
+        } catch (err: any) {
+          setState({
+            status: "error",
+            progress: 0,
+            progressMessage: "",
+            output: null,
+            error: { code: "SERVER_ERROR", message: err.message },
+          });
+        }
+        return;
+      }
 
       // Read all files as ArrayBuffers
       let buffers: ArrayBuffer[];
