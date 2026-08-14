@@ -66,6 +66,17 @@ async function processJob(jobId, data) {
   else if (slug === 'translate-pdf') {
     outputBuffer = await ai.processAi(inputBuffer, 'translate', config, emitProgress);
   }
+  else if (slug === 'pdf-to-markdown') {
+    outputBuffer = await ai.processAi(inputBuffer, 'markdown', config, emitProgress);
+    ext = '.md';
+  }
+  else if (slug === 'repair-pdf') {
+    const mutool = require('./engines/mutool');
+    outputBuffer = await mutool.processRepairPdf(inputBuffer, emitProgress);
+  }
+  else if (slug === 'pdf-to-pdfa') {
+    outputBuffer = await libreoffice.processPdfToPdfA(inputBuffer, emitProgress);
+  }
   else {
     throw new Error(`Engine for slug ${slug} is not implemented yet.`);
   }

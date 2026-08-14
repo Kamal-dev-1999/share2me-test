@@ -80,8 +80,8 @@ export const PDF_TOOLS: PdfTool[] = [
   { slug: "pdf-to-word",       title: "PDF to Word",       description: "Convert a PDF into an editable DOCX file.",                          icon: FileType2,       category: "convert-from-pdf", phase: "soon",  processingTier: "server", tag: "DOCX" },
   { slug: "pdf-to-excel",      title: "PDF to Excel",      description: "Pull tables from a PDF into an editable XLSX sheet.",                icon: FileSpreadsheet, category: "convert-from-pdf", phase: "soon",  processingTier: "server", tag: "XLSX" },
   { slug: "pdf-to-powerpoint", title: "PDF to PowerPoint", description: "Turn each PDF page into a PowerPoint slide.",                        icon: Presentation,    category: "convert-from-pdf", phase: "soon",  processingTier: "server", tag: "PPTX" },
-  { slug: "pdf-to-markdown",   title: "PDF to Markdown",   description: "Extract clean Markdown from a PDF — headings, lists, tables preserved.", icon: FileCode2,   category: "convert-from-pdf", phase: "soon",  processingTier: "server", tag: "MD" },
-  { slug: "pdf-to-pdfa",       title: "PDF to PDF/A",      description: "Convert your PDF to the ISO archival PDF/A format.",                 icon: FileCheck2,      category: "convert-from-pdf", phase: "soon",  processingTier: "server", tag: "PDF/A" },
+  { slug: "pdf-to-markdown",   title: "PDF to Markdown",   description: "Extract clean Markdown from a PDF — headings, lists, tables preserved.", icon: FileCode2,   category: "convert-from-pdf", phase: "ready", processingTier: "server", tag: "MD", accept: ["application/pdf"] },
+  { slug: "pdf-to-pdfa",       title: "PDF to PDF/A",      description: "Convert your PDF to the ISO archival PDF/A format.",                 icon: FileCheck2,      category: "convert-from-pdf", phase: "ready", processingTier: "server", tag: "PDF/A", accept: ["application/pdf"] },
 
   // ---- EDIT ----
   { slug: "edit-pdf",      title: "Edit PDF",      description: "Add text, images, shapes, and freehand annotations to a PDF.",    icon: PenLine,  category: "edit", phase: "soon",  processingTier: "client" },
@@ -97,7 +97,7 @@ export const PDF_TOOLS: PdfTool[] = [
 
   // ---- OPTIMIZE ----
   { slug: "compress-pdf", title: "Compress PDF", description: "Reduce PDF file size while preserving maximum readable quality.", icon: Minimize2, category: "optimize", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
-  { slug: "repair-pdf",   title: "Repair PDF",   description: "Repair a corrupt PDF and recover recoverable pages.",              icon: Wrench,    category: "optimize", phase: "soon",  processingTier: "server" },
+  { slug: "repair-pdf",   title: "Repair PDF",   description: "Repair a corrupt PDF and recover recoverable pages.",              icon: Wrench,    category: "optimize", phase: "ready", processingTier: "server", accept: ["application/pdf"] },
 
   // ---- AI (all server-side — require API keys) ----
   { slug: "ai-summarizer", title: "AI Summarizer", description: "Get an instant AI-generated summary of any PDF document.",      icon: Sparkles, category: "ai", phase: "ready", processingTier: "server", tag: "AI", accept: ["application/pdf"] },

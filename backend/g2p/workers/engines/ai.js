@@ -53,6 +53,34 @@ async function processAi(inputBuffer, action, config, emitProgress) {
         throw new Error('Gemini OCR failed: ' + err.message);
       }
     }
+  } else if (action === 'markdown') {
+    emitProgress(20, "Extracting native PDF markdown...");
+    try {
+      const { convert } = await import('@pdf2md/core');
+      const result = await convert(new Uint8Array(inputBuffer));
+      if (result.markdown && result.markdown.trim().length > 50) {
+        emitProgress(100, "Markdown extraction complete! (Native)");
+        return Buffer.from(result.markdown, 'utf-8');
+      }
+    } catch(e) {
+      console.error("Native pdf2md failed, falling back to AI", e);
+    }
+    
+    emitProgress(50, "No selectable text found. Running AI Markdown extraction...");
+    const mimeType = getMimeType(inputBuffer);
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [
+          "Extract all text, tables, and content from this document and format it strictly as GitHub Flavored Markdown. Preserve headings, lists, and structure perfectly. Do not add any conversational text.",
+          { inlineData: { data: inputBuffer.toString("base64"), mimeType } }
+        ]
+      });
+      emitProgress(100, "Markdown extraction complete! (AI)");
+      return Buffer.from(response.text, 'utf-8');
+    } catch (err) {
+      throw new Error('Gemini Markdown extraction failed: ' + err.message);
+    }
   } else {
     emitProgress(20, "Extracting text from PDF...");
     let text = '';
