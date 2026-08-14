@@ -5,6 +5,15 @@ const { execFile } = require('child_process');
 const fs = require('fs/promises');
 const path = require('path');
 const os = require('os');
+const rateLimit = require('express-rate-limit');
+
+const apiLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 hrs
+  max: 20, // Limit each IP to 20 requests per window
+  message: { error: 'You have exceeded your 20 free daily requests. Please try again tomorrow.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const upload = multer({ dest: os.tmpdir() });
 
@@ -90,7 +99,7 @@ router.post('/presign', async (req, res) => {
   }
 });
 
-router.post('/:slug/enqueue', async (req, res) => {
+router.post('/:slug/enqueue', apiLimiter, async (req, res) => {
   try {
     const { slug } = req.params;
     const { input_r2_key, filename, sizeBytes, config } = req.body;

@@ -13,7 +13,7 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN apk add --no-cache qpdf && \
+RUN apk add --no-cache qpdf libreoffice tesseract-ocr chromium nss freetype harfbuzz ca-certificates ttf-freefont && \
     addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nodeapp
 

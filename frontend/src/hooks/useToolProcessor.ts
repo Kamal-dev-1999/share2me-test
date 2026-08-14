@@ -200,13 +200,19 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
               const outputRes = await fetch(download_url);
               const blob = await outputRes.blob();
 
+              // Determine the correct output extension from the backend's output_key
+              const extMatch = data.output_key ? data.output_key.match(/\.[a-z0-9]+$/i) : null;
+              const outExt = extMatch ? extMatch[0] : ".pdf";
+              const baseName = file.name.replace(/\.[a-z0-9]+$/i, "");
+              const finalFilename = `processed-${baseName}${outExt}`;
+
               setState({
                 status: "complete",
                 progress: 100,
                 progressMessage: "Done!",
                 output: {
                   blob,
-                  filename: `processed-${file.name}`,
+                  filename: finalFilename,
                   mimeType: outputRes.headers.get("Content-Type") || "application/pdf",
                   inputBytes: totalInputBytes,
                   outputBytes: data.output_bytes || blob.size,

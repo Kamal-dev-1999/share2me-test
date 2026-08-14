@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import { notFound } from "next/navigation";
 import { PdfToolShell } from "@/components/PdfToolShell";
+import { ScanToPdfUI } from "@/components/tools/ScanToPdfUI";
 import { getToolBySlug } from "@/lib/pdfTools";
 import * as Configs from "@/components/tools/configs";
 
@@ -22,6 +23,7 @@ const ConfigMap: Record<string, React.ComponentType<Configs.ConfigProps>> = {
   "organize-pdf": Configs.OrganizeConfig,
   "jpg-to-pdf": Configs.JpgToPdfConfig,
   "pdf-to-jpg": Configs.PdfToJpgConfig,
+  "translate-pdf": Configs.TranslateConfig,
 };
 
 /**
@@ -67,6 +69,10 @@ export default function ToolPage({ params }: PageProps) {
   ]);
 
   const ConfigComponent = ConfigMap[tool.slug];
+
+  if (tool.slug === "scan-to-pdf") {
+    return <ScanToPdfUI tool={tool} />;
+  }
 
   return (
     <PdfToolShell

@@ -70,10 +70,10 @@ export const PDF_TOOLS: PdfTool[] = [
 
   // ---- CONVERT TO PDF ----
   { slug: "jpg-to-pdf",        title: "JPG to PDF",        description: "Turn JPG or PNG images into a single PDF, one image per page.",    icon: ImageIcon,       category: "convert-to-pdf", phase: "ready", processingTier: "client", tag: "JPG/PNG", accept: ["image/jpeg", "image/png"] },
-  { slug: "word-to-pdf",       title: "Word to PDF",       description: "Convert DOC and DOCX files into ready-to-share PDFs.",              icon: FileType2,       category: "convert-to-pdf", phase: "soon",  processingTier: "server", tag: "DOCX" },
-  { slug: "excel-to-pdf",      title: "Excel to PDF",      description: "Export XLSX / XLS spreadsheets into a clean PDF layout.",           icon: FileSpreadsheet, category: "convert-to-pdf", phase: "soon",  processingTier: "server", tag: "XLSX" },
-  { slug: "powerpoint-to-pdf", title: "PowerPoint to PDF", description: "Turn PPTX slide decks into a printable PDF.",                        icon: Presentation,    category: "convert-to-pdf", phase: "soon",  processingTier: "server", tag: "PPTX" },
-  { slug: "html-to-pdf",       title: "HTML to PDF",       description: "Paste a URL or upload an .html file — get a print-ready PDF.",     icon: Code2,           category: "convert-to-pdf", phase: "soon",  processingTier: "server", tag: "HTML" },
+  { slug: "word-to-pdf",       title: "Word to PDF",       description: "Convert DOC and DOCX files into ready-to-share PDFs.",              icon: FileType2,       category: "convert-to-pdf", phase: "ready",  processingTier: "server", tag: "DOCX", accept: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"] },
+  { slug: "excel-to-pdf",      title: "Excel to PDF",      description: "Export XLSX / XLS spreadsheets into a clean PDF layout.",           icon: FileSpreadsheet, category: "convert-to-pdf", phase: "ready",  processingTier: "server", tag: "XLSX", accept: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"] },
+  { slug: "powerpoint-to-pdf", title: "PowerPoint to PDF", description: "Turn PPTX slide decks into a printable PDF.",                        icon: Presentation,    category: "convert-to-pdf", phase: "ready",  processingTier: "server", tag: "PPTX", accept: ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.ms-powerpoint"] },
+  { slug: "html-to-pdf",       title: "HTML to PDF",       description: "Paste a URL or upload an .html file — get a print-ready PDF.",     icon: Code2,           category: "convert-to-pdf", phase: "ready",  processingTier: "server", tag: "HTML", accept: ["text/html"] },
 
   // ---- CONVERT FROM PDF ----
   { slug: "pdf-to-jpg",        title: "PDF to JPG",        description: "Extract every page of a PDF as a JPG image.",                        icon: FileImage,       category: "convert-from-pdf", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
@@ -100,10 +100,10 @@ export const PDF_TOOLS: PdfTool[] = [
   { slug: "repair-pdf",   title: "Repair PDF",   description: "Repair a corrupt PDF and recover recoverable pages.",              icon: Wrench,    category: "optimize", phase: "soon",  processingTier: "server" },
 
   // ---- AI (all server-side — require API keys) ----
-  { slug: "ai-summarizer", title: "AI Summarizer", description: "Get an instant AI-generated summary of any PDF document.",      icon: Sparkles, category: "ai", phase: "soon", processingTier: "server", tag: "AI" },
-  { slug: "translate-pdf", title: "Translate PDF", description: "Translate a PDF into another language, preserving the layout.", icon: Languages,category: "ai", phase: "soon", processingTier: "server", tag: "AI" },
-  { slug: "ocr-pdf",       title: "OCR PDF",       description: "Turn a scanned PDF into searchable, selectable text via OCR.",  icon: ScanText, category: "ai", phase: "soon", processingTier: "hybrid" },
-  { slug: "scan-to-pdf",   title: "Scan to PDF",   description: "Capture pages with your camera and save them as a clean PDF.",  icon: ScanLine, category: "ai", phase: "soon", processingTier: "client" },
+  { slug: "ai-summarizer", title: "AI Summarizer", description: "Get an instant AI-generated summary of any PDF document.",      icon: Sparkles, category: "ai", phase: "ready", processingTier: "server", tag: "AI", accept: ["application/pdf"] },
+  { slug: "translate-pdf", title: "Translate PDF", description: "Translate a PDF into another language, preserving the layout.", icon: Languages,category: "ai", phase: "ready", processingTier: "server", tag: "AI", accept: ["application/pdf"] },
+  { slug: "ocr-pdf",       title: "OCR PDF",       description: "Turn a scanned PDF into searchable, selectable text via OCR.",  icon: ScanText, category: "ai", phase: "ready", processingTier: "server", accept: ["image/png", "image/jpeg", "application/pdf"] },
+  { slug: "scan-to-pdf",   title: "Scan to PDF",   description: "Capture pages with your camera and save them as a clean PDF.",  icon: ScanLine, category: "ai", phase: "ready", processingTier: "client" },
 ];
 
 export function getToolBySlug(slug: string): PdfTool | undefined {

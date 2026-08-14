@@ -9,4 +9,5 @@ export { CropConfig } from "./CropConfig";
 export { OrganizeConfig } from "./OrganizeConfig";
 export { JpgToPdfConfig } from "./JpgToPdfConfig";
 export { PdfToJpgConfig } from "./PdfToJpgConfig";
+export { TranslateConfig } from "./TranslateConfig";
 export type { ConfigProps } from "./RotateConfig";

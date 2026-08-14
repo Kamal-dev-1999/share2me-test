@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * ActionPanel â€” Post-processing action hub.
@@ -137,9 +137,8 @@ function PreviewModal({ output, onClose }: { output: ProcessedOutput; onClose: (
           ) : (
             <iframe
               src={`${objectUrl}#toolbar=1&navpanes=0`}
-              title={`Preview â€” ${output.filename}`}
+              title={`Preview — ${output.filename}`}
               className="w-full h-full border-0"
-              sandbox="allow-same-origin allow-scripts allow-forms"
             />
           )}
         </div>
