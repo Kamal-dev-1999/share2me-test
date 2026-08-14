@@ -4,12 +4,16 @@ import {
   Copy, Check, Search, Download, Trash2, Calendar,
   ArrowUpDown, FileText, FileImage, Film,
   FolderArchive, LogOut, Volume2, VolumeX,
-  Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, PieChart, ArrowRight, BarChart, User,
+  Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, ArrowRight, BarChart, User,
   CloudDownload, Share2, Activity, Bell, BellOff, CheckCircle2,
   FileCode, FileSpreadsheet, FileAudio, FileQuestion
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from 'recharts';
 
 interface UserProfile {
   userId: string;
@@ -43,7 +47,7 @@ const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://local
 
 function getIconMetadata(mimeType: string, filename: string) {
   const name = filename.toLowerCase();
-  
+
   if (name.endsWith(".pdf") || mimeType === "application/pdf") {
     return { Icon: FileText, grad: "grad-pdf", label: "PDF" };
   }
@@ -72,7 +76,7 @@ function getIconMetadata(mimeType: string, filename: string) {
   if (name.match(/\.(js|ts|html|css|json|jsx|tsx|py|cpp|c|go|rs)$/) || mimeType.includes("json") || mimeType.includes("javascript")) {
     return { Icon: FileCode, grad: "grad-code", label: "CODE" };
   }
-  
+
   return { Icon: FileQuestion, grad: "grad-default", label: "FILE" };
 }
 
@@ -113,7 +117,7 @@ function UploadRecordRow({
   return (
     <div className="border-b border-white/20 last:border-0 group/row">
       {/* Row Header */}
-      <div 
+      <div
         onClick={() => setIsExpanded(!isExpanded)}
         className="grid grid-cols-[1fr_auto_auto] md:grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-3 md:gap-4 items-center p-3.5 md:p-4 hover:bg-white/10 transition-colors cursor-pointer text-sm"
       >
@@ -143,7 +147,7 @@ function UploadRecordRow({
         <div className="hidden md:block text-[#111827]/70 text-xs font-mono">
           {new Date(record.uploadedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
         </div>
-        
+
         <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
           <button
             onClick={handleDownloadAll}
@@ -182,14 +186,14 @@ function UploadRecordRow({
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative w-12 h-12 rounded-xl bg-white/60 flex flex-col items-center shrink-0 shadow-sm border border-white/80 overflow-hidden group/icon">
                         <div className="flex-1 flex items-center justify-center w-full pt-0.5">
-                          <Icon 
-                            className="relative z-10 w-5 h-5 transition-transform duration-300 group-hover/icon:scale-110 group-hover/icon:-translate-y-0.5" 
+                          <Icon
+                            className="relative z-10 w-5 h-5 transition-transform duration-300 group-hover/icon:scale-110 group-hover/icon:-translate-y-0.5"
                             style={{ stroke: `url(#${grad})`, filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.15))" }}
                             strokeWidth={2.5}
                           />
                         </div>
                         <div className="w-full h-3.5 bg-[#111827]/[0.03] flex items-center justify-center backdrop-blur-md border-t border-white/60 rounded-b-xl">
-                           <span className="text-[8px] font-black text-[#111827]/60 font-mono tracking-wider translate-y-[0.5px]">{label}</span>
+                          <span className="text-[8px] font-black text-[#111827]/60 font-mono tracking-wider translate-y-[0.5px]">{label}</span>
                         </div>
                       </div>
                       <div className="flex flex-col min-w-0">
@@ -239,7 +243,7 @@ export default function G2pDashboard({
   const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest");
   const [copied, setCopied] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -247,7 +251,10 @@ export default function G2pDashboard({
   const [displayName, setDisplayName] = useState(user.username);
   const [isUpdatingName, setIsUpdatingName] = useState(false);
   const [nameUpdateStatus, setNameUpdateStatus] = useState<string | null>(null);
-  
+
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+
   // QR Customization State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -325,6 +332,23 @@ export default function G2pDashboard({
     }
   }, [playChime]);
 
+  const loadAnalytics = useCallback(async (authToken: string) => {
+    setIsAnalyticsLoading(true);
+    try {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/analytics`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAnalyticsData(data);
+      }
+    } catch (e) {
+      console.error("Failed to load analytics", e);
+    } finally {
+      setIsAnalyticsLoading(false);
+    }
+  }, []);
+
   const handleUpdateName = async () => {
     if (!token || !displayName.trim()) return;
     setIsUpdatingName(true);
@@ -384,7 +408,7 @@ export default function G2pDashboard({
 
   useEffect(() => {
     let mounted = true;
-    
+
     // Fetch token for API and Sockets
     fetch("/api/g2p-token")
       .then(res => res.json())
@@ -417,6 +441,12 @@ export default function G2pDashboard({
     };
   }, [connectSocket, loadUploads]);
 
+  useEffect(() => {
+    if (activeTab === 'analytics' && token && !analyticsData) {
+      loadAnalytics(token);
+    }
+  }, [activeTab, token, analyticsData, loadAnalytics]);
+
   const handleDeleteUpload = async (uploadId: string) => {
     if (!token) return;
     try {
@@ -437,7 +467,7 @@ export default function G2pDashboard({
     try {
       const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/files/${file.id}/download`, {
         method: "POST",
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
@@ -445,17 +475,17 @@ export default function G2pDashboard({
       });
       if (!res.ok) throw new Error(`${action} failed`);
       const data = await res.json();
-      
+
       const link = document.createElement("a");
       link.href = data.url;
-      
+
       // If download, the backend already set ResponseContentDisposition=attachment.
       if (action === 'download') {
         link.download = file.name;
       } else {
         link.target = "_blank";
       }
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -471,7 +501,7 @@ export default function G2pDashboard({
 
   const cleanFg = qrFgColor.replace('#', '');
   const cleanBg = qrBgColor.replace('#', '');
-  
+
   // Only append centerImageUrl if it looks somewhat like a valid URL
   const isValidLogo = debouncedLogoUrl.startsWith("http");
   const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(shareLink)}&size=300&margin=1&dark=${cleanFg}&light=${cleanBg}${isValidLogo ? `&centerImageUrl=${encodeURIComponent(debouncedLogoUrl)}` : ''}`;
@@ -493,7 +523,7 @@ export default function G2pDashboard({
 
   return (
     <div className="flex flex-col md:flex-row w-full md:h-[calc(100vh-3rem)] text-[#111827] font-sans gap-4 md:gap-6">
-       
+
       {/* SVG Defs for gradient icons */}
       <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
         <defs>
@@ -510,7 +540,7 @@ export default function G2pDashboard({
             <stop stopColor="#c084fc" offset="0%" />
             <stop stopColor="#9333ea" offset="100%" />
           </linearGradient>
-          
+
           {/* File Type Gradients */}
           <linearGradient id="grad-pdf" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#ef4444" offset="0%" /><stop stopColor="#b91c1c" offset="100%" /></linearGradient>
           <linearGradient id="grad-word" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#3b82f6" offset="0%" /><stop stopColor="#1d4ed8" offset="100%" /></linearGradient>
@@ -532,7 +562,7 @@ export default function G2pDashboard({
           </linearGradient>
         </defs>
       </svg>
-      
+
       {/* SIDEBAR */}
       <aside className="w-full md:w-[280px] shrink-0 flex flex-col gap-3 md:gap-6">
         {/* Profile Info */}
@@ -547,20 +577,19 @@ export default function G2pDashboard({
         {/* MOBILE — compact horizontal tab pill (same colors, old-UX layout) */}
         <div className="flex md:hidden items-center justify-around gap-1 p-2 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
           {([
-            { tab: "inbox" as TabMode,     icon: CloudDownload,    grad: "g2p-dash" },
-            { tab: "share" as TabMode,     icon: Share2,   grad: "g2p-share" },
-            { tab: "settings" as TabMode,  icon: Settings, grad: "g2p-settings" },
+            { tab: "inbox" as TabMode, icon: CloudDownload, grad: "g2p-dash" },
+            { tab: "share" as TabMode, icon: Share2, grad: "g2p-share" },
+            { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings" },
             { tab: "analytics" as TabMode, icon: Activity, grad: "g2p-analytics" },
           ]).map(({ tab, icon: TabIcon, grad }) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               aria-label={tab}
-              className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
-                activeTab === tab
+              className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all ${activeTab === tab
                   ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)]"
                   : "hover:bg-white/40"
-              }`}
+                }`}
             >
               <TabIcon
                 className="w-5 h-5"
@@ -596,17 +625,16 @@ export default function G2pDashboard({
         {/* Dashboard Button (desktop) */}
         <button
           onClick={() => setActiveTab("inbox")}
-          className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${
-            activeTab === "inbox" 
-              ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]" 
+          className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${activeTab === "inbox"
+              ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
               : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
-          }`}
+            }`}
         >
-          <CloudDownload 
+          <CloudDownload
             className="w-5 h-5 transition-transform duration-300"
             style={activeTab === "inbox" ? { stroke: "url(#g2p-dash)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
             strokeWidth={activeTab === "inbox" ? 2.5 : 2}
-          /> 
+          />
           <span>Dashboard</span>
           {uploads.length > 0 && activeTab !== "inbox" && (
             <span className="ml-auto w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></span>
@@ -617,59 +645,56 @@ export default function G2pDashboard({
         <div className="hidden md:grid grid-cols-2 gap-3 sm:gap-4">
           <button
             onClick={() => setActiveTab("share")}
-            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${
-              activeTab === "share" 
-                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]" 
+            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "share"
+                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
                 : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-            }`}
+              }`}
           >
-            <Share2 
-              className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" 
+            <Share2
+              className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
               style={activeTab === "share" ? { stroke: "url(#g2p-share)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
               strokeWidth={activeTab === "share" ? 2.5 : 2}
             />
             <span className="text-[13px] font-bold">Share Portal</span>
           </button>
-          
+
           <button
             onClick={() => setActiveTab("settings")}
-            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${
-              activeTab === "settings" 
-                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]" 
+            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "settings"
+                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
                 : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-            }`}
+              }`}
           >
-            <Settings 
+            <Settings
               className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
               style={activeTab === "settings" ? { stroke: "url(#g2p-settings)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
               strokeWidth={activeTab === "settings" ? 2.5 : 2}
             />
             <span className="text-[13px] font-bold">Settings</span>
           </button>
-          
+
           <button
             onClick={() => setActiveTab("analytics")}
-            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${
-              activeTab === "analytics" 
-                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]" 
+            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "analytics"
+                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
                 : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-            }`}
+              }`}
           >
-            <Activity 
+            <Activity
               className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
               style={activeTab === "analytics" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
               strokeWidth={activeTab === "analytics" ? 2.5 : 2}
             />
             <span className="text-[13px] font-bold">Analytics</span>
           </button>
-          
+
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] bg-white/20 hover:bg-white/40 border-white/30 text-[#111827] group"
           >
             {soundEnabled ? (
-              <Bell 
-                className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" 
+              <Bell
+                className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
                 style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }}
                 strokeWidth={2.5}
               />
@@ -685,18 +710,18 @@ export default function G2pDashboard({
           <button onClick={() => setIsUpgradeModalOpen(true)} className="w-full text-left bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.25)] flex flex-col group hover:scale-[1.02] transition-transform">
             {/* Minimal truck graphic / decoration */}
             <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none" />
-            
+
             <div className="flex items-center gap-3 mb-2 relative z-10">
               <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-white/30 shrink-0">
                 <span className="font-black text-white text-base leading-none">LL</span>
               </div>
               <h4 className="font-bold text-[19px] tracking-tight text-white leading-none">Pro Plan</h4>
             </div>
-            
+
             <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">
               Expedite cargo fleet with real-time tracking
             </p>
-            
+
             <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
               $11.99/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
             </div>
@@ -710,7 +735,7 @@ export default function G2pDashboard({
           Desktop: full glass panel as before. */}
       <main className="flex-1 min-w-0 md:bg-white/20 md:backdrop-blur-[32px] md:border md:border-white/30 md:rounded-[32px] p-0 md:p-6 md:shadow-[0_8px_32px_rgba(0,0,0,0.08)] md:overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">
-          
+
           {/* --- INBOX VIEW --- */}
           {activeTab === "inbox" && (
             <motion.div
@@ -762,7 +787,7 @@ export default function G2pDashboard({
               <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col flex-1 min-h-[calc(100dvh-190px)] md:min-h-0 overflow-hidden">
                 <div className="p-4 sm:p-6 border-b border-white/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
                   <h2 className="text-lg font-bold text-[#111827] font-display">Uploads</h2>
-                  
+
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="relative w-full sm:w-64">
                       <Search className="w-4 h-4 text-[#111827]/50 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -887,7 +912,7 @@ export default function G2pDashboard({
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Portal Settings</h2>
                 <p className="text-sm text-[#111827]/60">Customize your display name and QR code appearance.</p>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Profile Settings */}
                 <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
@@ -921,7 +946,7 @@ export default function G2pDashboard({
                 {/* QR Settings */}
                 <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
                   <h3 className="font-bold text-[#111827]">QR Code Appearance</h3>
-                  
+
                   <div className="flex gap-4">
                     <div className="flex-1">
                       <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Foreground</label>
@@ -979,15 +1004,132 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col items-center justify-center md:h-full p-6 text-center min-h-[300px]"
+              className="flex flex-col gap-6 md:h-full p-4 md:p-6 overflow-y-auto"
             >
-              <div className="w-20 h-20 bg-white/50 border border-white/60 rounded-3xl flex items-center justify-center mb-6 shadow-sm">
-                <BarChart className="w-10 h-10 text-[#111827]/30" />
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827] font-display">Analytics Overview</h2>
+                <p className="text-sm text-[#111827]/60">Real-time metrics and historical data for your portal.</p>
               </div>
-              <h2 className="text-2xl font-bold text-[#111827] font-display mb-2">Analytics Overview</h2>
-              <p className="text-[#111827]/60 max-w-md">
-                Detailed upload tracking and traffic metrics will appear here. This feature is unlocked with the Pro Plan.
-              </p>
+
+              {isAnalyticsLoading || !analyticsData ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-12">
+                  <div className="w-8 h-8 rounded-full border-2 border-[#111827] border-t-transparent animate-spin" />
+                  <p className="mt-4 text-sm font-bold text-[#111827]/60 font-mono tracking-widest uppercase">Loading Analytics...</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {/* METRIC CARDS */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
+                      <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Total Bandwidth</span>
+                      <span className="text-3xl font-black text-[#111827]">{formatSize(analyticsData.overview.totalBandwidth)}</span>
+                    </div>
+                    <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
+                      <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Total Uploads</span>
+                      <span className="text-3xl font-black text-[#111827]">{analyticsData.overview.totalUploads}</span>
+                    </div>
+                    <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
+                      <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Total Files</span>
+                      <span className="text-3xl font-black text-[#111827]">{uploads.reduce((acc, u) => acc + u.files.length, 0)}</span>
+                    </div>
+                  </div>
+
+                  {/* CHARTS */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[300px]">
+                    <div className="lg:col-span-2 bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col">
+                      <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">Uploads Over Time (Last 7 Days)</h3>
+                      <div className="flex-1 min-h-[250px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={analyticsData.timeSeries}>
+                            <defs>
+                              <linearGradient id="colorUploads" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#c084fc" stopOpacity={0.8} />
+                                <stop offset="95%" stopColor="#c084fc" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(17,24,39,0.1)" vertical={false} />
+                            <XAxis
+                              dataKey="date"
+                              tickFormatter={(str) => str ? new Date(str as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                              stroke="rgba(17,24,39,0.4)"
+                              fontSize={12}
+                              tickMargin={10}
+                            />
+                            <YAxis stroke="rgba(17,24,39,0.4)" fontSize={12} allowDecimals={false} />
+                            <Tooltip
+                              contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.6)', backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', color: '#111827', fontWeight: 'bold' }}
+                              labelFormatter={(label) => label ? new Date(label as string).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : ''}
+                            />
+                            <Area type="monotone" dataKey="uploads" stroke="#9333ea" strokeWidth={3} fillOpacity={1} fill="url(#colorUploads)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col">
+                      <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">File Types</h3>
+                      <div className="flex-1 min-h-[250px] flex items-center justify-center">
+                        {analyticsData.fileTypes.length === 0 ? (
+                          <span className="text-sm text-[#111827]/50 font-medium">No data available</span>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={analyticsData.fileTypes}
+                                dataKey="count"
+                                nameKey="file_type"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={5}
+                              >
+                                {analyticsData.fileTypes.map((entry: any, index: number) => {
+                                  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+                                  return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                                })}
+                              </Pie>
+                              <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.6)', backgroundColor: 'rgba(255,255,255,0.9)', color: '#111827', fontWeight: 'bold' }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RECENT ACTIVITY */}
+                  <div className="bg-white/50 border border-white/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-white/60">
+                      <h3 className="text-sm font-bold text-[#111827] font-display">Recent Activity</h3>
+                    </div>
+                    <div className="flex flex-col max-h-[300px] overflow-y-auto">
+                      {analyticsData.recentActivity.length === 0 ? (
+                        <div className="p-8 text-center text-sm text-[#111827]/50">No recent activity found.</div>
+                      ) : (
+                        analyticsData.recentActivity.map((event: any) => (
+                          <div key={event.id} className="flex items-center gap-4 p-4 border-b border-white/30 last:border-0 hover:bg-white/40 transition-colors">
+                            <div className="w-10 h-10 rounded-full bg-[#111827]/5 flex items-center justify-center shrink-0">
+                              {event.event_type === 'upload_received' ? <CloudDownload className="w-4 h-4 text-[#111827]" /> : <Eye className="w-4 h-4 text-[#111827]" />}
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col">
+                              <span className="text-sm font-bold text-[#111827] truncate">
+                                {event.sender_name} <span className="text-[#111827]/60 font-medium">{event.event_type === 'upload_received' ? 'sent a file' : 'viewed/downloaded a file'}</span>
+                              </span>
+                              <span className="text-xs text-[#111827]/60 font-mono mt-0.5 truncate max-w-xs" title={event.file_name || event.file_type}>
+                                {event.file_name || event.file_type} • {formatSize(parseInt(event.file_size_bytes, 10))}
+                              </span>
+                            </div>
+                            <div className="text-xs text-[#111827]/50 font-mono shrink-0">
+                              {new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -1015,7 +1157,7 @@ export default function G2pDashboard({
               <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-10">Upgrade Plan</h2>
 
               <div className="flex flex-col md:flex-row items-stretch gap-6 w-full max-w-3xl">
-                
+
                 {/* Basic Plan */}
                 <motion.div
                   initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -1028,16 +1170,16 @@ export default function G2pDashboard({
                       <div className="w-2.5 h-2.5 rounded-full bg-white/50" />
                     </div>
                   </div>
-                  
+
                   <h3 className="text-xl font-bold text-white mb-2">Basic</h3>
                   <div className="mb-6">
                     <span className="text-4xl font-bold text-white">$0.00</span>
                   </div>
-                  
+
                   <button className="w-full py-3 px-4 rounded-xl bg-white/10 text-white/50 font-bold mb-8 cursor-not-allowed">
                     Current Plan
                   </button>
-                  
+
                   <div className="flex flex-col gap-4 mt-auto">
                     <div className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-white/60 shrink-0" />
@@ -1067,14 +1209,14 @@ export default function G2pDashboard({
                   className="flex-1 bg-white/15 backdrop-blur-2xl border border-white/30 rounded-[32px] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden group"
                 >
                   <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#c084fc]/30 to-[#9333ea]/30 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-                  
+
                   <h3 className="text-xl font-bold text-white mb-2 relative z-10">Premium</h3>
                   <div className="mb-6 relative z-10">
                     <span className="text-4xl font-bold text-white">$11.99</span>
                     <span className="text-white/60 ml-1">/mo</span>
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={() => {
                       alert("Redirecting to payment gateway...");
                       setIsUpgradeModalOpen(false);
@@ -1083,7 +1225,7 @@ export default function G2pDashboard({
                   >
                     Upgrade
                   </button>
-                  
+
                   <div className="flex flex-col gap-4 mt-auto relative z-10">
                     <div className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-[#c084fc] shrink-0" />

@@ -411,3 +411,26 @@
   }
 }
 
+/* ─── Personalized Scrollbar ─── */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(17, 24, 39, 0.3) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(17, 24, 39, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(17, 24, 39, 0.4);
+}

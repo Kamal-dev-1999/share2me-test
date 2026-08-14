@@ -108,7 +108,7 @@ router.post('/:fileId/complete', async (req, res) => {
   try {
     // 1. Fetch file and verify ownership
     const fileRes = await query(`
-      SELECT f.id, f.r2_key, f.size_bytes, r.status_token, r.vendor_id, r.id as request_id
+      SELECT f.id, f.r2_key, f.size_bytes, f.mime_type, f.original_name, r.status_token, r.vendor_id, r.id as request_id, r.device_metadata
       FROM files f
       JOIN requests r ON f.request_id = r.id
       WHERE f.id = $1 AND f.status = 'pending_upload'
@@ -133,6 +133,21 @@ router.post('/:fileId/complete', async (req, res) => {
 
     // 3. Mark as received
     await query(`UPDATE files SET status = 'received' WHERE id = $1`, [fileId]);
+
+    // 3.5 Log Analytics Event
+    const senderName = fileRow.device_metadata?.senderName || 'Anonymous';
+    await query(`
+      INSERT INTO g2p_analytics_events 
+      (vendor_id, sender_name, event_type, file_size_bytes, file_type, user_agent, file_name)
+      VALUES ($1, $2, 'upload_received', $3, $4, $5, $6)
+    `, [
+      fileRow.vendor_id,
+      senderName,
+      fileRow.size_bytes,
+      fileRow.mime_type,
+      req.headers['user-agent'] || 'Unknown',
+      fileRow.original_name
+    ]).catch(err => console.error('[G2P] Analytics insert error:', err));
 
     // 4. Broadcast 'g2p:new_submission' to vendor socket room
     const { emitToVendor } = require('../socket');

@@ -133,7 +133,7 @@ router.post('/files/:fileId/download', async (req, res) => {
   
   try {
     const fileRes = await query(`
-      SELECT f.r2_key, f.original_name, r.vendor_id
+      SELECT f.r2_key, f.original_name, f.size_bytes, f.mime_type, r.vendor_id, r.device_metadata
       FROM files f
       JOIN requests r ON f.request_id = r.id
       WHERE f.id = $1 AND f.status IN ('received', 'downloaded')
@@ -147,6 +147,24 @@ router.post('/files/:fileId/download', async (req, res) => {
 
     const url = await generatePresignedGetUrl(fileRes.rows[0].r2_key, fileRes.rows[0].original_name, action);
     
+    // 3.5 Log Analytics Event
+    const fileRow = fileRes.rows[0];
+    const eventType = action === 'preview' ? 'file_previewed' : 'file_downloaded';
+    const senderName = fileRow.device_metadata?.senderName || 'Anonymous';
+    await query(`
+      INSERT INTO g2p_analytics_events 
+      (vendor_id, sender_name, event_type, file_size_bytes, file_type, user_agent, file_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [
+      fileRow.vendor_id,
+      senderName,
+      eventType,
+      fileRow.size_bytes,
+      fileRow.mime_type,
+      req.headers['user-agent'] || 'Unknown',
+      fileRow.original_name
+    ]).catch(err => console.error('[G2P] Analytics insert error:', err));
+
     emitToVendor(req.vendorId, 'g2p:file_downloaded', { fileId });
 
     res.json({ url });
@@ -168,6 +186,61 @@ router.delete('/requests/:requestId', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[G2P] Delete request error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Get analytics data for the dashboard
+router.get('/analytics', async (req, res) => {
+  try {
+    // 1. Total Bandwidth (sum of file_size_bytes where event is upload_received)
+    const bandwidthRes = await query(`
+      SELECT COALESCE(SUM(file_size_bytes), 0) as total_bandwidth, COUNT(*)::int as total_uploads
+      FROM g2p_analytics_events
+      WHERE vendor_id = $1
+      AND event_type = 'upload_received'
+    `, [req.vendorId]);
+
+    // 2. File Type Composition
+    const typeRes = await query(`
+      SELECT file_type, COUNT(*)::int as count
+      FROM g2p_analytics_events
+      WHERE vendor_id = $1
+      AND event_type = 'upload_received'
+      GROUP BY file_type
+    `, [req.vendorId]);
+
+    // 3. Recent Activity (last 10 events)
+    const recentRes = await query(`
+      SELECT id, sender_name, event_type, file_size_bytes, file_type, file_name, created_at
+      FROM g2p_analytics_events
+      WHERE vendor_id = $1
+      ORDER BY created_at DESC
+      LIMIT 10
+    `, [req.vendorId]);
+
+    // 4. Time Series (uploads per day for the last 7 days)
+    const timeSeriesRes = await query(`
+      SELECT DATE(created_at) as date, COUNT(*)::int as uploads
+      FROM g2p_analytics_events
+      WHERE vendor_id = $1
+      AND event_type = 'upload_received'
+      AND created_at >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `, [req.vendorId]);
+
+    res.json({
+      overview: {
+        totalBandwidth: parseInt(bandwidthRes.rows[0].total_bandwidth, 10),
+        totalUploads: parseInt(bandwidthRes.rows[0].total_uploads, 10),
+      },
+      fileTypes: typeRes.rows,
+      recentActivity: recentRes.rows,
+      timeSeries: timeSeriesRes.rows,
+    });
+  } catch (err) {
+    console.error('[G2P] Analytics fetch error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });
