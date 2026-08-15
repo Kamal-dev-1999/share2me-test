@@ -5,7 +5,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 
-import { SplashScreen } from "@/components/SplashScreen";
 import { SideRail } from "@/components/SideRail";
 
 export const metadata: Metadata = {
@@ -317,7 +316,6 @@ export default function RootLayout({
             </filter>
           </defs>
         </svg>
-        <SplashScreen />
         <SideRail />
         {children}
         <Analytics />
