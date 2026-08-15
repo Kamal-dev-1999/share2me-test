@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import { SideRail } from "@/components/SideRail";
-import { signIn } from "next-auth/react";
+import { signIn, useSession, SessionProvider } from "next-auth/react";
 import {
   Search, FileText, ImageIcon, FileImage, Film, PenTool,
   FileSpreadsheet, FileType2, AlignLeft, Table,
@@ -96,6 +96,7 @@ function HomeContent() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const { data: session, status } = useSession();
   const [errorModal, setErrorModal] = useState<{ show: boolean; code: string }>({ show: false, code: "" });
 
   const openPortal = async (e: React.FormEvent) => {
@@ -149,18 +150,29 @@ function HomeContent() {
 
             {/* Auth buttons */}
             <div className="hidden md:flex items-center gap-3 ml-auto">
-              <button
-                onClick={() => signIn("google", { callbackUrl: "/g2p" })}
-                className="px-5 py-2 text-[13px] font-bold text-[#1E1B2E] hover:text-[#4B4560] transition-colors"
-              >
-                Log In
-              </button>
-              <button
-                onClick={() => signIn("google", { callbackUrl: "/g2p" })}
-                className="px-5 py-2 rounded-full bg-[#171226] text-white text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-[#2A2140] transition-colors shadow-sm"
-              >
-                Sign Up
-              </button>
+              {status === "loading" ? null : session ? (
+                <Link
+                  href="/g2p"
+                  className="px-5 py-2 rounded-full bg-[#171226] text-white text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-[#2A2140] transition-colors shadow-sm"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <button
+                    onClick={() => signIn("google", { callbackUrl: "/g2p" })}
+                    className="px-5 py-2 text-[13px] font-bold text-[#1E1B2E] hover:text-[#4B4560] transition-colors"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    onClick={() => signIn("google", { callbackUrl: "/g2p" })}
+                    className="px-5 py-2 rounded-full bg-[#171226] text-white text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-[#2A2140] transition-colors shadow-sm"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
             </div>
 
           </header>
@@ -365,7 +377,9 @@ function HomeContent() {
 export default function Home() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#CDC3E4]" />}>
-      <HomeContent />
+      <SessionProvider>
+        <HomeContent />
+      </SessionProvider>
     </Suspense>
   );
 }
