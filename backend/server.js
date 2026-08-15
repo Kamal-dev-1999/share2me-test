@@ -134,6 +134,8 @@ app.get('/api/ice-servers', async (_req, res) => {
 
 app.use('/poc', express.static('public'));
 
+app.get('/ping', (_req, res) => res.status(200).send('pong'));
+
 app.get('/health', (_req, res) => {
   const mem        = process.memoryUsage();
   const heapUsedMB = Math.round(mem.heapUsed / 1024 / 1024);
