@@ -249,8 +249,19 @@ export default function G2pDashboard({
   const [token, setToken] = useState<string | null>(null);
   const [vendorCode, setVendorCode] = useState<string>(user.shareCode || "");
   const [displayName, setDisplayName] = useState(user.username);
-  const [isUpdatingName, setIsUpdatingName] = useState(false);
-  const [nameUpdateStatus, setNameUpdateStatus] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
+  const [company, setCompany] = useState("");
+  const [website, setWebsite] = useState("");
+  const [bio, setBio] = useState("");
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [profileUpdateStatus, setProfileUpdateStatus] = useState<string | null>(null);
+
+  const [persona, setPersona] = useState<string>("PERSONAL");
+  const [personaSelected, setPersonaSelected] = useState<boolean | null>(null);
+  const [planType, setPlanType] = useState<string>("FREE");
+  const [isUpdatingPersona, setIsUpdatingPersona] = useState(false);
+  const [personaUpdateStatus, setPersonaUpdateStatus] = useState<string | null>(null);
+  const [isPersonaDropdownOpen, setIsPersonaDropdownOpen] = useState(false);
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
@@ -349,32 +360,84 @@ export default function G2pDashboard({
     }
   }, []);
 
-  const handleUpdateName = async () => {
+  const handleUpdateProfile = async () => {
     if (!token || !displayName.trim()) return;
-    setIsUpdatingName(true);
-    setNameUpdateStatus(null);
+    setIsUpdatingProfile(true);
+    setProfileUpdateStatus(null);
     try {
-      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/name`, {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/profile`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ name: displayName.trim() })
+        body: JSON.stringify({ 
+          name: displayName.trim(),
+          phone: phone.trim(),
+          company: company.trim(),
+          website: website.trim(),
+          bio: bio.trim()
+        })
       });
       if (res.ok) {
-        setNameUpdateStatus("Name updated successfully!");
+        setProfileUpdateStatus("Profile updated successfully!");
         user.username = displayName.trim();
-        setTimeout(() => setNameUpdateStatus(null), 3000);
+        setTimeout(() => setProfileUpdateStatus(null), 3000);
       } else {
         const data = await res.json();
-        setNameUpdateStatus(data.error || "Failed to update name.");
+        setProfileUpdateStatus(data.error || "Failed to update profile.");
       }
     } catch (e) {
-      console.error("Failed to update name", e);
-      setNameUpdateStatus("Network error occurred.");
+      console.error("Failed to update profile", e);
+      setProfileUpdateStatus("Network error occurred.");
     } finally {
-      setIsUpdatingName(false);
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleUpdatePersona = async (newPersona: string) => {
+    if (!token) return;
+    setIsUpdatingPersona(true);
+    setPersonaUpdateStatus(null);
+    try {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/persona`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ persona: newPersona })
+      });
+      if (res.ok) {
+        setPersona(newPersona);
+        setPersonaSelected(true);
+        setPersonaUpdateStatus("User Type updated successfully!");
+        setTimeout(() => setPersonaUpdateStatus(null), 3000);
+      } else {
+        const data = await res.json();
+        setPersonaUpdateStatus(data.error || "Failed to update user type.");
+      }
+    } catch (err) {
+      console.error(err);
+      setPersonaUpdateStatus("Network error occurred.");
+    } finally {
+      setIsUpdatingPersona(false);
+    }
+  };
+
+  const handleUpgradePlan = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/upgrade`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPlanType("PRO");
+        setIsUpgradeModalOpen(false);
+      }
+    } catch (err) {
+      console.error("Upgrade failed:", err);
     }
   };
 
@@ -428,6 +491,13 @@ export default function G2pDashboard({
               if (mounted && profile) {
                 if (profile.share2me_id) setVendorCode(profile.share2me_id);
                 if (profile.name) setDisplayName(profile.name);
+                if (profile.phone) setPhone(profile.phone);
+                if (profile.company) setCompany(profile.company);
+                if (profile.website) setWebsite(profile.website);
+                if (profile.bio) setBio(profile.bio);
+                if (profile.persona) setPersona(profile.persona);
+                if (profile.plan_type) setPlanType(profile.plan_type);
+                setPersonaSelected(profile.persona_selected);
               }
             })
             .catch(err => console.error("Failed to load vendor profile:", err));
@@ -906,7 +976,7 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="md:h-full flex flex-col gap-6"
+              className="md:h-full flex flex-col gap-6 overflow-y-auto pr-2"
             >
               <div>
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Portal Settings</h2>
@@ -917,80 +987,206 @@ export default function G2pDashboard({
                 {/* Profile Settings */}
                 <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
                   <h3 className="font-bold text-[#111827]">Profile Info</h3>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Display Name</label>
-                    <div className="flex gap-2">
+                  
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Display Name</label>
                       <input
                         type="text"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder="Enter your name"
-                        className="flex-1 bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
+                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
                       />
-                      <button
-                        onClick={handleUpdateName}
-                        disabled={isUpdatingName || !displayName.trim()}
-                        className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-                      >
-                        {isUpdatingName ? "Saving..." : "Save"}
-                      </button>
                     </div>
-                    {nameUpdateStatus && (
-                      <p className={`text-xs font-medium mt-1 ${nameUpdateStatus.includes("successfully") ? "text-green-600" : "text-red-500"}`}>
-                        {nameUpdateStatus}
-                      </p>
-                    )}
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Phone</label>
+                        <input
+                          type="text"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Phone number"
+                          className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Company</label>
+                        <input
+                          type="text"
+                          value={company}
+                          onChange={(e) => setCompany(e.target.value)}
+                          placeholder="Company name"
+                          className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Website</label>
+                      <input
+                        type="text"
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        placeholder="https://..."
+                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Bio</label>
+                      <textarea
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder="A short description..."
+                        rows={3}
+                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors resize-none"
+                      />
+                    </div>
+                    
+                    <div className="pt-2">
+                      <button
+                        onClick={handleUpdateProfile}
+                        disabled={isUpdatingProfile || !displayName.trim()}
+                        className="w-full bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                      >
+                        {isUpdatingProfile ? "Saving Profile..." : "Save Profile"}
+                      </button>
+                      {profileUpdateStatus && (
+                        <p className={`text-xs font-medium mt-2 text-center ${profileUpdateStatus.includes("successfully") ? "text-green-600" : "text-red-500"}`}>
+                          {profileUpdateStatus}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* QR Settings */}
-                <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
-                  <h3 className="font-bold text-[#111827]">QR Code Appearance</h3>
+                {/* Right Column: User Type & QR Settings */}
+                <div className="flex flex-col gap-6">
+                  {/* User Type Settings */}
+                  <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+                    <h3 className="font-bold text-[#111827]">User Type</h3>
+                    <div className="flex flex-col gap-3 relative">
+                      <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Current Persona</label>
+                      
+                      {/* Custom Framer Motion Dropdown */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setIsPersonaDropdownOpen(!isPersonaDropdownOpen)}
+                          className="w-full bg-white/40 border border-white/60 hover:bg-white/60 rounded-xl px-4 py-3 text-sm text-[#111827] flex justify-between items-center transition-colors text-left"
+                        >
+                          <span className="font-medium">
+                            {persona === "PERSONAL" && "Personal (50MB Limit)"}
+                            {persona === "EDUCATOR" && "Educator (200MB Limit)"}
+                            {persona === "PRINT_SHOP" && "Business / Print Shop (500MB Limit)"}
+                          </span>
+                          <motion.div
+                            animate={{ rotate: isPersonaDropdownOpen ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <svg className="w-4 h-4 text-[#111827]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </motion.div>
+                        </button>
 
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Foreground</label>
-                      <div className="flex items-center gap-3 bg-white/40 border border-white/60 rounded-xl p-2">
-                        <input
-                          type="color"
-                          value={qrFgColor}
-                          onChange={(e) => setQrFgColor(e.target.value)}
-                          className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
-                        />
-                        <span className="text-xs text-[#111827]/60 font-mono">{qrFgColor.toUpperCase()}</span>
+                        <AnimatePresence>
+                          {isPersonaDropdownOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.2 }}
+                              className="absolute top-full left-0 w-full mt-2 bg-white/80 backdrop-blur-xl border border-white/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
+                            >
+                              {[
+                                { value: "PERSONAL", label: "Personal (50MB Limit)" },
+                                { value: "EDUCATOR", label: "Educator (200MB Limit)" },
+                                { value: "PRINT_SHOP", label: "Business / Print Shop (500MB Limit)" }
+                              ].map(opt => (
+                                <button
+                                  key={opt.value}
+                                  onClick={() => {
+                                    setPersona(opt.value);
+                                    setIsPersonaDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-4 py-3 text-sm hover:bg-black/5 transition-colors ${persona === opt.value ? 'bg-[#111827]/5 font-bold text-[#111827]' : 'text-[#111827]/80'}`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Background</label>
-                      <div className="flex items-center gap-3 bg-white/40 border border-white/60 rounded-xl p-2">
-                        <input
-                          type="color"
-                          value={qrBgColor}
-                          onChange={(e) => setQrBgColor(e.target.value)}
-                          className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
-                        />
-                        <span className="text-xs text-[#111827]/60 font-mono">{qrBgColor.toUpperCase()}</span>
-                      </div>
+                      
+                      <button
+                        onClick={() => handleUpdatePersona(persona)}
+                        disabled={isUpdatingPersona}
+                        className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 mt-1"
+                      >
+                        {isUpdatingPersona ? "Updating..." : "Update User Type"}
+                      </button>
+                      {personaUpdateStatus && (
+                        <p className={`text-xs font-medium ${personaUpdateStatus.includes("successfully") ? "text-green-600" : "text-red-500"}`}>
+                          {personaUpdateStatus}
+                        </p>
+                      )}
+                      <p className="text-xs text-[#111827]/60 leading-relaxed mt-1">
+                        Your user type dictates your maximum file size limits (if on Free tier). 
+                        Changes apply immediately.
+                      </p>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Center Logo URL</label>
-                    <input
-                      type="text"
-                      value={qrLogoUrl}
-                      onChange={(e) => setQrLogoUrl(e.target.value)}
-                      placeholder="https://example.com/logo.png"
-                      className="w-full bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
-                    />
-                  </div>
+                  {/* QR Settings */}
+                  <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+                    <h3 className="font-bold text-[#111827]">QR Code Appearance</h3>
 
-                  <button
-                    onClick={saveQrSettings}
-                    className="w-full bg-[#111827] hover:bg-black text-white py-3 rounded-xl text-sm font-bold transition-all shadow-sm mt-2"
-                  >
-                    Save Preferences
-                  </button>
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Foreground</label>
+                        <div className="flex items-center gap-3 bg-white/40 border border-white/60 rounded-xl p-2">
+                          <input
+                            type="color"
+                            value={qrFgColor}
+                            onChange={(e) => setQrFgColor(e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
+                          />
+                          <span className="text-xs text-[#111827]/60 font-mono">{qrFgColor.toUpperCase()}</span>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Background</label>
+                        <div className="flex items-center gap-3 bg-white/40 border border-white/60 rounded-xl p-2">
+                          <input
+                            type="color"
+                            value={qrBgColor}
+                            onChange={(e) => setQrBgColor(e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
+                          />
+                          <span className="text-xs text-[#111827]/60 font-mono">{qrBgColor.toUpperCase()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Center Logo URL</label>
+                      <input
+                        type="text"
+                        value={qrLogoUrl}
+                        onChange={(e) => setQrLogoUrl(e.target.value)}
+                        placeholder="https://example.com/logo.png"
+                        className="w-full bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
+                      />
+                    </div>
+
+                    <button
+                      onClick={saveQrSettings}
+                      className="w-full bg-[#111827] hover:bg-black text-white py-3 rounded-xl text-sm font-bold transition-all shadow-sm mt-2"
+                    >
+                      Save Preferences
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1176,8 +1372,11 @@ export default function G2pDashboard({
                     <span className="text-4xl font-bold text-white">$0.00</span>
                   </div>
 
-                  <button className="w-full py-3 px-4 rounded-xl bg-white/10 text-white/50 font-bold mb-8 cursor-not-allowed">
-                    Current Plan
+                  <button 
+                    disabled
+                    className="w-full py-3 px-4 rounded-xl bg-white/10 text-white/50 font-bold mb-8 cursor-not-allowed"
+                  >
+                    {planType === "FREE" ? "Current Plan" : "Downgrade (Contact Support)"}
                   </button>
 
                   <div className="flex flex-col gap-4 mt-auto">
@@ -1217,13 +1416,11 @@ export default function G2pDashboard({
                   </div>
 
                   <button
-                    onClick={() => {
-                      alert("Redirecting to payment gateway...");
-                      setIsUpgradeModalOpen(false);
-                    }}
-                    className="w-full py-3 px-4 rounded-xl bg-white text-[#111827] hover:bg-white/90 font-bold mb-8 transition-colors shadow-lg relative z-10"
+                    onClick={handleUpgradePlan}
+                    disabled={planType === "PRO"}
+                    className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.2)] disabled:opacity-50 relative z-10"
                   >
-                    Upgrade
+                    {planType === "PRO" ? "Active Plan" : "Upgrade to Premium"}
                   </button>
 
                   <div className="flex flex-col gap-4 mt-auto relative z-10">

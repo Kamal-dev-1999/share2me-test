@@ -8,7 +8,7 @@ import { AlertCircle } from "lucide-react";
 import { SideRail } from "@/components/SideRail";
 import { signIn, useSession, SessionProvider } from "next-auth/react";
 import {
-  Search, FileText, ImageIcon, FileImage, Film, PenTool,
+  FileText, ImageIcon, FileImage, Film, PenTool,
   FileSpreadsheet, FileType2, AlignLeft, Table,
   Zap, ArrowRight,
   type LucideIcon,
@@ -121,7 +121,7 @@ function HomeContent() {
       } else {
         setErrorModal({ show: true, code: val });
       }
-    } catch (err) {
+    } catch {
       setErrorModal({ show: true, code: val });
     } finally {
       setIsVerifying(false);
@@ -358,7 +358,7 @@ function HomeContent() {
               </div>
               <h2 className="text-[22px] font-bold text-[#171226] mb-2 tracking-tight">Portal not found</h2>
               <p className="text-[14px] text-[#4B4560] leading-relaxed mb-8 px-2">
-                The Share Code <strong className="text-[#171226]">"{errorModal.code}"</strong> is invalid or has expired.
+                The Share Code <strong className="text-[#171226]">&quot;{errorModal.code}&quot;</strong> is invalid or has expired.
               </p>
               <button
                 onClick={() => setErrorModal({ show: false, code: "" })}

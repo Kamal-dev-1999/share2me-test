@@ -65,11 +65,32 @@ router.use(async (req, res, next) => {
 // Get current vendor profile details
 router.get('/me', async (req, res) => {
   try {
-    const vRes = await query(`SELECT id, name, share2me_id FROM vendors WHERE id = $1`, [req.vendorId]);
+    const vRes = await query(`
+      SELECT id, name, share2me_id, persona, persona_selected, plan_type, phone, company, website, bio 
+      FROM vendors WHERE id = $1
+    `, [req.vendorId]);
     if (vRes.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
     res.json(vRes.rows[0]);
   } catch (err) {
     console.error('[G2P] Fetch vendor profile error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Update vendor's persona
+router.post('/persona', async (req, res) => {
+  const { persona } = req.body;
+  const allowedPersonas = ['PERSONAL', 'EDUCATOR', 'PRINT_SHOP'];
+  
+  if (!persona || !allowedPersonas.includes(persona)) {
+    return res.status(400).json({ error: 'invalid_persona' });
+  }
+
+  try {
+    await query(`UPDATE vendors SET persona = $1, persona_selected = true WHERE id = $2`, [persona, req.vendorId]);
+    res.json({ success: true, persona });
+  } catch (err) {
+    console.error('[G2P] Update persona error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });
@@ -84,6 +105,35 @@ router.post('/name', async (req, res) => {
     res.json({ success: true, name: name.trim() });
   } catch (err) {
     console.error('[G2P] Update name error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Update full vendor profile
+router.post('/profile', async (req, res) => {
+  const { name, phone, company, website, bio } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'missing_name' });
+
+  try {
+    await query(`
+      UPDATE vendors 
+      SET name = $1, phone = $2, company = $3, website = $4, bio = $5
+      WHERE id = $6
+    `, [name.trim(), phone || null, company || null, website || null, bio || null, req.vendorId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[G2P] Update profile error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Upgrade to PRO plan (Mock)
+router.post('/upgrade', async (req, res) => {
+  try {
+    await query(`UPDATE vendors SET plan_type = 'PRO' WHERE id = $1`, [req.vendorId]);
+    res.json({ success: true, plan_type: 'PRO' });
+  } catch (err) {
+    console.error('[G2P] Upgrade error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });
