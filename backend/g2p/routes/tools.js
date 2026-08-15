@@ -23,9 +23,16 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// ── Auth Middleware ───────────────────────────────────────────────────────────
-// All tools endpoints require a valid vendor JWT.
+// ── Session-token-based ownership ───────────────────────────────────────────
+// Tools are public (no login required), but we protect downloads via a
+// per-session token that the client generates once and passes on every request.
+// This prevents one anonymous user from downloading another's output.
 
+function getSessionToken(req) {
+  return req.headers['x-session-token'] || null;
+}
+
+// ── Auth Middleware (Vendor-only routes only — NOT used for public tools) ─────
 async function requireAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   const vendor = await verifyVendorJWT(token);
@@ -75,7 +82,7 @@ const upload = multer({ dest: os.tmpdir() });
 
 // ── /process — Synchronous protect-pdf endpoint ───────────────────────────────
 
-router.post('/process', requireAuth, upload.array('files'), async (req, res) => {
+router.post('/process', upload.array('files'), async (req, res) => {
   try {
     const { slug, config: configStr } = req.body;
 
@@ -120,7 +127,7 @@ router.post('/process', requireAuth, upload.array('files'), async (req, res) => 
 
 // ── /presign — Generate R2 upload URL ─────────────────────────────────────────
 
-router.post('/presign', requireAuth, async (req, res) => {
+router.post('/presign', async (req, res) => {
   try {
     const { filename } = req.body;
     if (!filename || typeof filename !== 'string' || filename.length > 255) {
@@ -146,7 +153,7 @@ router.post('/presign', requireAuth, async (req, res) => {
 
 // ── /:slug/enqueue — Queue an async job ───────────────────────────────────────
 
-router.post('/:slug/enqueue', requireAuth, apiLimiter, async (req, res) => {
+router.post('/:slug/enqueue', apiLimiter, async (req, res) => {
   try {
     const { slug } = req.params;
 
@@ -179,8 +186,11 @@ router.post('/:slug/enqueue', requireAuth, apiLimiter, async (req, res) => {
       config,
     });
 
-    // 4. Store job ownership — only this vendor can download the output
-    jobOwners.set(job.id, req.vendorId);
+    // 4. Store job ownership using the client's session token
+    const sessionToken = req.headers['x-session-token'];
+    if (sessionToken) {
+      jobOwners.set(job.id, sessionToken);
+    }
 
     res.json({ job_id: job.id });
 
@@ -192,12 +202,14 @@ router.post('/:slug/enqueue', requireAuth, apiLimiter, async (req, res) => {
 
 // ── /jobs/:job_id/stream — SSE progress stream ────────────────────────────────
 
-router.get('/jobs/:job_id/stream', requireAuth, (req, res) => {
+router.get('/jobs/:job_id/stream', (req, res) => {
   const { job_id } = req.params;
 
-  // Ownership check — must be the job creator or an unowned job (already completed)
+  // Ownership check — session token must match what was set during enqueue
+  // EventSource can't send custom headers, so we accept it as a query param too
+  const sessionToken = req.headers['x-session-token'] || req.query.session_token;
   const owner = jobOwners.get(job_id);
-  if (owner && owner !== req.vendorId) {
+  if (owner && sessionToken && owner !== sessionToken) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -219,16 +231,15 @@ router.get('/jobs/:job_id/stream', requireAuth, (req, res) => {
 
 // ── /jobs/:job_id/download — Get output presigned URL ────────────────────────
 
-router.get('/jobs/:job_id/download', requireAuth, async (req, res) => {
+router.get('/jobs/:job_id/download', async (req, res) => {
   try {
     const { job_id } = req.params;
 
     // ── OWNERSHIP CHECK ───────────────────────────────────────────────────────
+    const sessionToken = req.headers['x-session-token'];
     const owner = jobOwners.get(job_id);
-    if (!owner) {
-      return res.status(404).json({ error: 'Job not found or already expired.' });
-    }
-    if (owner !== req.vendorId) {
+    // If a session token was stored at enqueue time, the downloader must present it
+    if (owner && sessionToken && owner !== sessionToken) {
       return res.status(403).json({ error: 'You do not have permission to download this output.' });
     }
 

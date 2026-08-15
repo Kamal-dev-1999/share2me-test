@@ -8,7 +8,7 @@ const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3001'];
 g2pRouter.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || DEV_ORIGINS,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-status-token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-status-token', 'x-session-token']
 }));
 
 // Mount Webhooks first so they get raw body instead of parsed JSON

@@ -59,6 +59,18 @@ export interface UseToolProcessorReturn extends ProcessorState {
 const WORKER_PATH = "/workers/pdf-processor.js";
 const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
 
+// Generate or reuse a per-browser-session token for job ownership
+// (persists through page refreshes, cleared on tab close via sessionStorage)
+function getOrCreateSessionToken(): string {
+  const key = 'share2me_session_token';
+  let token = sessionStorage.getItem(key);
+  if (!token) {
+    token = `st-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(key, token);
+  }
+  return token;
+}
+
 const INITIAL_STATE: ProcessorState = {
   status: "idle",
   progress: 0,
@@ -137,12 +149,14 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
       if (toolInfo?.processingTier === "server") {
         setState(prev => ({ ...prev, progressMessage: "Requesting upload link…" }));
         try {
-          const file = files[0]; // For phase 2, assume 1 file for now (OCR, Office conversions are 1-to-1)
+          const file = files[0];
+          const sessionToken = getOrCreateSessionToken();
+          const authHeaders = { 'x-session-token': sessionToken };
           
           // 1. Presign
           const presignRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/tools/presign`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHeaders },
             body: JSON.stringify({ filename: file.name }),
           });
           
@@ -164,7 +178,7 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
           setState(prev => ({ ...prev, progressMessage: "Queuing job...", progress: 40 }));
           const enqueueRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/tools/${slug}/enqueue`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHeaders },
             body: JSON.stringify({
               input_r2_key: r2_key,
               filename: file.name,
@@ -176,8 +190,9 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
           if (!enqueueRes.ok) throw new Error("Failed to enqueue job");
           const { job_id } = await enqueueRes.json();
 
-          // 4. SSE Stream
-          const eventSource = new EventSource(`${EXPRESS_BACKEND_URL}/g2p/tools/jobs/${job_id}/stream`);
+          // 4. SSE Stream — pass session token as query param (EventSource doesn’t support custom headers)
+          const streamUrl = `${EXPRESS_BACKEND_URL}/g2p/tools/jobs/${job_id}/stream?session_token=${encodeURIComponent(sessionToken)}`;
+          const eventSource = new EventSource(streamUrl);
 
           eventSource.onmessage = async (event) => {
             const data = JSON.parse(event.data);
@@ -191,8 +206,11 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
             if (data.type === 'complete') {
               eventSource.close();
               
-              // Get download URL from backend
-              const downloadRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/tools/jobs/${job_id}/download?output_key=${data.output_key}`);
+              // Get download URL from backend (pass session token)
+              const downloadRes = await fetch(
+                `${EXPRESS_BACKEND_URL}/g2p/tools/jobs/${job_id}/download?output_key=${encodeURIComponent(data.output_key)}`,
+                { headers: authHeaders }
+              );
               const { download_url } = await downloadRes.json();
 
               // Fetch the final blob so the ActionPanel works exactly as before
@@ -379,16 +397,18 @@ async function handlePdfToJpgMainThread(
   setState(prev => ({ ...prev, progress: 5, progressMessage: "Loading PDF renderer…" }));
 
   try {
-    // Dynamically load PDF.js only when needed. We use an indirect import via
-    // new Function() to prevent TypeScript from performing static module resolution,
-    // since pdfjs-dist is an optional CDN-loaded dependency, not a hard install.
+    // Use the installed pdfjs-dist package. We load it via a relative import
+    // wrapped in new Function() to prevent Next.js from statically bundling the
+    // large worker JS into the main chunk (lazy load only when pdf-to-jpg runs).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdfjsLib: any = await new Function('specifier', 'return import(specifier)')('pdfjs-dist').catch(() => {
+    const pdfjsLib: any = await import('pdfjs-dist').catch(() => {
       throw new Error("PDF renderer failed to load. Please use Download instead.");
     });
 
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    // Point to the worker that Next.js serves from public/ (copy it there if needed)
+    // Fallback: use CDN worker which is cross-origin safe
+    const workerSrc = `/pdf.worker.min.js`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(data.buffers[0]) }).promise;
     const scale = parseFloat((data.config.scale as string) || "2");
@@ -433,4 +453,3 @@ async function handlePdfToJpgMainThread(
     });
   }
 }
-

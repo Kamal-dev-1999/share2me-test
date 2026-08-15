@@ -68,7 +68,42 @@ function PreviewModal({ output, onClose }: { output: ProcessedOutput; onClose: (
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+// ── Text Preview Sub-component ─────────────────────────────────────────────────────────────────
+
+function TextPreview({ objectUrl }: { objectUrl: string }) {
+  const [text, setText] = useState<string>("");
+  useEffect(() => {
+    fetch(objectUrl).then(r => r.text()).then(setText).catch(() => setText("Could not load text."));
+  }, [objectUrl]);
+  return (
+    <div className="h-full overflow-auto p-6">
+      <pre style={{
+        fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
+        fontSize: "13px",
+        lineHeight: 1.6,
+        color: "#1A1A1A",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+        background: "#FAFAFA",
+        borderRadius: "12px",
+        padding: "20px",
+        border: "1px solid #E1E3E5",
+      }}>{text || "Loading…"}</pre>
+    </div>
+  );
+}
+
+// (end TextPreview)
+
+
   const isImage = output.mimeType.startsWith("image/");
+  const isPdf = output.mimeType === "application/pdf";
+  const isText = output.mimeType === "text/plain" || output.mimeType === "text/markdown" || output.filename.endsWith(".md");
+  const isOffice = [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ].includes(output.mimeType) || output.filename.match(/\.(docx|xlsx|pptx)$/i);
 
   return (
     <div
@@ -134,12 +169,32 @@ function PreviewModal({ output, onClose }: { output: ProcessedOutput; onClose: (
                 className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
               />
             </div>
-          ) : (
+          ) : isText ? (
+            <TextPreview objectUrl={objectUrl} />
+          ) : isOffice ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
+              <div style={{ background: "#F0FDF4", borderRadius: "16px", padding: "24px 32px", textAlign: "center", border: "1px solid #BBF7D0" }}>
+                <div style={{ fontSize: "32px", marginBottom: "8px" }}>
+                  {output.filename.endsWith(".docx") ? "📄" : output.filename.endsWith(".xlsx") ? "📊" : "📊"}
+                </div>
+                <p style={{ color: "#065F46", fontWeight: 600, fontSize: "15px", marginBottom: "4px" }}>
+                  Office file ready!
+                </p>
+                <p style={{ color: "#059669", fontSize: "13px" }}>
+                  Download the file to open it in Microsoft Office, Google Docs, or LibreOffice.
+                </p>
+              </div>
+            </div>
+          ) : isPdf ? (
             <iframe
               src={`${objectUrl}#toolbar=1&navpanes=0`}
               title={`Preview — ${output.filename}`}
               className="w-full h-full border-0"
             />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+              No preview available for this file type.
+            </div>
           )}
         </div>
 
