@@ -32,8 +32,6 @@ router.post('/upsert', async (req, res) => {
     // Check if exists first to avoid generating a new share2me_id if not needed
     const existing = await query(`SELECT id, share2me_id FROM vendors WHERE auth_provider_id = $1`, [providerId]);
     if (existing.rowCount > 0) {
-      // Update name just in case it changed
-      await query(`UPDATE vendors SET name = $1 WHERE auth_provider_id = $2`, [name, providerId]);
       return res.json(existing.rows[0]);
     }
 
