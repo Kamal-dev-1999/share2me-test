@@ -10,7 +10,7 @@ let _socket: Socket | null = null;
 
 function getSocket(): Socket {
   if (!_socket) {
-    const url = process.env.NEXT_PUBLIC_SIGNAL_URL ?? "http://localhost:3000";
+    const url = process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
     _socket = io(url, { transports: ["websocket"] });
   }
   return _socket;

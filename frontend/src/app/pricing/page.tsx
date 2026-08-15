@@ -38,7 +38,7 @@ export default function PricingPage() {
         return;
       }
 
-      const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
+      const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
       const res = await fetch(`${backendUrl}/g2p/billing/checkout`, {
         method: "POST",
         headers: {

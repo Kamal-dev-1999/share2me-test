@@ -113,7 +113,7 @@ function HomeContent() {
 
     setIsVerifying(true);
     try {
-      const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || "http://localhost:3000";
+      const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
       const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/requests/vendor/${val}`);
       if (res.ok) {
         router.push(`/g2p/${val}`);

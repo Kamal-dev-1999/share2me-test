@@ -57,7 +57,7 @@ export interface UseToolProcessorReturn extends ProcessorState {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const WORKER_PATH = "/workers/pdf-processor.js";
-const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
 
 // Generate or reuse a per-browser-session token for job ownership
 // (persists through page refreshes, cleared on tab close via sessionStorage)
