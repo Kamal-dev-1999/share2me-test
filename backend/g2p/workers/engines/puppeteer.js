@@ -1,9 +1,6 @@
 let puppeteer;
-let chromium;
 try {
   puppeteer = require('puppeteer-core');
-  const chromiumLib = require('@sparticuz/chromium');
-  chromium = chromiumLib.default || chromiumLib;
 } catch (e) {
   // Graceful fallback
 }
@@ -23,16 +20,13 @@ async function processHtmlToPdf(inputBuffer, emitProgress) {
   try {
     const isLocal = process.env.NODE_ENV !== 'production' && !process.env.RENDER;
     
-    // Use local Edge/Chrome on Windows dev, and sparticuz/chromium on Render/Linux
-    const executablePath = isLocal 
-      ? (process.env.CHROME_BIN || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')
-      : await chromium.executablePath();
+    // Use local Edge/Chrome on Windows dev, or CHROME_BIN in Docker/Linux
+    const executablePath = process.env.CHROME_BIN || (isLocal ? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' : '/usr/bin/chromium-browser');
     
     browser = await puppeteer.launch({ 
       executablePath,
-      headless: isLocal ? true : chromium.headless,
-      args: isLocal ? ['--no-sandbox', '--disable-setuid-sandbox'] : chromium.args,
-      defaultViewport: chromium ? chromium.defaultViewport : { width: 1920, height: 1080 }
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
     });
 
     emitProgress(40, "Loading HTML content...");

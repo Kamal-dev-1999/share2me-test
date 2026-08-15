@@ -18,6 +18,7 @@ RUN apk add --no-cache qpdf libreoffice tesseract-ocr chromium nss freetype harf
     adduser  --system --uid 1001 nodeapp
 
 ENV NODE_ENV=production
+ENV CHROME_BIN=/usr/bin/chromium-browser
 
 COPY --from=deps --chown=nodeapp:nodejs /app/node_modules ./node_modules
 COPY --chown=nodeapp:nodejs server.js    ./
