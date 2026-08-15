@@ -93,6 +93,51 @@ let cachedMeteredIceServers   = null;
 let cachedMeteredIceServersAt = 0;
 const METERED_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
+// ─── Security Middleware: Restrict access to Frontend Origins ─────────────────
+app.use((req, res, next) => {
+  // Always allow /ping for standard monitors
+  if (req.path === '/ping') return next();
+  
+  // Allow UptimeRobot to hit /health
+  if (req.path === '/health' && (req.headers['user-agent'] || '').includes('UptimeRobot')) return next();
+
+  // Protect our backend API routes
+  if (req.path.startsWith('/health') || req.path.startsWith('/api') || req.path.startsWith('/g2p')) {
+    const origin = req.headers.origin;
+    const referer = req.headers.referer;
+    
+    let source = null;
+    try {
+      source = origin || (referer ? new URL(referer).origin : null);
+    } catch (e) {
+      // Ignore invalid referer URLs
+    }
+
+    // Some server-to-server endpoints (like /g2p/vendor-actions/upsert) use an internal Bearer token without an Origin.
+    if (!source && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+       return next();
+    }
+
+    if (!source) {
+      return res.status(403).json({ error: 'Direct API access forbidden. This API can only be accessed by the Share2Me frontend.' });
+    }
+
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+      'http://localhost:3000', 
+      'http://localhost:3001', 
+      'https://share2me-test.vercel.app', 
+      'https://share2me.vercel.app',
+      'https://share2.me'
+    ];
+
+    if (!allowedOrigins.includes(source)) {
+      return res.status(403).json({ error: 'Origin not allowed' });
+    }
+  }
+
+  next();
+});
+
 // ─── HTTP Endpoints ───────────────────────────────────────────────────────────
 
 // Mount G2P module (Decoupled Phase 2)
