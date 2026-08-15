@@ -11,7 +11,14 @@ CREATE TABLE vendors (
   share2me_id TEXT UNIQUE NOT NULL, -- The 6-char permanent ID (e.g. "X7Y2M9")
   accepting_requests BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  auth_provider_id TEXT UNIQUE -- e.g. "google-oauth2|12345"
+  auth_provider_id TEXT UNIQUE, -- e.g. "google-oauth2|12345"
+  persona VARCHAR(20) DEFAULT 'PERSONAL',
+  persona_selected BOOLEAN DEFAULT false,
+  plan_type VARCHAR(20) DEFAULT 'FREE',
+  phone TEXT,
+  company TEXT,
+  website TEXT,
+  bio TEXT
 );
 
 -- Requests Table
