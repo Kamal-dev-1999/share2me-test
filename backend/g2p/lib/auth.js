@@ -1,8 +1,15 @@
 const { jwtVerify } = require('jose');
 
 // This secret MUST match the NextAuth AUTH_SECRET in the frontend exactly!
-const JWT_SECRET = process.env.AUTH_JWT_SECRET || 'placeholder_jwt_secret';
-const secretKey = new TextEncoder().encode(JWT_SECRET);
+const JWT_SECRET = process.env.AUTH_JWT_SECRET;
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[FATAL] AUTH_JWT_SECRET environment variable is not set.');
+  }
+  console.warn('[Auth] WARNING: AUTH_JWT_SECRET not set. Using insecure placeholder for local dev only.');
+}
+const _JWT_SECRET = JWT_SECRET || 'placeholder_jwt_secret_local_dev_only';
+const secretKey = new TextEncoder().encode(_JWT_SECRET);
 
 /**
  * Verifies a JWT token issued by the frontend Auth.js.
@@ -25,5 +32,5 @@ async function verifyVendorJWT(token) {
 
 module.exports = {
   verifyVendorJWT,
-  JWT_SECRET, // exported for the health check
+  JWT_SECRET: _JWT_SECRET, // exported for the health check
 };

@@ -57,7 +57,7 @@ router.post('/checkout', async (req, res) => {
     res.json({ url: session.url });
   } catch (err) {
     console.error('[Billing] Create Checkout Session Error:', err);
-    res.status(500).json({ error: 'failed_to_create_session', details: err.message });
+    res.status(500).json({ error: 'failed_to_create_session' });
   }
 });
 
@@ -79,7 +79,7 @@ router.post('/portal', async (req, res) => {
     res.json({ url: portalSession.url });
   } catch (err) {
     console.error('[Billing] Create Portal Session Error:', err);
-    res.status(500).json({ error: 'failed_to_create_portal_session', details: err.message });
+    res.status(500).json({ error: 'failed_to_create_portal_session' });
   }
 });
 

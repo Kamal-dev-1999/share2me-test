@@ -4,8 +4,9 @@ const cors = require('cors');
 const g2pRouter = express.Router();
 
 // Allow cross-origin requests from the Next.js frontend
+const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3001'];
 g2pRouter.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || DEV_ORIGINS,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-status-token']
 }));

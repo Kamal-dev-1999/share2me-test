@@ -128,7 +128,8 @@ router.post('/:fileId/complete', async (req, res) => {
     }
     
     if (objectCheck.size !== parseInt(fileRow.size_bytes, 10)) {
-       console.warn(`[G2P] Size mismatch for ${fileId}: declared ${fileRow.size_bytes}, actual ${objectCheck.size}`);
+      console.warn(`[G2P] Size mismatch for ${fileId}: declared ${fileRow.size_bytes}, actual ${objectCheck.size}. Rejecting.`);
+      return res.status(400).json({ error: 'upload_size_mismatch' });
     }
 
     // 3. Mark as received

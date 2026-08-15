@@ -9,12 +9,19 @@ const router = express.Router();
 const crypto = require('crypto');
 
 // Server-to-server endpoint for NextAuth to upsert the vendor during login
+// Restricted to internal calls only (must come from localhost / same-host)
 router.post('/upsert', async (req, res) => {
-  // Simple shared-secret authorization for internal backend-to-backend communication
+  // Reject external calls — this endpoint is for internal backend-to-backend use only
+  const reqHost = req.ip || req.socket?.remoteAddress || '';
+  const isInternal = reqHost === '127.0.0.1' || reqHost === '::1' || reqHost === '::ffff:127.0.0.1';
+  if (!isInternal) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  // Shared-secret check as defence-in-depth
   const authHeader = req.headers.authorization || '';
-  const secret = process.env.AUTH_JWT_SECRET || 'placeholder_jwt_secret';
-  
-  if (authHeader !== `Bearer ${secret}`) {
+  const secret = process.env.AUTH_JWT_SECRET;
+  if (!secret || authHeader !== `Bearer ${secret}`) {
     return res.status(403).json({ error: 'forbidden' });
   }
 

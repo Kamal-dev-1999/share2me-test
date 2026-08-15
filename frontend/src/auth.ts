@@ -2,7 +2,14 @@ import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
 const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
-const AUTH_SECRET = process.env.AUTH_SECRET || "placeholder_jwt_secret";
+const AUTH_SECRET = process.env.AUTH_SECRET;
+if (!AUTH_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[FATAL] AUTH_SECRET environment variable is not set. Refusing to start.');
+  }
+  console.warn('[Auth] WARNING: AUTH_SECRET is not set. Using insecure placeholder for local dev only.');
+}
+const _AUTH_SECRET = AUTH_SECRET || 'placeholder_jwt_secret_local_dev_only';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -11,7 +18,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
   ],
-  secret: AUTH_SECRET,
+  secret: _AUTH_SECRET,
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -25,7 +32,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${AUTH_SECRET}`,
+                Authorization: `Bearer ${_AUTH_SECRET}`,
               },
               body: JSON.stringify({
                 name,

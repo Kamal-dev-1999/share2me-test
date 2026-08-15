@@ -34,7 +34,7 @@ process.on('SIGTERM', () => {
 // ─── Socket.io ────────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin:  process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    origin:  process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
     methods: ['GET', 'POST'],
   },
   perMessageDeflate: {
