@@ -77,9 +77,9 @@ export const PDF_TOOLS: PdfTool[] = [
 
   // ---- CONVERT FROM PDF ----
   { slug: "pdf-to-jpg",        title: "PDF to JPG",        description: "Extract every page of a PDF as a JPG image.",                        icon: FileImage,       category: "convert-from-pdf", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
-  { slug: "pdf-to-word",       title: "PDF to Word",       description: "Convert a PDF into an editable DOCX file.",                          icon: FileType2,       category: "convert-from-pdf", phase: "soon",  processingTier: "server", tag: "DOCX" },
-  { slug: "pdf-to-excel",      title: "PDF to Excel",      description: "Pull tables from a PDF into an editable XLSX sheet.",                icon: FileSpreadsheet, category: "convert-from-pdf", phase: "soon",  processingTier: "server", tag: "XLSX" },
-  { slug: "pdf-to-powerpoint", title: "PDF to PowerPoint", description: "Turn each PDF page into a PowerPoint slide.",                        icon: Presentation,    category: "convert-from-pdf", phase: "soon",  processingTier: "server", tag: "PPTX" },
+  { slug: "pdf-to-word",       title: "PDF to Word",       description: "Convert a PDF into an editable DOCX file.",                          icon: FileType2,       category: "convert-from-pdf", phase: "ready", processingTier: "server", tag: "DOCX", accept: ["application/pdf"] },
+  { slug: "pdf-to-excel",      title: "PDF to Excel",      description: "Pull tables from a PDF into an editable XLSX sheet.",                icon: FileSpreadsheet, category: "convert-from-pdf", phase: "ready", processingTier: "server", tag: "XLSX", accept: ["application/pdf"] },
+  { slug: "pdf-to-powerpoint", title: "PDF to PowerPoint", description: "Turn each PDF page into a PowerPoint slide.",                        icon: Presentation,    category: "convert-from-pdf", phase: "ready", processingTier: "server", tag: "PPTX", accept: ["application/pdf"] },
   { slug: "pdf-to-markdown",   title: "PDF to Markdown",   description: "Extract clean Markdown from a PDF — headings, lists, tables preserved.", icon: FileCode2,   category: "convert-from-pdf", phase: "ready", processingTier: "server", tag: "MD", accept: ["application/pdf"] },
   { slug: "pdf-to-pdfa",       title: "PDF to PDF/A",      description: "Convert your PDF to the ISO archival PDF/A format.",                 icon: FileCheck2,      category: "convert-from-pdf", phase: "ready", processingTier: "server", tag: "PDF/A", accept: ["application/pdf"] },
 

@@ -41,6 +41,7 @@ const ALLOWED_SLUGS = new Set([
   'word-to-pdf', 'powerpoint-to-pdf', 'excel-to-pdf', 'html-to-pdf',
   'ocr-pdf', 'ai-summarizer', 'translate-pdf',
   'pdf-to-markdown', 'repair-pdf', 'pdf-to-pdfa',
+  'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
   'protect-pdf',
 ]);
 

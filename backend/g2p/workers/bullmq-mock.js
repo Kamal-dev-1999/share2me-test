@@ -9,6 +9,7 @@ const fs = require('fs/promises');
 const libreoffice = require('./engines/libreoffice');
 const puppeteer = require('./engines/puppeteer');
 const ai = require('./engines/ai');
+const office = require('./engines/office');
 
 // In-memory job event bus
 const jobEvents = new EventEmitter();
@@ -77,6 +78,18 @@ async function processJob(jobId, data) {
   else if (slug === 'pdf-to-pdfa') {
     outputBuffer = await libreoffice.processPdfToPdfA(inputBuffer, emitProgress);
   }
+  else if (slug === 'pdf-to-word') {
+    outputBuffer = await office.processPdfToDocx(inputBuffer, emitProgress);
+    ext = '.docx';
+  }
+  else if (slug === 'pdf-to-excel') {
+    outputBuffer = await office.processPdfToXlsx(inputBuffer, emitProgress);
+    ext = '.xlsx';
+  }
+  else if (slug === 'pdf-to-powerpoint') {
+    outputBuffer = await office.processPdfToPptx(inputBuffer, emitProgress);
+    ext = '.pptx';
+  }
   else {
     throw new Error(`Engine for slug ${slug} is not implemented yet.`);
   }
@@ -87,7 +100,15 @@ async function processJob(jobId, data) {
   const uploadUrl = await r2.getUploadUrl(outputKey);
   
   await axios.put(uploadUrl, outputBuffer, {
-    headers: { 'Content-Type': ext === '.pdf' ? 'application/pdf' : 'text/plain' }
+    headers: {
+      'Content-Type': {
+        '.pdf':  'application/pdf',
+        '.md':   'text/plain',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      }[ext] || 'application/octet-stream'
+    }
   });
 
   jobEvents.emit(`job:${jobId}`, { 
