@@ -2,7 +2,8 @@ let puppeteer;
 let chromium;
 try {
   puppeteer = require('puppeteer-core');
-  chromium = require('@sparticuz/chromium');
+  const chromiumLib = require('@sparticuz/chromium');
+  chromium = chromiumLib.default || chromiumLib;
 } catch (e) {
   // Graceful fallback
 }
