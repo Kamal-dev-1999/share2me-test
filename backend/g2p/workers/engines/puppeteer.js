@@ -1,6 +1,8 @@
 let puppeteer;
+let chromium;
 try {
   puppeteer = require('puppeteer-core');
+  chromium = require('@sparticuz/chromium');
 } catch (e) {
   // Graceful fallback
 }
@@ -18,17 +20,18 @@ async function processHtmlToPdf(inputBuffer, emitProgress) {
   
   let browser;
   try {
-    // In production, we'd need to specify executablePath to the installed chromium
-    // locally, it might fail unless we use standard puppeteer.
-    // For this tier, we'll try to find a local edge/chrome if executablePath isn't explicitly set.
-    // The safest cross-platform way for puppeteer-core is to use chrome launcher or specific paths.
-    // For now, we will use a common Windows path as a fallback.
-    const executablePath = process.env.CHROME_BIN || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+    const isLocal = process.env.NODE_ENV !== 'production' && !process.env.RENDER;
+    
+    // Use local Edge/Chrome on Windows dev, and sparticuz/chromium on Render/Linux
+    const executablePath = isLocal 
+      ? (process.env.CHROME_BIN || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')
+      : await chromium.executablePath();
     
     browser = await puppeteer.launch({ 
       executablePath,
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      headless: isLocal ? true : chromium.headless,
+      args: isLocal ? ['--no-sandbox', '--disable-setuid-sandbox'] : chromium.args,
+      defaultViewport: chromium ? chromium.defaultViewport : { width: 1920, height: 1080 }
     });
 
     emitProgress(40, "Loading HTML content...");
