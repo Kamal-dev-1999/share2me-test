@@ -20,7 +20,7 @@ const { generatePresignedGetUrl, s3, R2_BUCKET } = require('../lib/storage');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const RateLimiter = require('../../lib/RateLimiter');
-const { emitToVendor } = require('../socket');
+const { emitToVendor, emitToJob } = require('../socket');
 const Razorpay = require('razorpay');
 const { v4: uuidv4 } = require('uuid');
 
@@ -295,6 +295,12 @@ router.post('/verify-payment', async (req, res) => {
         paymentId: job.payment_id,
         paidAt: job.paid_at,
       });
+      emitToJob(job.id, 'printshop:job_updated', {
+        jobId: job.id,
+        paymentStatus: job.payment_status,
+        paymentId: job.payment_id,
+        paidAt: job.paid_at,
+      });
     }
     res.json({ success: true });
   } catch (err) {
@@ -406,8 +412,15 @@ router.patch('/jobs/:id/confirm', requireShopkeeper, async (req, res) => {
 
     console.log(`[PrintShop] Job ${id} confirmed by vendor ${req.vendorId} — paymentId: ${paymentId}`);
 
-    // Real-time update to everyone in the vendor room (catches the student's waiting screen)
+    // Real-time update to everyone in the vendor room
     emitToVendor(req.vendorId, 'printshop:job_updated', {
+      jobId: id,
+      paymentStatus: 'paid',
+      paymentId,
+      paidAt,
+    });
+    // Real-time update to the student's room
+    emitToJob(id, 'printshop:job_updated', {
       jobId: id,
       paymentStatus: 'paid',
       paymentId,
@@ -449,6 +462,7 @@ router.patch('/jobs/:id/fail', requireShopkeeper, async (req, res) => {
     await client.query('COMMIT');
 
     emitToVendor(req.vendorId, 'printshop:job_updated', { jobId: id, paymentStatus: 'failed' });
+    emitToJob(id, 'printshop:job_updated', { jobId: id, paymentStatus: 'failed' });
     res.json({ success: true });
   } catch (err) {
     if (client) await client.query('ROLLBACK');
@@ -487,6 +501,7 @@ router.patch('/jobs/:id/print', requireShopkeeper, async (req, res) => {
     await client.query('COMMIT');
 
     emitToVendor(req.vendorId, 'printshop:job_updated', { jobId: id, jobStatus: 'printed', printedAt });
+    emitToJob(id, 'printshop:job_updated', { jobId: id, jobStatus: 'printed', printedAt });
     res.json({ success: true, printedAt });
   } catch (err) {
     if (client) await client.query('ROLLBACK');

@@ -238,7 +238,12 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
       process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000",
       { transports: ["websocket", "polling"] }
     );
-    socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus: string; paymentId?: string; paidAt?: string }) => {
+
+    socket.on("connect", () => {
+      socket.emit("g2p:join_job_room", { jobId: job.id });
+    });
+
+    socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus: string; paymentId?: string; paidAt?: string; jobStatus?: string; printedAt?: string }) => {
       if (payload.jobId !== job.id) return;
       setJob((prev) => prev ? { ...prev, paymentStatus: payload.paymentStatus as "paid" | "failed" | "pending", paymentId: payload.paymentId ?? null, paidAt: payload.paidAt ?? null } : prev);
     });

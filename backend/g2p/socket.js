@@ -15,7 +15,11 @@ function attachG2PSockets(io, metrics, bannedIPs) {
     socket.on('g2p:join_vendor_room', async ({ vendorId, authToken } = {}, cb) => {
       try {
         const vendor = await verifyVendorJWT(authToken);
-        if (!vendor || vendor.id !== vendorId) {
+        if (!vendor) {
+          return cb?.({ error: 'unauthorized' });
+        }
+        const finalVendorId = vendor.id || vendorId;
+        if (!finalVendorId || (vendorId && vendor.id !== vendorId)) {
           return cb?.({ error: 'unauthorized' });
         }
 
@@ -24,12 +28,20 @@ function attachG2PSockets(io, metrics, bannedIPs) {
           return cb?.({ error: 'rate_limited' });
         }
 
-        socket.join(`vendor:${vendorId}`);
-        socket.vendorId = vendorId;
+        socket.join(`vendor:${finalVendorId}`);
+        socket.vendorId = finalVendorId;
         cb?.({ ok: true });
       } catch (err) {
         console.error('[G2P Sockets] Join room error:', err.message);
         cb?.({ error: 'internal_error' });
+      }
+    });
+
+    // ── join_job_room ─────────────────────────────────────────────────────────
+    // Allows a student to join a specific job's room to receive payment updates
+    socket.on('g2p:join_job_room', ({ jobId } = {}) => {
+      if (jobId) {
+        socket.join(`job:${jobId}`);
       }
     });
 
@@ -42,7 +54,14 @@ function emitToVendor(vendorId, eventName, payload) {
   }
 }
 
+function emitToJob(jobId, eventName, payload) {
+  if (ioInstance) {
+    ioInstance.to(`job:${jobId}`).emit(eventName, payload);
+  }
+}
+
 module.exports = {
   attachG2PSockets,
   emitToVendor,
+  emitToJob,
 };

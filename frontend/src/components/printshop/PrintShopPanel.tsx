@@ -50,6 +50,10 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean] {
       process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000",
       { transports: ["websocket", "polling"] }
     );
+
+    socket.on("connect", () => {
+      socket.emit("g2p:join_vendor_room", { authToken: token });
+    });
     socket.on("printshop:new_job", () => { refresh(); });
     socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus: string; paymentId?: string; paidAt?: string; jobStatus?: string; printedAt?: string }) => {
       setJobs((prev) => prev.map((j) => j.id === payload.jobId
