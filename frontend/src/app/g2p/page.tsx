@@ -6,21 +6,47 @@ import { ArrowLeft, ArrowRight, UserCheck, Send, HardDrive } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn, signOut, useSession, SessionProvider } from "next-auth/react";
 import { RoleSelectModal } from "@/components/printshop/RoleSelectModal";
-import { getRole, type UserRole } from "@/lib/printShop";
+import { getPersona, type UserPersona } from "@/lib/printShop";
 
 function G2PContent() {
   const { data: session, status } = useSession();
   const isLoading = status === "loading";
 
-  // Role gate — each Google ACCOUNT gets asked Shopkeeper/Student/Assistant
-  // once; the choice is stored per email, so switching accounts asks again.
+  // Persona gate — each Google ACCOUNT gets asked Print Shop / Personal / Educator
+  // once.
   const email = session?.user?.email ?? null;
-  const [role, setRoleState] = useState<UserRole | null>(null);
-  const [roleChecked, setRoleChecked] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [persona, setPersonaState] = useState<UserPersona | null>(null);
+  const [personaChecked, setPersonaChecked] = useState(false);
+  const [needsSelection, setNeedsSelection] = useState(false);
+
   useEffect(() => {
     if (status === "loading") return;
-    setRoleState(email ? getRole(email) : null);
-    setRoleChecked(true);
+    if (status === "authenticated" && email) {
+      fetch("/api/g2p-token")
+        .then(res => res.json())
+        .then(data => {
+          if (data.token) {
+            setToken(data.token);
+            return getPersona(email, data.token);
+          }
+          throw new Error("No token");
+        })
+        .then(({ persona, persona_selected }) => {
+          setPersonaState(persona);
+          setNeedsSelection(!persona_selected);
+          setPersonaChecked(true);
+        })
+        .catch(() => {
+          setPersonaState(null);
+          setNeedsSelection(false);
+          setPersonaChecked(true);
+        });
+    } else {
+      setPersonaState(null);
+      setNeedsSelection(false);
+      setPersonaChecked(true);
+    }
   }, [email, status]);
 
   const g2pUser = session?.user
@@ -35,7 +61,7 @@ function G2PContent() {
       }
     : null;
 
-  if (isLoading) {
+  if (isLoading || (g2pUser && !personaChecked)) {
     return (
       <div className="min-h-screen bg-background flex flex-col text-on-surface font-body">
         <main className="w-full max-w-[1440px] mx-auto px-5 md:px-8 lg:px-12 pt-6 pb-16 flex-1">
@@ -54,11 +80,14 @@ function G2PContent() {
     // Render the new full-page app layout for the Dashboard
     return (
       <div className="min-h-screen bg-background text-on-surface font-body p-4 sm:p-6 md:overflow-hidden flex flex-col">
-        {/* One-time role picker after Google sign-in */}
-        {roleChecked && !role && (
-          <RoleSelectModal account={email} onSelected={(r) => setRoleState(r)} />
+        {/* One-time persona picker after Google sign-in */}
+        {personaChecked && needsSelection && (
+          <RoleSelectModal account={email} token={token} onSelected={(p) => {
+            setPersonaState(p);
+            setNeedsSelection(false);
+          }} />
         )}
-        <G2pDashboard user={g2pUser} onLogout={() => signOut()} userRole={role} />
+        <G2pDashboard user={g2pUser} onLogout={() => signOut()} initialPersona={persona || "PERSONAL"} />
       </div>
     );
   }

@@ -11,53 +11,53 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { Store, GraduationCap, Users, ArrowRight, Loader2 } from "lucide-react";
-import { setRole, type UserRole } from "@/lib/printShop";
+import { setPersona, type UserPersona } from "@/lib/printShop";
 
-const ROLES: {
-  role: UserRole;
+const PERSONAS: {
+  persona: UserPersona;
   icon: typeof Store;
   title: string;
   desc: string;
   grad: [string, string];
 }[] = [
   {
-    role: "shopkeeper",
+    persona: "PRINT_SHOP",
     icon: Store,
-    title: "Shopkeeper",
+    title: "Print Shop",
     desc: "I run a print shop — I want to receive documents, set printing prices, and collect payments.",
     grad: ["#fcd34d", "#f59e0b"],
   },
   {
-    role: "student",
+    persona: "PERSONAL",
     icon: GraduationCap,
-    title: "Student",
+    title: "Personal",
     desc: "I want to share and receive files with my personal portal.",
     grad: ["#60a5fa", "#2563eb"],
   },
   {
-    role: "assistant",
+    persona: "EDUCATOR",
     icon: Users,
-    title: "Assistant",
-    desc: "I help manage someone else's portal and incoming files.",
+    title: "Educator",
+    desc: "I want to collect files from students and manage submissions.",
     grad: ["#4ade80", "#059669"],
   },
 ];
 
-export function RoleSelectModal({ onSelected, account }: {
-  onSelected: (role: UserRole) => void;
+export function RoleSelectModal({ onSelected, account, token }: {
+  onSelected: (persona: UserPersona) => void;
   /** Google account email — the choice is remembered per account. */
   account?: string | null;
+  /** Auth token */
+  token?: string | null;
 }) {
-  const { data: session } = useSession();
-  const token = (session as { backendToken?: string })?.backendToken;
-  const [picked, setPicked] = useState<UserRole | null>(null);
+  const [picked, setPicked] = useState<UserPersona | null>(null);
   const [loading, setLoading] = useState(false);
 
   const confirm = async () => {
     if (!picked) return;
     setLoading(true);
-    // Persist role to backend DB; falls back gracefully if not authenticated yet
-    try { await setRole(picked, account, token); } catch { /* non-fatal */ }
+    // Persist persona to backend DB; falls back gracefully if not authenticated yet
+    try { if (token) await setPersona(picked, account, token); } catch { /* non-fatal */ }
     setLoading(false);
     onSelected(picked);
   };
@@ -84,12 +84,12 @@ export function RoleSelectModal({ onSelected, account }: {
         </p>
 
         <div className="grid sm:grid-cols-3 gap-3">
-          {ROLES.map(({ role, icon: Icon, title, desc, grad }) => {
-            const active = picked === role;
+          {PERSONAS.map(({ persona, icon: Icon, title, desc, grad }) => {
+            const active = picked === persona;
             return (
               <button
-                key={role}
-                onClick={() => setPicked(role)}
+                key={persona}
+                onClick={() => setPicked(persona)}
                 className={`text-left p-4 rounded-2xl border transition-all ${
                   active
                     ? "bg-white border-[#111827] shadow-[0_8px_24px_rgba(0,0,0,0.12)] scale-[1.02]"

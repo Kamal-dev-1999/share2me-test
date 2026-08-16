@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PrintFlow } from "@/components/printshop/PrintFlow";
-import { getShopSettings } from "@/lib/printShop";
+import { getPublicShopSettings } from "@/lib/printShop";
 
 const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
 
@@ -37,8 +37,8 @@ export default function G2pSenderPortal({ params }: PageProps) {
   // (Phase 1: read from this browser's shop settings; Phase 2: vendor API).
   const [printMode, setPrintMode] = useState(false);
   useEffect(() => {
-    setPrintMode(!!getShopSettings().paymentQr);
-  }, []);
+    getPublicShopSettings(code).then(settings => setPrintMode(!!settings.qrUrl)).catch(() => setPrintMode(false));
+  }, [code]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -216,7 +216,7 @@ export default function G2pSenderPortal({ params }: PageProps) {
               exit={{ opacity: 0, scale: 0.95 }}
               className="card-brutalist p-6 sm:p-8"
             >
-              <PrintFlow shopName={receiver.name} />
+              <PrintFlow shopName={receiver.name} shopCode={code} />
             </motion.div>
           ) : !uploadComplete ? (
             <motion.div
