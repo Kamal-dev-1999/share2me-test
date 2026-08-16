@@ -679,7 +679,7 @@ export default function G2pDashboard({
       </svg>
 
       {/* Live "X paid ₹Y" toasts + chime for the shopkeeper, on any tab */}
-      {isShopkeeper && <PrintJobNotifier soundEnabled={soundEnabled} />}
+      {isShopkeeper && <PrintJobNotifier soundEnabled={soundEnabled} token={token} />}
 
       {/* SIDEBAR */}
       <aside className="w-full md:w-[280px] shrink-0 flex flex-col gap-3 md:gap-6">
@@ -1080,7 +1080,7 @@ export default function G2pDashboard({
               </div>
 
               {/* Printing & Payment — shopkeeper role only */}
-              {isShopkeeper && <PrintingSettings />}
+              {isShopkeeper && <PrintingSettings token={token} />}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Profile Settings */}
@@ -1305,7 +1305,7 @@ export default function G2pDashboard({
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Print Shop</h2>
                 <p className="text-sm text-[#111827]/60">Shared documents, payment status and revenue for your print counter.</p>
               </div>
-              <PrintShopPanel />
+              <PrintShopPanel token={token} />
             </motion.div>
           )}
 
@@ -1323,7 +1323,7 @@ export default function G2pDashboard({
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Payments</h2>
                 <p className="text-sm text-[#111827]/60">Every print payment received through your shop QR.</p>
               </div>
-              <PaymentsPanel />
+              <PaymentsPanel token={token} />
             </motion.div>
           )}
 

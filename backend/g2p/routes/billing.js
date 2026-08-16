@@ -1,85 +1,97 @@
+'use strict';
+
 const express = require('express');
 const { query } = require('../lib/db');
 const { verifyVendorJWT } = require('../lib/auth');
+const Razorpay = require('razorpay');
 
-let stripeInstance = null;
-function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('Stripe API Key is not configured. Please add STRIPE_SECRET_KEY to your env variables.');
+let razorpayInstance = null;
+function getRazorpay() {
+  if (!razorpayInstance) {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new Error('Razorpay keys not configured');
+    }
+    razorpayInstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
   }
-  if (!stripeInstance) {
-    stripeInstance = require('stripe')(process.env.STRIPE_SECRET_KEY);
-  }
-  return stripeInstance;
+  return razorpayInstance;
 }
 
 const router = express.Router();
 
-// Middleware to verify vendor JWT token
+// All billing routes require a valid vendor JWT
 router.use(async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   const vendor = await verifyVendorJWT(token);
   if (!vendor) return res.status(401).json({ error: 'unauthorized' });
-  req.vendorId = vendor.id;
+  req.vendorId = vendor.vendorId || vendor.sub || vendor.id;
   next();
 });
 
-// Create a Stripe Checkout Session
-router.post('/checkout', async (req, res) => {
+// POST /billing/connect
+// Accepts vendor UPI ID, calls Razorpay QR Codes API to create a permanent
+// multi-use payment QR, persists it, marks charges_enabled = true.
+router.post('/connect', async (req, res) => {
   try {
-    // 1. Get vendor details from database
-    const vRes = await query(`SELECT id, name, email FROM vendors WHERE id = $1`, [req.vendorId]);
+    const { upiId } = req.body;
+    if (!upiId || typeof upiId !== 'string' || !upiId.includes('@')) {
+      return res.status(400).json({ error: 'invalid_upi_id', message: 'Please provide a valid UPI ID (e.g. name@upi)' });
+    }
+    const cleanUpiId = upiId.trim().toLowerCase().slice(0, 100);
+
+    const vRes = await query('SELECT id, name, share2me_id FROM vendors WHERE id = $1', [req.vendorId]);
     if (vRes.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
     const vendor = vRes.rows[0];
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    let qrImageUrl = null;
+    let qrId = null;
+    try {
+      // Generate a static UPI QR code using qrserver
+      const upiString = `upi://pay?pa=${cleanUpiId}&pn=${encodeURIComponent(vendor.name)}&cu=INR`;
+      qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiString)}`;
+      qrId = 'static_' + vendor.id;
+      console.log(`[Billing] Static UPI QR created: ${qrId} for vendor ${vendor.id}`);
+    } catch (err) {
+      console.warn(`[Billing] Static QR creation failed (graceful degrade): ${err.message}`);
+    }
 
-    // 2. Create Stripe Checkout Session
-    const session = await getStripe().checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'subscription',
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID, // Price ID configured in Stripe Dashboard
-          quantity: 1,
-        },
-      ],
-      // Map vendorId so we can correlate when webhook triggers asynchronously
-      client_reference_id: vendor.id,
-      customer_email: vendor.email || undefined,
-      subscription_data: {
-        trial_period_days: 30, // 30-Day Free Trial
-      },
-      success_url: `${frontendUrl}/g2p?checkout=success`,
-      cancel_url: `${frontendUrl}/pricing`,
-    });
+    await query(
+      'UPDATE vendors SET upi_id = $1, razorpay_account_id = $2, charges_enabled = true WHERE id = $3',
+      [cleanUpiId, qrId || ('upi_' + vendor.id.split('-')[0]), vendor.id]
+    );
+    await query(
+      'INSERT INTO printshop_settings (vendor_id, payment_qr_url, payment_qr_id, updated_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (vendor_id) DO UPDATE SET payment_qr_url = EXCLUDED.payment_qr_url, payment_qr_id = EXCLUDED.payment_qr_id, updated_at = NOW()',
+      [vendor.id, qrImageUrl, qrId]
+    );
 
-    res.json({ url: session.url });
+    res.json({ success: true, qrImageUrl, qrId, upiId: cleanUpiId, charges_enabled: true });
   } catch (err) {
-    console.error('[Billing] Create Checkout Session Error:', err);
-    res.status(500).json({ error: 'failed_to_create_session' });
+    console.error('[Billing] POST /connect error:', err);
+    res.status(500).json({ error: 'connect_failed', message: err.message });
   }
 });
 
-// Create a Stripe Customer Portal Session for billing configuration/cancellation
-router.post('/portal', async (req, res) => {
+// GET /billing/status — returns vendor Razorpay setup state
+router.get('/status', async (req, res) => {
   try {
-    const vRes = await query(`SELECT stripe_customer_id FROM vendors WHERE id = $1`, [req.vendorId]);
-    if (vRes.rowCount === 0 || !vRes.rows[0].stripe_customer_id) {
-      return res.status(400).json({ error: 'no_billing_history' });
-    }
-
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-
-    const portalSession = await getStripe().billingPortal.sessions.create({
-      customer: vRes.rows[0].stripe_customer_id,
-      return_url: `${frontendUrl}/g2p`,
+    const result = await query(
+      'SELECT v.upi_id, v.charges_enabled, v.razorpay_account_id, ps.payment_qr_url, ps.payment_qr_id FROM vendors v LEFT JOIN printshop_settings ps ON ps.vendor_id = v.id WHERE v.id = $1',
+      [req.vendorId]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
+    const row = result.rows[0];
+    res.json({
+      upiId: row.upi_id || null,
+      charges_enabled: row.charges_enabled || false,
+      razorpay_account_id: row.razorpay_account_id || null,
+      qrImageUrl: row.payment_qr_url || null,
+      qrId: row.payment_qr_id || null,
     });
-
-    res.json({ url: portalSession.url });
   } catch (err) {
-    console.error('[Billing] Create Portal Session Error:', err);
-    res.status(500).json({ error: 'failed_to_create_portal_session' });
+    console.error('[Billing] GET /status error:', err);
+    res.status(500).json({ error: 'internal_error' });
   }
 });
 

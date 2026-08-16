@@ -7,7 +7,6 @@
 
 import { useMemo, useState } from "react";
 import { Search, Download, Filter } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { inr, type PaymentStatus, type PrintType, type PaymentMethod } from "@/lib/printShop";
 import { useJobs, StatusPill } from "./PrintShopPanel";
 
@@ -15,10 +14,8 @@ type StatusFilter = "all" | PaymentStatus;
 type TypeFilter = "all" | PrintType;
 type MethodFilter = "all" | PaymentMethod;
 
-export function PaymentsPanel() {
-  const { data: session } = useSession();
-  const token = (session as { backendToken?: string })?.backendToken;
-  const [jobs] = useJobs(token);
+export function PaymentsPanel({ token }: { token: string | null }) {
+  const [jobs] = useJobs(token || undefined);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [type, setType] = useState<TypeFilter>("all");

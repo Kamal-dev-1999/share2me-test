@@ -26,6 +26,13 @@ export type PrintType = "bw" | "color";
 export type PaymentStatus = "pending" | "paid" | "failed";
 export type PaymentMethod = "online" | "cash";
 
+export interface PrintConfig {
+  copies: number;       // 1–20
+  doubleSided: boolean;
+  stapling: boolean;
+  paperSize: 'A4' | 'A3';
+}
+
 export interface PrintJob {
   id: string;
   documentName: string;
@@ -41,6 +48,12 @@ export interface PrintJob {
   paymentId: string | null;
   paidAt: string | null;
   createdAt: string;
+  printConfig?: PrintConfig | null;
+  jobStatus?: 'queued' | 'printed' | 'cancelled';
+  printedAt?: string | null;
+  razorpayOrderId?: string | null;
+  amountPaise?: number;
+  fileUrl?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -52,7 +65,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/g2p/
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { headers });
+  const res = await fetch(`${API_BASE}${path}`, { headers, cache: 'no-store' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'network_error' }));
     throw new Error(err.error || 'api_error');
@@ -63,7 +76,7 @@ async function apiGet<T>(path: string, token?: string): Promise<T> {
 async function apiPost<T>(path: string, body: unknown, token?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'network_error' }));
     throw new Error(err.error || 'api_error');
@@ -74,7 +87,7 @@ async function apiPost<T>(path: string, body: unknown, token?: string): Promise<
 async function apiPut<T>(path: string, body: unknown, token?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { method: 'PUT', headers, body: JSON.stringify(body) });
+  const res = await fetch(`${API_BASE}${path}`, { method: 'PUT', headers, body: JSON.stringify(body), cache: 'no-store' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'network_error' }));
     throw new Error(err.error || 'api_error');
@@ -86,6 +99,7 @@ async function apiPatch<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PATCH',
     headers: { 'Authorization': `Bearer ${token}` },
+    cache: 'no-store',
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'network_error' }));
@@ -140,7 +154,9 @@ export interface PublicShopInfo {
   bwPrice: number;
   colorPrice: number;
   isAccepting: boolean;
-  qrUrl: string | null;
+  qrUrl: string | null;         // Razorpay auto-QR image URL
+  charges_enabled?: boolean;    // true when vendor has connected UPI/Razorpay
+  isPrintShop?: boolean;        // true when vendor persona === 'PRINT_SHOP'
 }
 
 export async function getPublicShopSettings(shopCode: string): Promise<PublicShopInfo> {
@@ -157,6 +173,11 @@ export interface ShopkeeperSettings {
   locationName: string;
   qrUrl: string | null;
   isAccepting: boolean;
+  razorpay_account_id?: string | null;
+  charges_enabled?: boolean;
+  upiId?: string;
+  qrImageUrl?: string | null;  // Razorpay QR image URL (permanent)
+  qrId?: string | null;        // Razorpay QR Code ID
 }
 
 export async function getShopSettings(token: string): Promise<ShopkeeperSettings> {
@@ -164,7 +185,7 @@ export async function getShopSettings(token: string): Promise<ShopkeeperSettings
 }
 
 export async function saveShopSettings(
-  settings: { bwPrice: number; colorPrice: number; locationName: string; isAccepting?: boolean },
+  settings: { bwPrice: number; colorPrice: number; locationName: string; isAccepting?: boolean; razorpay_account_id?: string | null; charges_enabled?: boolean },
   token: string
 ): Promise<void> {
   await apiPut('/settings', settings, token);
@@ -187,6 +208,25 @@ export async function uploadQrImage(file: File, token: string): Promise<{ qrUrl:
   return res.json();
 }
 
+export async function connectRazorpayAccount(
+  upiId: string,
+  token: string
+): Promise<{ success: boolean; qrImageUrl: string | null; qrId: string | null; upiId: string; charges_enabled: boolean }> {
+  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/connect`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ upiId })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Connect failed' }));
+    throw new Error(err.message || 'Razorpay connect failed');
+  }
+  return res.json();
+}
+
 // ─────────────────────────────────────────────────────────────
 // Print Jobs — student submission
 // ─────────────────────────────────────────────────────────────
@@ -200,6 +240,7 @@ export interface SubmitJobArgs {
   pages: number;
   printType: PrintType;
   paymentMethod: PaymentMethod;
+  printConfig?: PrintConfig;
 }
 
 export interface SubmitJobResult {
@@ -207,6 +248,10 @@ export interface SubmitJobResult {
   totalAmount: number;
   pricePerPage: number;
   createdAt: string;
+  stripeCheckoutUrl?: string;
+  razorpayOrderId?: string;
+  amountPaise?: number;
+  uploadUrl: string;
 }
 
 export async function submitPrintJob(args: SubmitJobArgs): Promise<SubmitJobResult> {
@@ -248,11 +293,28 @@ function normalizeJob(j: Record<string, unknown>): PrintJob {
     paymentId: (j.payment_id ?? j.paymentId) as string | null,
     paidAt: (j.paid_at ?? j.paidAt) as string | null,
     createdAt: (j.created_at ?? j.createdAt) as string,
+    printConfig: (j.print_config ?? j.printConfig) as PrintConfig | null ?? null,
+    jobStatus: (j.job_status ?? j.jobStatus) as PrintJob['jobStatus'] ?? 'queued',
+    printedAt: (j.printed_at ?? j.printedAt) as string | null ?? null,
   };
 }
 
 export async function confirmJobPayment(jobId: string, token: string): Promise<{ paymentId: string }> {
   return apiPatch<{ paymentId: string }>(`/jobs/${jobId}/confirm`, token);
+}
+
+export async function markJobPrinted(jobId: string, token: string, printConfig?: PrintConfig): Promise<{ printedAt: string }> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/print`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(printConfig ? { printConfig } : {}),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'api_error' }));
+    throw new Error(err.error || 'mark_printed_failed');
+  }
+  return res.json();
 }
 
 export async function markJobFailed(jobId: string, token: string): Promise<void> {

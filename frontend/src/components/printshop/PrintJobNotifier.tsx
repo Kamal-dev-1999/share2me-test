@@ -12,7 +12,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSession } from "next-auth/react";
 import { IndianRupee, Banknote, X } from "lucide-react";
 import { getPrintJobs, inr, type PrintJob } from "@/lib/printShop";
 
@@ -46,9 +45,7 @@ function playChime() {
   }
 }
 
-export function PrintJobNotifier({ soundEnabled = true }: { soundEnabled?: boolean }) {
-  const { data: session } = useSession();
-  const token = (session as { backendToken?: string })?.backendToken;
+export function PrintJobNotifier({ soundEnabled = true, token }: { soundEnabled?: boolean; token: string | null }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const knownIds = useRef<Set<string> | null>(null);
 

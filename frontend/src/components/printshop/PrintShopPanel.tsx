@@ -2,24 +2,23 @@
 
 /**
  * Shopkeeper's "Print Shop" dashboard tab:
- *  - 6 KPI cards (docs, paid, pending, revenue, color, b&w)
- *  - Revenue chart (daily / weekly / monthly) — recharts
- *  - Job list with payment status pills + "Confirm payment received"
- *  - Details drawer with document/printing/payment info + status timeline
+ *  - 6 KPI cards
+ *  - Revenue chart
+ *  - Job list with payment & print status pills
+ *  - Details drawer with document/printing/payment info + status timeline + print config
  */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSession } from "next-auth/react";
 import {
   FileText, CheckCircle2, Clock, XCircle, IndianRupee, Palette, Printer,
-  X, ChevronRight, User, CalendarDays, BadgeCheck,
+  X, ChevronRight, User, CalendarDays, BadgeCheck, CheckSquare, Printer as PrinterIcon, Download,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  getPrintJobs, confirmJobPayment, markJobFailed, computeKpis, revenueSeries,
+  getPrintJobs, confirmJobPayment, markJobFailed, markJobPrinted, computeKpis, revenueSeries,
   inr, formatBytes,
   type PrintJob, type RevenueRange,
 } from "@/lib/printShop";
@@ -38,15 +37,13 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean] {
     try {
       const fresh = await getPrintJobs(token);
       setJobs(fresh);
-    } catch { /* ignore, keep stale data */ } finally {
+    } catch (err) { console.error('useJobs ERROR:', err); } finally {
       setLoading(false);
     }
   }, [token]);
 
-  // Initial load
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Socket.IO real-time updates
   useEffect(() => {
     if (!token) return;
     const socket: Socket = socketIO(
@@ -54,9 +51,16 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean] {
       { transports: ["websocket", "polling"] }
     );
     socket.on("printshop:new_job", () => { refresh(); });
-    socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus: string; paymentId?: string; paidAt?: string }) => {
+    socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus: string; paymentId?: string; paidAt?: string; jobStatus?: string; printedAt?: string }) => {
       setJobs((prev) => prev.map((j) => j.id === payload.jobId
-        ? { ...j, paymentStatus: payload.paymentStatus as PrintJob["paymentStatus"], paymentId: payload.paymentId ?? j.paymentId, paidAt: payload.paidAt ?? j.paidAt }
+        ? { 
+            ...j, 
+            paymentStatus: payload.paymentStatus as PrintJob["paymentStatus"], 
+            paymentId: payload.paymentId ?? j.paymentId, 
+            paidAt: payload.paidAt ?? j.paidAt,
+            jobStatus: (payload.jobStatus ?? j.jobStatus) as PrintJob["jobStatus"],
+            printedAt: payload.printedAt ?? j.printedAt
+          }
         : j
       ));
     });
@@ -67,18 +71,28 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean] {
 }
 
 export function StatusPill({ job }: { job: PrintJob }) {
-  if (job.paymentStatus === "paid")
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 text-[11px] font-bold whitespace-nowrap">
-        <span className="w-2 h-2 rounded-full bg-emerald-500" /> {inr(job.totalAmount)} Paid
-      </span>
-    );
-  if (job.paymentStatus === "failed")
+  if (job.paymentStatus === "failed" || job.jobStatus === "cancelled")
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/15 text-red-700 text-[11px] font-bold whitespace-nowrap">
-        <span className="w-2 h-2 rounded-full bg-red-500" /> Payment Failed
+        <span className="w-2 h-2 rounded-full bg-red-500" /> Failed / Cancelled
       </span>
     );
+
+  if (job.paymentStatus === "paid") {
+    if (job.jobStatus === "printed") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-700 text-[11px] font-bold whitespace-nowrap">
+          <span className="w-2 h-2 rounded-full bg-indigo-500" /> Printed & Paid
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 text-[11px] font-bold whitespace-nowrap">
+        <span className="w-2 h-2 rounded-full bg-emerald-500" /> Ready to Print
+      </span>
+    );
+  }
+
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-700 text-[11px] font-bold whitespace-nowrap">
       <span className="w-2 h-2 rounded-full bg-orange-500" /> {inr(job.totalAmount)} Pending
@@ -98,7 +112,7 @@ function Kpis({ jobs }: { jobs: PrintJob[] }) {
     { label: "Pending Payments", value: String(k.pendingPayments), icon: Clock,        grad: ["#fcd34d", "#f59e0b"] },
     { label: "Total Revenue",    value: inr(k.totalRevenue),       icon: IndianRupee,  grad: ["#a78bfa", "#7c3aed"] },
     { label: "Color Prints",     value: String(k.colorPrints),     icon: Palette,      grad: ["#f472b6", "#db2777"] },
-    { label: "B&W Prints",       value: String(k.bwPrints),        icon: Printer,      grad: ["#94a3b8", "#475569"] },
+    { label: "B&W Prints",       value: String(k.bwPrints),        icon: PrinterIcon,  grad: ["#94a3b8", "#475569"] },
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -172,18 +186,22 @@ function RevenueChart({ jobs }: { jobs: PrintJob[] }) {
 const TIMELINE_STEPS = [
   "Document Uploaded",
   "Pages Calculated",
-  "Print Type Selected",
+  "Print Configured",
   "Payment Initiated",
   "Payment Successful",
-  "Ready for Printing",
+  "Printed & Completed",
 ];
 
-function JobDrawer({ job, onClose, onConfirm, onFail }: {
+function JobDrawer({ job, onClose, onConfirm, onFail, onPrint }: {
   job: PrintJob; onClose: () => void;
   onConfirm: (id: string) => void; onFail: (id: string) => void;
+  onPrint: (id: string) => void;
 }) {
-  // First 4 steps complete on submission; 5–6 complete once paid.
-  const doneCount = job.paymentStatus === "paid" ? 6 : 4;
+  let doneCount = 2; // initial
+  if (job.printConfig) doneCount = 3;
+  if (job.paymentStatus === "pending") doneCount = 4;
+  if (job.paymentStatus === "paid") doneCount = 5;
+  if (job.jobStatus === "printed") doneCount = 6;
 
   const Section = ({ title, rows }: { title: string; rows: [string, React.ReactNode][] }) => (
     <div className="bg-white/60 border border-white/80 rounded-2xl p-4">
@@ -226,16 +244,24 @@ function JobDrawer({ job, onClose, onConfirm, onFail }: {
             ["Uploaded", new Date(job.createdAt).toLocaleString("en-IN")],
           ]} />
 
-          <Section title="Printing Information" rows={[
+          {job.fileUrl && (
+            <a href={job.fileUrl} target="_blank" rel="noreferrer" className="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-indigo-50 text-indigo-600 text-[13px] font-bold hover:bg-indigo-100 transition-colors">
+              <Download className="w-4 h-4" /> Download Document
+            </a>
+          )}
+
+          <Section title="Printing Config" rows={[
             ["Print type", job.printType === "color" ? "Color" : "Black & White"],
-            ["Price per page", inr(job.pricePerPage)],
-            ["Total pages", String(job.pages)],
-            ["Total amount", <b key="t">{inr(job.totalAmount)}</b>],
+            ["Paper Size", job.printConfig?.paperSize ?? "A4"],
+            ["Copies", String(job.printConfig?.copies ?? 1)],
+            ["Double Sided", job.printConfig?.doubleSided ? "Yes" : "No"],
+            ["Stapling", job.printConfig?.stapling ? "Yes" : "No"],
           ]} />
 
           <Section title="Payment Information" rows={[
             ["Status", job.paymentStatus.toUpperCase()],
             ["Amount", inr(job.totalAmount)],
+            ["Price per page", inr(job.pricePerPage)],
             ["Payment ID", job.paymentId ?? "—"],
             ["Method", job.paymentMethod === "cash" ? "Cash at counter" : "UPI QR"],
             ["Timestamp", job.paidAt ? new Date(job.paidAt).toLocaleString("en-IN") : "—"],
@@ -269,22 +295,24 @@ function JobDrawer({ job, onClose, onConfirm, onFail }: {
           </div>
         </div>
 
-        {job.paymentStatus === "pending" && (
-          <div className="p-5 border-t border-[#111827]/10 flex gap-2">
-            <button
-              onClick={() => onConfirm(job.id)}
-              className="flex-1 h-11 rounded-full bg-emerald-600 text-white text-[13px] font-bold hover:bg-emerald-700 transition-colors inline-flex items-center justify-center gap-2"
-            >
-              <BadgeCheck className="w-4 h-4" /> Confirm payment received
+        <div className="p-5 border-t border-[#111827]/10 flex flex-col gap-2">
+          {job.paymentStatus === "pending" && (
+            <div className="flex gap-2">
+              <button onClick={() => onConfirm(job.id)} className="flex-1 h-11 rounded-full bg-emerald-600 text-white text-[13px] font-bold hover:bg-emerald-700 transition-colors inline-flex items-center justify-center gap-2">
+                <BadgeCheck className="w-4 h-4" /> Confirm Payment
+              </button>
+              <button onClick={() => onFail(job.id)} className="h-11 px-4 rounded-full bg-red-500/10 text-red-600 text-[13px] font-bold hover:bg-red-500 hover:text-white transition-colors">
+                Failed
+              </button>
+            </div>
+          )}
+          
+          {job.paymentStatus === "paid" && job.jobStatus !== "printed" && (
+            <button onClick={() => onPrint(job.id)} className="w-full h-11 rounded-full bg-[#111827] text-white text-[13px] font-bold hover:bg-black transition-colors inline-flex items-center justify-center gap-2">
+              <PrinterIcon className="w-4 h-4" /> Mark as Printed
             </button>
-            <button
-              onClick={() => onFail(job.id)}
-              className="h-11 px-4 rounded-full bg-red-500/10 text-red-600 text-[13px] font-bold hover:bg-red-500 hover:text-white transition-colors"
-            >
-              Failed
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </motion.div>
     </>
   );
@@ -294,20 +322,22 @@ function JobDrawer({ job, onClose, onConfirm, onFail }: {
 // Panel
 // ─────────────────────────────────────────────────────────────
 
-export function PrintShopPanel() {
-  const { data: session } = useSession();
-  const token = (session as { backendToken?: string })?.backendToken;
-  const [jobs, refresh, loading] = useJobs(token);
+export function PrintShopPanel({ token }: { token: string | null }) {
+  const [jobs, refresh, loading] = useJobs(token || undefined);
   const [openJobId, setOpenJobId] = useState<string | null>(null);
   const openJob = jobs.find((j) => j.id === openJobId) ?? null;
 
   const confirm = async (id: string) => {
     if (!token) return;
-    try { await confirmJobPayment(id, token); } catch { /* real-time update via socket handles UI */ }
+    try { await confirmJobPayment(id, token); refresh(); } catch {}
   };
   const fail = async (id: string) => {
     if (!token) return;
-    try { await markJobFailed(id, token); } catch { /* real-time update via socket handles UI */ }
+    try { await markJobFailed(id, token); refresh(); } catch {}
+  };
+  const print = async (id: string) => {
+    if (!token) return;
+    try { await markJobPrinted(id, token); refresh(); } catch {}
   };
 
   return (
@@ -317,8 +347,8 @@ export function PrintShopPanel() {
 
       {/* Shared documents list */}
       <div className="bg-white/50 border border-white/70 rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#111827]/10">
-          <h3 className="text-[14px] font-bold text-[#111827]">Shared Documents</h3>
+        <div className="px-4 py-3 border-b border-[#111827]/10 flex items-center justify-between">
+          <h3 className="text-[14px] font-bold text-[#111827]">Print Jobs</h3>
         </div>
 
         {jobs.length === 0 ? (
@@ -338,13 +368,14 @@ export function PrintShopPanel() {
                     ? "bg-gradient-to-br from-[#f472b6] to-[#8b5cf6]"
                     : "bg-gradient-to-br from-[#4b5563] to-[#111827]"
                 }`}>
-                  {job.printType === "color" ? <Palette className="w-5 h-5 text-white" /> : <Printer className="w-5 h-5 text-white" />}
+                  {job.printType === "color" ? <Palette className="w-5 h-5 text-white" /> : <PrinterIcon className="w-5 h-5 text-white" />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-bold text-[#111827] truncate">{job.documentName}</p>
                   <p className="text-[12px] text-[#111827]/55 flex items-center gap-1.5 flex-wrap">
                     <User className="w-3 h-3" /> {job.senderName}
                     <span>·</span> {job.pages} pages · {job.printType === "color" ? "Color" : "B&W"} · {inr(job.pricePerPage)}/page
+                    {job.printConfig?.copies && job.printConfig.copies > 1 && <span className="font-semibold text-[#111827]">· {job.printConfig.copies} copies</span>}
                     <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
                       job.paymentMethod === "cash" ? "bg-amber-500/15 text-amber-700" : "bg-emerald-500/15 text-emerald-700"
                     }`}>{job.paymentMethod === "cash" ? "CASH" : "UPI"}</span>
@@ -357,13 +388,22 @@ export function PrintShopPanel() {
                   <StatusPill job={job} />
                   {job.paymentStatus === "pending" && (
                     <span
-                      role="button"
-                      tabIndex={0}
+                      role="button" tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); confirm(job.id); }}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); confirm(job.id); } }}
                       className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
                     >
                       <BadgeCheck className="w-3.5 h-3.5" /> Confirm
+                    </span>
+                  )}
+                  {job.paymentStatus === "paid" && job.jobStatus !== "printed" && (
+                    <span
+                      role="button" tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); print(job.id); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); print(job.id); } }}
+                      className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#111827] text-white text-[11px] font-bold hover:bg-black transition-colors cursor-pointer"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" /> Printed
                     </span>
                   )}
                   <ChevronRight className="w-4 h-4 text-[#111827]/30" />
@@ -381,11 +421,11 @@ export function PrintShopPanel() {
             onClose={() => setOpenJobId(null)}
             onConfirm={(id) => { confirm(id); }}
             onFail={(id) => { fail(id); }}
+            onPrint={(id) => { print(id); }}
           />
         )}
       </AnimatePresence>
 
-      {/* Failed marker icon kept for a11y completeness */}
       <span className="sr-only"><XCircle className="w-0 h-0" /></span>
     </div>
   );

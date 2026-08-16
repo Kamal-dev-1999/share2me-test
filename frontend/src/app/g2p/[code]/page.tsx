@@ -33,11 +33,17 @@ export default function G2pSenderPortal({ params }: PageProps) {
 
   const [uploading, setUploading] = useState(false);
 
-  // Print-shop mode — active when the shop has configured a payment QR
-  // (Phase 1: read from this browser's shop settings; Phase 2: vendor API).
-  const [printMode, setPrintMode] = useState(false);
+  // Print-shop mode — active ONLY when vendor persona === 'PRINT_SHOP'
+  // The backend's GET /printshop/shop/:code returns isPrintShop: true for print shops.
+  const [printMode, setPrintMode] = useState<boolean | null>(null); // null = loading
   useEffect(() => {
-    getPublicShopSettings(code).then(settings => setPrintMode(!!settings.qrUrl)).catch(() => setPrintMode(false));
+    getPublicShopSettings(code)
+      .then(settings => setPrintMode(settings.isPrintShop === true))
+      .catch(() => setPrintMode(false));
+  }, [code]);
+  const [shopInfo, setShopInfo] = useState<import('@/lib/printShop').PublicShopInfo | null>(null);
+  useEffect(() => {
+    getPublicShopSettings(code).then(setShopInfo).catch(() => {});
   }, [code]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
@@ -208,7 +214,14 @@ export default function G2pSenderPortal({ params }: PageProps) {
         </Link>
 
         <AnimatePresence mode="wait">
-          {printMode && !uploadComplete ? (
+        {/* Loading print mode check */}
+        {printMode === null ? (
+          <motion.div key="loading-mode" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="card-brutalist p-8 flex items-center justify-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin" strokeWidth={2.5} />
+            <span className="text-sm text-on-surface-variant">Connecting to shop…</span>
+          </motion.div>
+        ) : printMode && !uploadComplete ? (
             <motion.div
               key="print-flow"
               initial={{ opacity: 0, y: 10 }}

@@ -21,6 +21,22 @@ const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const RateLimiter = require('../../lib/RateLimiter');
 const { emitToVendor } = require('../socket');
+const Razorpay = require('razorpay');
+const { v4: uuidv4 } = require('uuid');
+
+let razorpayInstance = null;
+function getRazorpay() {
+  if (!razorpayInstance) {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new Error('Razorpay keys not configured');
+    }
+    razorpayInstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+  }
+  return razorpayInstance;
+}
 
 const router = express.Router();
 
@@ -56,10 +72,10 @@ router.get('/shop/:code', async (req, res) => {
   try {
     const result = await query(`
       SELECT ps.bw_price, ps.color_price, ps.location_name, ps.qr_r2_key, ps.is_accepting,
-             v.name as shop_name
+             v.name as shop_name, v.charges_enabled
       FROM printshop_settings ps
       JOIN vendors v ON v.id = ps.vendor_id
-      WHERE v.share2me_id = $1 AND v.role = 'shopkeeper'
+      WHERE v.share2me_id = $1 AND v.persona = 'PRINT_SHOP'
     `, [code]);
 
     if (result.rowCount === 0) return res.status(404).json({ error: 'shop_not_found' });
@@ -84,6 +100,8 @@ router.get('/shop/:code', async (req, res) => {
       colorPrice: parseFloat(shop.color_price),
       isAccepting: shop.is_accepting,
       qrUrl,
+      charges_enabled: shop.charges_enabled,
+      isPrintShop: true,
     });
   } catch (err) {
     console.error('[PrintShop] GET /shop/:code error:', err);
@@ -101,7 +119,7 @@ router.post('/jobs', async (req, res) => {
   }
 
   const {
-    shopCode, senderName, documentName, fileSizeBytes, fileType, pages, printType, paymentMethod,
+    shopCode, senderName, documentName, fileSizeBytes, fileType, pages, printType, paymentMethod, printConfig,
   } = req.body;
 
   // ── Input Validation ──
@@ -131,10 +149,11 @@ router.post('/jobs', async (req, res) => {
 
     // Look up the shopkeeper and their OFFICIAL pricing (lock to prevent TOCTOU)
     const shopRes = await client.query(`
-      SELECT v.id as vendor_id, ps.bw_price, ps.color_price, ps.is_accepting
+      SELECT v.id as vendor_id, ps.bw_price, ps.color_price, ps.is_accepting,
+             v.stripe_account_id, v.charges_enabled
       FROM vendors v
       JOIN printshop_settings ps ON ps.vendor_id = v.id
-      WHERE v.share2me_id = $1 AND v.role = 'shopkeeper'
+      WHERE v.share2me_id = $1 AND v.persona = 'PRINT_SHOP'
       FOR UPDATE OF ps
     `, [cleanCode]);
 
@@ -154,29 +173,59 @@ router.post('/jobs', async (req, res) => {
     const pricePerPage = parseFloat(cleanPrintType === 'color' ? shop.color_price : shop.bw_price);
     const totalAmount  = parseFloat((pricePerPage * cleanPages).toFixed(2));
 
+    const r2Key = `printshop/${shop.vendor_id}/${uuidv4()}-${cleanDocumentName}`;
+
     const insertRes = await client.query(`
       INSERT INTO printshop_jobs (
         vendor_id, sender_name, document_name, file_size_bytes, file_type,
-        pages, print_type, price_per_page, total_amount, payment_method
+        pages, print_type, price_per_page, total_amount, payment_method, print_config, r2_key
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id, created_at
     `, [
-      shop.vendor_id,
-      cleanSenderName,
-      cleanDocumentName,
-      cleanSizeBytes,
-      cleanFileType,
-      cleanPages,
-      cleanPrintType,
-      pricePerPage,
-      totalAmount,
+      shop.vendor_id, cleanSenderName, cleanDocumentName, cleanSizeBytes,
+      cleanFileType, cleanPages, cleanPrintType, pricePerPage, totalAmount,
       cleanPayMethod,
+      printConfig ? JSON.stringify(printConfig) : null,
+      r2Key,
     ]);
 
     await client.query('COMMIT');
 
     const newJob = insertRes.rows[0];
+
+    // Generate Razorpay Order if online payment
+    let razorpayOrderId = null;
+    let paymentAmountPaise = Math.round(totalAmount * 100);
+    
+    if (cleanPayMethod === 'online') {
+      // Ensure amount >= 100 paise as per Razorpay limits
+      if (paymentAmountPaise < 100) paymentAmountPaise = 100;
+      
+      const orderOptions = {
+        amount: paymentAmountPaise,
+        currency: 'INR',
+        receipt: newJob.id.toString(),
+      };
+      
+      // If vendor has a live Razorpay linked account, use Route transfers
+      if (shop.razorpay_account_id && shop.razorpay_account_id.startsWith('acc_') && shop.charges_enabled) {
+        const platformFee = Math.round(paymentAmountPaise * 0.05);
+        const vendorAmount = paymentAmountPaise - platformFee;
+        orderOptions.transfers = [
+          {
+            account: shop.razorpay_account_id,
+            amount: vendorAmount,
+            currency: 'INR',
+            notes: { job_id: newJob.id },
+            on_hold: false
+          }
+        ];
+      }
+      
+      const order = await getRazorpay().orders.create(orderOptions);
+      razorpayOrderId = order.id;
+    }
 
     // Notify the shopkeeper in real-time
     emitToVendor(shop.vendor_id, 'printshop:new_job', {
@@ -190,11 +239,20 @@ router.post('/jobs', async (req, res) => {
 
     console.log(`[PrintShop] New job ${newJob.id} for vendor ${shop.vendor_id} from IP ${ip}`);
 
+    const putCmd = new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: r2Key,
+      ContentType: cleanFileType,
+    });
+    const uploadUrl = await getSignedUrl(s3, putCmd, { expiresIn: 3600 });
+
     res.status(201).json({
       jobId: newJob.id,
       totalAmount,
       pricePerPage,
-      createdAt: newJob.created_at,
+      razorpayOrderId,
+      amountPaise: paymentAmountPaise,
+      uploadUrl,
     });
   } catch (err) {
     if (client) await client.query('ROLLBACK');
@@ -202,6 +260,46 @@ router.post('/jobs', async (req, res) => {
     res.status(500).json({ error: 'internal_error' });
   } finally {
     if (client) client.release();
+  }
+});
+
+// Verify Razorpay Payment Signature
+router.post('/verify-payment', async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, jobId } = req.body;
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !jobId) {
+    return res.status(400).json({ error: 'missing_fields' });
+  }
+
+  const secret = process.env.RAZORPAY_KEY_SECRET;
+  const generatedSignature = crypto.createHmac('sha256', secret)
+    .update(razorpay_order_id + "|" + razorpay_payment_id)
+    .digest('hex');
+
+  if (generatedSignature !== razorpay_signature) {
+    return res.status(400).json({ error: 'signature_mismatch' });
+  }
+
+  try {
+    const updateRes = await query(`
+      UPDATE printshop_jobs 
+      SET payment_status = 'paid', payment_id = $1, paid_at = NOW()
+      WHERE id = $2 AND payment_status != 'paid'
+      RETURNING vendor_id, id, payment_status, payment_id, paid_at
+    `, [razorpay_payment_id, jobId]);
+
+    if (updateRes.rowCount > 0) {
+      const job = updateRes.rows[0];
+      emitToVendor(job.vendor_id, 'printshop:job_updated', {
+        jobId: job.id,
+        paymentStatus: job.payment_status,
+        paymentId: job.payment_id,
+        paidAt: job.paid_at,
+      });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Razorpay Verify] Error:', err);
+    res.status(500).json({ error: 'internal_error' });
   }
 });
 
@@ -229,14 +327,27 @@ router.get('/jobs', requireShopkeeper, async (req, res) => {
     const result = await query(`
       SELECT id, sender_name, document_name, file_size_bytes, file_type, pages,
              print_type, price_per_page, total_amount, payment_method,
-             payment_status, payment_id, paid_at, created_at
+             payment_status, payment_id, paid_at, created_at,
+             print_config, job_status, printed_at, r2_key
       FROM printshop_jobs
       WHERE ${conditions.join(' AND ')}
       ORDER BY created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
-    res.json({ jobs: result.rows });
+    // Generate presigned GET URLs for all jobs that have an r2_key
+    const jobsWithUrls = await Promise.all(result.rows.map(async (job) => {
+      let fileUrl = null;
+      if (job.r2_key) {
+        try {
+          const cmd = new (require('@aws-sdk/client-s3').GetObjectCommand)({ Bucket: R2_BUCKET, Key: job.r2_key });
+          fileUrl = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+        } catch { /* ignore */ }
+      }
+      return { ...job, fileUrl };
+    }));
+
+    res.json({ jobs: jobsWithUrls });
   } catch (err) {
     console.error('[PrintShop] GET /jobs error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -346,35 +457,81 @@ router.patch('/jobs/:id/fail', requireShopkeeper, async (req, res) => {
   }
 });
 
+// ─── PROTECTED: PATCH /printshop/jobs/:id/print ───────────────────────────────
+// Vendor marks job as physically printed. Optional: send updated printConfig overrides.
+router.patch('/jobs/:id/print', requireShopkeeper, async (req, res) => {
+  const { id } = req.params;
+  const { printConfig: vendorConfig } = req.body; // vendor can override student config
+
+  let client;
+  try {
+    client = await getTransactionClient();
+    await client.query('BEGIN');
+
+    const jobRes = await client.query(
+      'SELECT id, vendor_id, job_status FROM printshop_jobs WHERE id = $1 AND deleted_at IS NULL FOR UPDATE',
+      [id]
+    );
+    if (jobRes.rowCount === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'job_not_found' }); }
+    const job = jobRes.rows[0];
+    if (job.vendor_id !== req.vendorId) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'job_not_found' }); }
+    if (job.job_status === 'printed') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'already_printed' }); }
+
+    const printedAt = new Date().toISOString();
+    await client.query(
+      `UPDATE printshop_jobs SET job_status = 'printed', printed_at = $1${vendorConfig ? ', print_config = $3' : ''} WHERE id = $2`,
+      vendorConfig ? [printedAt, id, JSON.stringify(vendorConfig)] : [printedAt, id]
+    );
+    await client.query('COMMIT');
+
+    emitToVendor(req.vendorId, 'printshop:job_updated', { jobId: id, jobStatus: 'printed', printedAt });
+    res.json({ success: true, printedAt });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    console.error('[PrintShop] PATCH /jobs/:id/print error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  } finally {
+    if (client) client.release();
+  }
+});
+
 // ─── PROTECTED: GET /printshop/settings ───────────────────────────────────────
 router.get('/settings', requireShopkeeper, async (req, res) => {
   try {
     const result = await query(`
-      SELECT bw_price, color_price, location_name, qr_r2_key, is_accepting
-      FROM printshop_settings
-      WHERE vendor_id = $1
+      SELECT ps.bw_price, ps.color_price, ps.location_name, ps.qr_r2_key, ps.is_accepting,
+             ps.payment_qr_url, ps.payment_qr_id,
+             v.razorpay_account_id, v.charges_enabled, v.upi_id
+      FROM vendors v
+      LEFT JOIN printshop_settings ps ON ps.vendor_id = v.id
+      WHERE v.id = $1
     `, [req.vendorId]);
 
     if (result.rowCount === 0) {
-      // Return defaults if shopkeeper hasn't configured yet
-      return res.json({ bwPrice: 2.0, colorPrice: 5.0, locationName: '', qrUrl: null, isAccepting: true });
+      return res.status(404).json({ error: 'vendor_not_found' });
     }
 
     const row = result.rows[0];
-    let qrUrl = null;
+    // Legacy R2 QR (manual upload) — superseded by Razorpay auto-QR but kept for backward compat
+    let legacyQrUrl = null;
     if (row.qr_r2_key) {
       try {
         const cmd = new (require('@aws-sdk/client-s3').GetObjectCommand)({ Bucket: R2_BUCKET, Key: row.qr_r2_key });
-        qrUrl = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+        legacyQrUrl = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
       } catch { /* non-fatal */ }
     }
 
     res.json({
-      bwPrice: parseFloat(row.bw_price),
-      colorPrice: parseFloat(row.color_price),
+      bwPrice: row.bw_price ? parseFloat(row.bw_price) : 2.0,
+      colorPrice: row.color_price ? parseFloat(row.color_price) : 5.0,
       locationName: row.location_name || '',
-      qrUrl,
-      isAccepting: row.is_accepting,
+      qrUrl: row.payment_qr_url || legacyQrUrl,  // prefer Razorpay auto-QR
+      isAccepting: row.is_accepting ?? true,
+      razorpay_account_id: row.razorpay_account_id || null,
+      charges_enabled: row.charges_enabled || false,
+      upiId: row.upi_id || '',
+      qrImageUrl: row.payment_qr_url || null,
+      qrId: row.payment_qr_id || null,
     });
   } catch (err) {
     console.error('[PrintShop] GET /settings error:', err);

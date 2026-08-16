@@ -12,7 +12,6 @@ CREATE TABLE vendors (
   accepting_requests BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   auth_provider_id TEXT UNIQUE, -- e.g. "google-oauth2|12345"
-<<<<<<< HEAD
   email TEXT, -- used to prefill Stripe Checkout
 
   -- Stripe subscription state (written by g2p/routes/webhooks.js)
@@ -23,15 +22,19 @@ CREATE TABLE vendors (
   subscription_ends_at TIMESTAMPTZ,
 
   -- User tiering / profile (v3.5)
-=======
->>>>>>> b8885170d50f4fbb1438507969bf03312450ec0a
   persona VARCHAR(20) DEFAULT 'PERSONAL',
   persona_selected BOOLEAN DEFAULT false,
   plan_type VARCHAR(20) DEFAULT 'FREE',
   phone TEXT,
   company TEXT,
   website TEXT,
-  bio TEXT
+  bio TEXT,
+
+  -- Stripe Connect (Print Shop Payments)
+  stripe_account_id TEXT,
+  charges_enabled BOOLEAN DEFAULT false,
+  price_per_page_bw NUMERIC(10, 2),
+  price_per_page_color NUMERIC(10, 2)
 );
 
 -- Requests Table
@@ -76,3 +79,55 @@ ALTER TABLE vendors ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS subscription_status TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ;
+
+-- Stripe Connect (Print Shop Payments)
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS charges_enabled BOOLEAN DEFAULT false;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS price_per_page_bw NUMERIC(10, 2);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS price_per_page_color NUMERIC(10, 2);
+
+-- Print Shop Jobs Table
+CREATE TABLE IF NOT EXISTS printshop_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  sender_name TEXT NOT NULL,
+  document_name TEXT NOT NULL,
+  file_size_bytes BIGINT NOT NULL,
+  file_type TEXT NOT NULL,
+  pages INTEGER NOT NULL,
+  print_type TEXT NOT NULL, -- 'bw' or 'color'
+  price_per_page NUMERIC(10, 2) NOT NULL,
+  total_amount NUMERIC(10, 2) NOT NULL,
+  payment_method TEXT NOT NULL, -- 'online' or 'cash'
+  payment_status TEXT DEFAULT 'pending', -- 'pending', 'paid', 'failed'
+  payment_id TEXT, -- Razorpay Payment ID or Stripe ID
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  status TEXT DEFAULT 'pending', -- 'pending', 'printed', 'cancelled'
+  r2_key TEXT, -- physical file in S3/R2
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_printshop_jobs_vendor ON printshop_jobs(vendor_id, created_at DESC);
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS r2_key TEXT;
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+-- Print Shop Settings Table
+CREATE TABLE IF NOT EXISTS printshop_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID UNIQUE REFERENCES vendors(id) ON DELETE CASCADE,
+  bw_price NUMERIC(10, 2) DEFAULT 2.00,
+  color_price NUMERIC(10, 2) DEFAULT 10.00,
+  location_name TEXT,
+  qr_r2_key TEXT,
+  is_accepting BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Razorpay Fields
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS razorpay_customer_id TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS razorpay_account_id TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS bank_account_number TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS bank_ifsc TEXT;
