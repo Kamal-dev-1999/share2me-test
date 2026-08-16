@@ -1,14 +1,27 @@
 "use client";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import G2pDashboard from "@/components/G2pDashboard";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, UserCheck, Send, HardDrive } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn, signOut, useSession, SessionProvider } from "next-auth/react";
+import { RoleSelectModal } from "@/components/printshop/RoleSelectModal";
+import { getRole, type UserRole } from "@/lib/printShop";
 
 function G2PContent() {
   const { data: session, status } = useSession();
   const isLoading = status === "loading";
+
+  // Role gate — each Google ACCOUNT gets asked Shopkeeper/Student/Assistant
+  // once; the choice is stored per email, so switching accounts asks again.
+  const email = session?.user?.email ?? null;
+  const [role, setRoleState] = useState<UserRole | null>(null);
+  const [roleChecked, setRoleChecked] = useState(false);
+  useEffect(() => {
+    if (status === "loading") return;
+    setRoleState(email ? getRole(email) : null);
+    setRoleChecked(true);
+  }, [email, status]);
 
   const g2pUser = session?.user
     ? {
@@ -41,7 +54,11 @@ function G2PContent() {
     // Render the new full-page app layout for the Dashboard
     return (
       <div className="min-h-screen bg-background text-on-surface font-body p-4 sm:p-6 md:overflow-hidden flex flex-col">
-        <G2pDashboard user={g2pUser} onLogout={() => signOut()} />
+        {/* One-time role picker after Google sign-in */}
+        {roleChecked && !role && (
+          <RoleSelectModal account={email} onSelected={(r) => setRoleState(r)} />
+        )}
+        <G2pDashboard user={g2pUser} onLogout={() => signOut()} userRole={role} />
       </div>
     );
   }

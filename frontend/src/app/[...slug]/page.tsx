@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!page) {
     return {
-      title: "Page Not Found | Share2Me",
+      title: "Page Not Found",
     };
   }
 

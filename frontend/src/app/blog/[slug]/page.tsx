@@ -19,14 +19,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!article) {
     return {
-      title: "Article Not Found | Share2Me Blog",
+      title: "Article Not Found — Blog",
     };
   }
 
   const cleanDescription = article.intro.substring(0, 155) + "...";
 
   return {
-    title: `${article.title} | Share2Me Blog`,
+    title: `${article.title} — Blog`,
     description: cleanDescription,
     alternates: {
       canonical: `/blog/${slug}`,

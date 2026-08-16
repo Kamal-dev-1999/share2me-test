@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms and Conditions — User Service Agreement | Share2Me",
+  title: "Terms and Conditions — User Service Agreement",
   description: "Read the Share2Me terms of service. Understand the agreement, usage conditions, and limitation of liability for using our serverless P2P transfer tools.",
   alternates: {
     canonical: "/terms",

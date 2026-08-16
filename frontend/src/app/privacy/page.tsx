@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — Safe P2P File Sharing | Share2Me",
+  title: "Privacy Policy — Safe P2P File Sharing",
   description: "Read the Share2Me Privacy Policy. Learn about our secure, zero-knowledge peer-to-peer file sharing and text transfer architecture.",
   alternates: {
     canonical: "/privacy",

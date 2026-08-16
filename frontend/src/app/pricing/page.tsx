@@ -15,7 +15,7 @@ export default function PricingPage() {
     },
     {
       q: "What happens after the 30 days are up?",
-      a: "To keep your permanent inbox and custom Share Code active, you will need to upgrade to a Pro subscription ($4.99/month). If you choose not to subscribe, your portal will be temporarily paused, but your account remains safe."
+      a: "To keep your permanent inbox and custom Share Code active, you will need to upgrade to a Pro subscription (₹199/month). If you choose not to subscribe, your portal will be temporarily paused, but your account remains safe."
     },
     {
       q: "Can I cancel my subscription anytime?",
@@ -85,7 +85,7 @@ export default function PricingPage() {
               Get Your Permanent <span className="text-primary">G2P Inbox</span>
             </h1>
             <p className="text-text-secondary text-sm sm:text-base max-w-lg mx-auto font-body">
-              Receive large files and clipboard text from anyone directly into your personal dashboard. Free for 1 month, then just $4.99/mo.
+              Receive large files and clipboard text from anyone directly into your personal dashboard. Free for 1 month, then just ₹199/mo.
             </p>
           </div>
 
@@ -161,7 +161,7 @@ export default function PricingPage() {
                 </div>
 
                 <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-4xl font-extrabold text-on-surface">$4.99</span>
+                  <span className="text-4xl font-extrabold text-on-surface">₹199</span>
                   <span className="text-sm text-text-secondary font-mono">/ month</span>
                 </div>
 

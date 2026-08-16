@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import HowItWorksClient from "./HowItWorksClient";
 
 export const metadata: Metadata = {
-  title: "How It Works — P2P WebRTC Transfer Protocols | Share2Me",
+  title: "How It Works — P2P WebRTC Transfer Protocols",
   description: "Explore the technical details behind browser-native peer-to-peer file sharing: WebRTC DataChannels, AES-GCM-256 chunk encryption, ECDH key exchange, and STUN/TURN traversal.",
   alternates: {
     canonical: "/how-it-works",

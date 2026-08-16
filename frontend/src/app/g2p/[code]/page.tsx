@@ -6,6 +6,8 @@ import {
   FileText, ArrowLeft, Trash2, Loader2, AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { PrintFlow } from "@/components/printshop/PrintFlow";
+import { getShopSettings } from "@/lib/printShop";
 
 const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
 
@@ -30,6 +32,13 @@ export default function G2pSenderPortal({ params }: PageProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const [uploading, setUploading] = useState(false);
+
+  // Print-shop mode — active when the shop has configured a payment QR
+  // (Phase 1: read from this browser's shop settings; Phase 2: vendor API).
+  const [printMode, setPrintMode] = useState(false);
+  useEffect(() => {
+    setPrintMode(!!getShopSettings().paymentQr);
+  }, []);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -199,7 +208,17 @@ export default function G2pSenderPortal({ params }: PageProps) {
         </Link>
 
         <AnimatePresence mode="wait">
-          {!uploadComplete ? (
+          {printMode && !uploadComplete ? (
+            <motion.div
+              key="print-flow"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="card-brutalist p-6 sm:p-8"
+            >
+              <PrintFlow shopName={receiver.name} />
+            </motion.div>
+          ) : !uploadComplete ? (
             <motion.div
               key="form"
               initial={{ opacity: 0, y: 10 }}

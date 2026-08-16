@@ -4,12 +4,17 @@ import {
   Copy, Check, Search, Download, Trash2, Calendar,
   ArrowUpDown, FileText, FileImage, Film,
   FolderArchive, LogOut, Volume2, VolumeX,
-  Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, ArrowRight, BarChart, User,
+  Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, ArrowRight, BarChart, User, Loader2,
   CloudDownload, Share2, Activity, Bell, BellOff, CheckCircle2,
-  FileCode, FileSpreadsheet, FileAudio, FileQuestion
+  FileCode, FileSpreadsheet, FileAudio, FileQuestion,
+  Printer, IndianRupee
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
+import { PrintingSettings } from "@/components/printshop/PrintingSettings";
+import { PrintShopPanel } from "@/components/printshop/PrintShopPanel";
+import { PaymentsPanel } from "@/components/printshop/PaymentsPanel";
+import { PrintJobNotifier } from "@/components/printshop/PrintJobNotifier";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -41,7 +46,7 @@ interface UploadRecord {
   uploadedAt: string;
 }
 
-type TabMode = "inbox" | "share" | "settings" | "analytics";
+type TabMode = "inbox" | "share" | "settings" | "analytics" | "printshop" | "payments";
 
 const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
 
@@ -232,11 +237,15 @@ function UploadRecordRow({
 // -------------------------------------------------------------
 export default function G2pDashboard({
   user,
-  onLogout
+  onLogout,
+  userRole = null,
 }: {
   user: UserProfile;
   onLogout: () => void;
+  /** Selected at first login — "shopkeeper" unlocks print/payment features. */
+  userRole?: import("@/lib/printShop").UserRole | null;
 }) {
+  const isShopkeeper = userRole === "shopkeeper";
   const [activeTab, setActiveTab] = useState<TabMode>("inbox");
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -258,6 +267,37 @@ export default function G2pDashboard({
   // QR Customization State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+
+  // Stripe Checkout — creates a subscription session on the backend and
+  // redirects the browser to Stripe's hosted payment page.
+  const handleUpgradeCheckout = async () => {
+    if (!token) {
+      alert("Please sign in again to upgrade.");
+      return;
+    }
+    setIsCheckoutLoading(true);
+    try {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/billing/checkout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; // → Stripe hosted checkout
+      } else {
+        alert(data.error || "Could not start checkout. Please try again.");
+        setIsCheckoutLoading(false);
+      }
+    } catch (err) {
+      console.error("[Billing] checkout error:", err);
+      alert("Network error while starting checkout.");
+      setIsCheckoutLoading(false);
+    }
+  };
   const [qrFgColor, setQrFgColor] = useState("#fcd535"); // Primary color
   const [qrBgColor, setQrBgColor] = useState("#1e2329"); // Background
   const [qrLogoUrl, setQrLogoUrl] = useState("");
@@ -563,6 +603,9 @@ export default function G2pDashboard({
         </defs>
       </svg>
 
+      {/* Live "X paid ₹Y" toasts + chime for the shopkeeper, on any tab */}
+      {isShopkeeper && <PrintJobNotifier soundEnabled={soundEnabled} />}
+
       {/* SIDEBAR */}
       <aside className="w-full md:w-[280px] shrink-0 flex flex-col gap-3 md:gap-6">
         {/* Profile Info */}
@@ -572,6 +615,14 @@ export default function G2pDashboard({
             <span className="font-bold text-[15px] truncate text-[#111827] leading-tight">{displayName}</span>
             <span className="text-[13px] text-[#111827]/60">Admin</span>
           </div>
+          <button
+            onClick={onLogout}
+            aria-label="Log out"
+            title="Log out"
+            className="ml-auto shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-[#111827]/50 hover:text-red-600 hover:bg-red-500/10 transition-colors"
+          >
+            <LogOut className="w-[18px] h-[18px]" strokeWidth={2.25} />
+          </button>
         </div>
 
         {/* MOBILE — compact horizontal tab pill (same colors, old-UX layout) */}
@@ -581,6 +632,12 @@ export default function G2pDashboard({
             { tab: "share" as TabMode, icon: Share2, grad: "g2p-share" },
             { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings" },
             { tab: "analytics" as TabMode, icon: Activity, grad: "g2p-analytics" },
+            ...(isShopkeeper
+              ? [
+                  { tab: "printshop" as TabMode, icon: Printer, grad: "g2p-share" },
+                  { tab: "payments" as TabMode, icon: IndianRupee, grad: "g2p-analytics" },
+                ]
+              : []),
           ]).map(({ tab, icon: TabIcon, grad }) => (
             <button
               key={tab}
@@ -688,6 +745,40 @@ export default function G2pDashboard({
             <span className="text-[13px] font-bold">Analytics</span>
           </button>
 
+          {isShopkeeper && (
+            <>
+              <button
+                onClick={() => setActiveTab("printshop")}
+                className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "printshop"
+                    ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                    : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
+                  }`}
+              >
+                <Printer
+                  className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
+                  style={activeTab === "printshop" ? { stroke: "url(#g2p-share)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
+                  strokeWidth={activeTab === "printshop" ? 2.5 : 2}
+                />
+                <span className="text-[13px] font-bold">Print Shop</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("payments")}
+                className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "payments"
+                    ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                    : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
+                  }`}
+              >
+                <IndianRupee
+                  className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
+                  style={activeTab === "payments" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
+                  strokeWidth={activeTab === "payments" ? 2.5 : 2}
+                />
+                <span className="text-[13px] font-bold">Payments</span>
+              </button>
+            </>
+          )}
+
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] bg-white/20 hover:bg-white/40 border-white/30 text-[#111827] group"
@@ -723,7 +814,7 @@ export default function G2pDashboard({
             </p>
 
             <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
-              $11.99/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
+              ₹199/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
             </div>
           </button>
         </div>
@@ -868,7 +959,7 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="flex flex-col items-center justify-center gap-6 md:h-full p-4 sm:p-12"
+              className="flex flex-col items-center justify-center gap-6 md:h-full md:min-h-0 md:overflow-y-auto p-4 sm:p-12"
             >
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Your Share Portal</h2>
@@ -906,12 +997,15 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="md:h-full flex flex-col gap-6"
+              className="md:h-full md:min-h-0 md:overflow-y-auto flex flex-col gap-6"
             >
               <div>
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Portal Settings</h2>
                 <p className="text-sm text-[#111827]/60">Customize your display name and QR code appearance.</p>
               </div>
+
+              {/* Printing & Payment — shopkeeper role only */}
+              {isShopkeeper && <PrintingSettings />}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Profile Settings */}
@@ -993,6 +1087,42 @@ export default function G2pDashboard({
                   </button>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {/* --- PRINT SHOP VIEW (shopkeeper only) --- */}
+          {activeTab === "printshop" && isShopkeeper && (
+            <motion.div
+              key="printshop"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-6 md:h-full p-4 md:p-6 overflow-y-auto"
+            >
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827] font-display">Print Shop</h2>
+                <p className="text-sm text-[#111827]/60">Shared documents, payment status and revenue for your print counter.</p>
+              </div>
+              <PrintShopPanel />
+            </motion.div>
+          )}
+
+          {/* --- PAYMENTS VIEW (shopkeeper only) --- */}
+          {activeTab === "payments" && isShopkeeper && (
+            <motion.div
+              key="payments"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-6 md:h-full p-4 md:p-6 overflow-y-auto"
+            >
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827] font-display">Payments</h2>
+                <p className="text-sm text-[#111827]/60">Every print payment received through your shop QR.</p>
+              </div>
+              <PaymentsPanel />
             </motion.div>
           )}
 
@@ -1212,18 +1342,17 @@ export default function G2pDashboard({
 
                   <h3 className="text-xl font-bold text-white mb-2 relative z-10">Premium</h3>
                   <div className="mb-6 relative z-10">
-                    <span className="text-4xl font-bold text-white">$11.99</span>
+                    <span className="text-4xl font-bold text-white">₹199</span>
                     <span className="text-white/60 ml-1">/mo</span>
                   </div>
 
                   <button
-                    onClick={() => {
-                      alert("Redirecting to payment gateway...");
-                      setIsUpgradeModalOpen(false);
-                    }}
-                    className="w-full py-3 px-4 rounded-xl bg-white text-[#111827] hover:bg-white/90 font-bold mb-8 transition-colors shadow-lg relative z-10"
+                    onClick={handleUpgradeCheckout}
+                    disabled={isCheckoutLoading}
+                    className="w-full py-3 px-4 rounded-xl bg-white text-[#111827] hover:bg-white/90 font-bold mb-8 transition-colors shadow-lg relative z-10 disabled:opacity-60 flex items-center justify-center gap-2"
                   >
-                    Upgrade
+                    {isCheckoutLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isCheckoutLoading ? "Opening Stripe…" : "Upgrade"}
                   </button>
 
                   <div className="flex flex-col gap-4 mt-auto relative z-10">
