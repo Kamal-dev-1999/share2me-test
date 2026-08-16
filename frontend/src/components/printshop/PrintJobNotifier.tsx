@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
 import { IndianRupee, Banknote, X } from "lucide-react";
 import { getPrintJobs, inr, type PrintJob } from "@/lib/printShop";
 
@@ -46,18 +47,22 @@ function playChime() {
 }
 
 export function PrintJobNotifier({ soundEnabled = true }: { soundEnabled?: boolean }) {
+  const { data: session } = useSession();
+  const token = (session as { backendToken?: string })?.backendToken;
   const [toasts, setToasts] = useState<Toast[]>([]);
   const knownIds = useRef<Set<string> | null>(null);
 
   useEffect(() => {
-    const check = () => {
-      const jobs = getPrintJobs();
-      // First run: remember what already exists, don't announce old jobs.
-      if (!knownIds.current) {
-        knownIds.current = new Set(jobs.map((j) => j.id));
-        return;
-      }
-      const fresh = jobs.filter((j) => !knownIds.current!.has(j.id));
+    if (!token) return;
+    const check = async () => {
+      try {
+        const jobs = await getPrintJobs(token);
+        // First run: remember what already exists, don't announce old jobs.
+        if (!knownIds.current) {
+          knownIds.current = new Set(jobs.map((j) => j.id));
+          return;
+        }
+        const fresh = jobs.filter((j) => !knownIds.current!.has(j.id));
       if (fresh.length === 0) return;
       fresh.forEach((j) => knownIds.current!.add(j.id));
       setToasts((t) => [...fresh.map((job) => ({ id: job.id, job })), ...t].slice(0, 4));
@@ -65,11 +70,14 @@ export function PrintJobNotifier({ soundEnabled = true }: { soundEnabled?: boole
       fresh.forEach((job) => {
         setTimeout(() => setToasts((t) => t.filter((x) => x.id !== job.id)), 8000);
       });
+      } catch {
+        // ignore polling errors
+      }
     };
     check();
     const t = setInterval(check, 2500);
     return () => clearInterval(t);
-  }, [soundEnabled]);
+  }, [soundEnabled, token]);
 
   const dismiss = (id: string) => setToasts((t) => t.filter((x) => x.id !== id));
 
