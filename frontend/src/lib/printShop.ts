@@ -121,7 +121,7 @@ export async function getPersona(_account?: string | null, token?: string): Prom
   if (!token) return { persona: null, persona_selected: false };
   try {
     const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || 'http://localhost:3000/g2p/vendor';
-    const res = await fetch(`${vendorApiBase}/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await fetch(`${vendorApiBase}/me`, { headers: { 'Authorization': `Bearer ${token}` }, cache: 'no-store' });
     if (!res.ok) return { persona: null, persona_selected: false };
     const data = await res.json();
     return { persona: data.persona as UserPersona ?? null, persona_selected: !!data.persona_selected };

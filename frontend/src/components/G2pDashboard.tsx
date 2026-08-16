@@ -526,7 +526,8 @@ export default function G2pDashboard({
 
           // Fetch current vendor profile details to ensure shareCode is always present
           fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/me`, {
-            headers: { Authorization: `Bearer ${data.token}` }
+            headers: { Authorization: `Bearer ${data.token}` },
+            cache: 'no-store'
           })
             .then(res => res.ok ? res.json() : null)
             .then(profile => {
