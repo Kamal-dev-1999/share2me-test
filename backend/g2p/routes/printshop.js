@@ -49,7 +49,7 @@ async function requireShopkeeper(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   const vendor = await verifyVendorJWT(token);
   if (!vendor) return res.status(401).json({ error: 'unauthorized' });
-  req.vendorId = vendor.vendorId || vendor.sub;
+  req.vendorId = vendor.id || vendor.vendorId || vendor.sub;
   next();
 }
 
@@ -322,6 +322,8 @@ router.get('/jobs', requireShopkeeper, async (req, res) => {
     if (statusFilter) { params.push(statusFilter); conditions.push(`payment_status = $${params.length}`); }
     if (methodFilter) { params.push(methodFilter); conditions.push(`payment_method = $${params.length}`); }
     if (typeFilter)   { params.push(typeFilter);   conditions.push(`print_type = $${params.length}`);    }
+
+    console.log(`[PrintShop] GET /jobs: vendorId=${req.vendorId}, conditions=${conditions.join(' AND ')}, params=`, params);
 
     params.push(limit, offset);
     const result = await query(`
