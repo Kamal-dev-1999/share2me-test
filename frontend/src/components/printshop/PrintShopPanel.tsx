@@ -55,15 +55,15 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean] {
       socket.emit("g2p:join_vendor_room", { authToken: token });
     });
     socket.on("printshop:new_job", () => { refresh(); });
-    socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus: string; paymentId?: string; paidAt?: string; jobStatus?: string; printedAt?: string }) => {
+    socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus?: string; paymentId?: string; paidAt?: string; jobStatus?: string; printedAt?: string }) => {
       setJobs((prev) => prev.map((j) => j.id === payload.jobId
         ? { 
             ...j, 
-            paymentStatus: payload.paymentStatus as PrintJob["paymentStatus"], 
-            paymentId: payload.paymentId ?? j.paymentId, 
-            paidAt: payload.paidAt ?? j.paidAt,
-            jobStatus: (payload.jobStatus ?? j.jobStatus) as PrintJob["jobStatus"],
-            printedAt: payload.printedAt ?? j.printedAt
+            paymentStatus: (payload.paymentStatus || j.paymentStatus) as PrintJob["paymentStatus"], 
+            paymentId: payload.paymentId || j.paymentId, 
+            paidAt: payload.paidAt || j.paidAt,
+            jobStatus: (payload.jobStatus || j.jobStatus) as PrintJob["jobStatus"],
+            printedAt: payload.printedAt || j.printedAt
           }
         : j
       ));
