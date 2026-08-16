@@ -7,7 +7,7 @@ const g2pRouter = express.Router();
 const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3001', 'https://share2me-test.vercel.app', 'https://share2me.vercel.app'];
 g2pRouter.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || DEV_ORIGINS,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-status-token', 'x-session-token']
 }));
 
@@ -40,6 +40,7 @@ g2pRouter.use('/requests', requestRoutes);
 g2pRouter.use('/files', fileRoutes);
 g2pRouter.use('/vendor', vendorActionsRoutes);
 g2pRouter.use('/tools', toolsRoutes);
+g2pRouter.use('/printshop', require('./routes/printshop'));
 
 module.exports = {
   g2pRouter,

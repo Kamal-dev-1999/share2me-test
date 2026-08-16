@@ -8,8 +8,9 @@
  *  - Details drawer with document/printing/payment info + status timeline
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
 import {
   FileText, CheckCircle2, Clock, XCircle, IndianRupee, Palette, Printer,
   X, ChevronRight, User, CalendarDays, BadgeCheck,
@@ -22,20 +23,47 @@ import {
   inr, formatBytes,
   type PrintJob, type RevenueRange,
 } from "@/lib/printShop";
+import { io as socketIO, Socket } from "socket.io-client";
 
 // ─────────────────────────────────────────────────────────────
 // Shared bits
 // ─────────────────────────────────────────────────────────────
 
-export function useJobs(): [PrintJob[], () => void] {
+export function useJobs(token?: string): [PrintJob[], () => void, boolean] {
   const [jobs, setJobs] = useState<PrintJob[]>([]);
-  const refresh = () => setJobs(getPrintJobs());
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!token) return;
+    try {
+      const fresh = await getPrintJobs(token);
+      setJobs(fresh);
+    } catch { /* ignore, keep stale data */ } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  // Initial load
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // Socket.IO real-time updates
   useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 4000);
-    return () => clearInterval(t);
-  }, []);
-  return [jobs, refresh];
+    if (!token) return;
+    const socket: Socket = socketIO(
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000",
+      { transports: ["websocket", "polling"] }
+    );
+    socket.on("printshop:new_job", () => { refresh(); });
+    socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus: string; paymentId?: string; paidAt?: string }) => {
+      setJobs((prev) => prev.map((j) => j.id === payload.jobId
+        ? { ...j, paymentStatus: payload.paymentStatus as PrintJob["paymentStatus"], paymentId: payload.paymentId ?? j.paymentId, paidAt: payload.paidAt ?? j.paidAt }
+        : j
+      ));
+    });
+    return () => { socket.disconnect(); };
+  }, [token, refresh]);
+
+  return [jobs, refresh, loading];
 }
 
 export function StatusPill({ job }: { job: PrintJob }) {
@@ -267,12 +295,20 @@ function JobDrawer({ job, onClose, onConfirm, onFail }: {
 // ─────────────────────────────────────────────────────────────
 
 export function PrintShopPanel() {
-  const [jobs, refresh] = useJobs();
+  const { data: session } = useSession();
+  const token = (session as { backendToken?: string })?.backendToken;
+  const [jobs, refresh, loading] = useJobs(token);
   const [openJobId, setOpenJobId] = useState<string | null>(null);
   const openJob = jobs.find((j) => j.id === openJobId) ?? null;
 
-  const confirm = (id: string) => { confirmJobPayment(id); refresh(); };
-  const fail = (id: string) => { markJobFailed(id); refresh(); };
+  const confirm = async (id: string) => {
+    if (!token) return;
+    try { await confirmJobPayment(id, token); } catch { /* real-time update via socket handles UI */ }
+  };
+  const fail = async (id: string) => {
+    if (!token) return;
+    try { await markJobFailed(id, token); } catch { /* real-time update via socket handles UI */ }
+  };
 
   return (
     <div className="flex flex-col gap-4">

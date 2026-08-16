@@ -6,36 +6,62 @@
  * per-page printing prices that drive the student checkout flow.
  */
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
 import {
   QrCode, Upload, Trash2, RefreshCw, IndianRupee, Printer, Palette,
-  CheckCircle2, MapPin,
+  CheckCircle2, MapPin, Loader2,
 } from "lucide-react";
 /* eslint-disable @next/next/no-img-element */
 import {
-  getShopSettings, saveShopSettings, type PrintShopSettings,
+  getShopSettings, saveShopSettings, uploadQrImage, type ShopkeeperSettings,
 } from "@/lib/printShop";
 
 export function PrintingSettings() {
-  const [settings, setSettings] = useState<PrintShopSettings>(() => getShopSettings());
+  const { data: session } = useSession();
+  const token = (session as { backendToken?: string })?.backendToken;
+  const [settings, setSettings] = useState<ShopkeeperSettings>({
+    bwPrice: 2, colorPrice: 5, locationName: '', qrUrl: null, isAccepting: true,
+  });
   const [savedToast, setSavedToast] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [qrUploading, setQrUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const qrConfigured = !!settings.paymentQr;
+  // Load settings from backend on mount
+  useEffect(() => {
+    if (!token) return;
+    getShopSettings(token).then(setSettings).catch(() => {});
+  }, [token]);
 
-  const onQrFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSettings((s) => ({ ...s, paymentQr: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
+  const qrConfigured = !!settings.qrUrl;
+
+  const onQrFile = async (file: File) => {
+    if (!token) return;
+    setQrUploading(true);
+    try {
+      const { qrUrl } = await uploadQrImage(file, token);
+      setSettings((s) => ({ ...s, qrUrl }));
+    } catch {
+      alert("QR upload failed. Please try again.");
+    } finally {
+      setQrUploading(false);
+    }
   };
 
-  const save = () => {
-    saveShopSettings(settings);
-    setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 2600);
+  const save = async () => {
+    if (!token) return;
+    setSaving(true);
+    try {
+      await saveShopSettings({ bwPrice: settings.bwPrice, colorPrice: settings.colorPrice, locationName: settings.locationName, isAccepting: settings.isAccepting }, token);
+      setSavedToast(true);
+      setTimeout(() => setSavedToast(false), 2600);
+    } catch {
+      alert("Save failed. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -77,10 +103,15 @@ export function PrintingSettings() {
             onChange={(e) => e.target.files?.[0] && onQrFile(e.target.files[0])}
           />
 
-          {settings.paymentQr ? (
+          {qrUploading ? (
+            <div className="w-full h-40 rounded-xl border-2 border-dashed border-[#111827]/20 bg-white/40 flex flex-col items-center justify-center gap-2 text-[#111827]/50">
+              <Loader2 className="w-6 h-6 animate-spin" />
+              <span className="text-[13px] font-semibold">Uploading QR…</span>
+            </div>
+          ) : settings.qrUrl ? (
             <div className="flex flex-col items-center gap-3">
               <img
-                src={settings.paymentQr}
+                src={settings.qrUrl}
                 alt="Payment QR preview"
                 className="w-40 h-40 object-contain rounded-xl bg-white border border-white/80 shadow-sm"
               />
@@ -92,7 +123,7 @@ export function PrintingSettings() {
                   <RefreshCw className="w-3.5 h-3.5" /> Replace
                 </button>
                 <button
-                  onClick={() => setSettings((s) => ({ ...s, paymentQr: null }))}
+                  onClick={() => setSettings((s) => ({ ...s, qrUrl: null }))}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-red-500/10 text-red-600 text-[12px] font-semibold hover:bg-red-500 hover:text-white transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Remove
@@ -173,9 +204,10 @@ export function PrintingSettings() {
 
           <button
             onClick={save}
-            className="mt-auto self-start inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
+            disabled={saving}
+            className="mt-auto self-start inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors shadow-[0_8px_20px_rgba(0,0,0,0.18)] disabled:opacity-60"
           >
-            Save Changes
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : "Save Changes"}
           </button>
         </div>
       </div>

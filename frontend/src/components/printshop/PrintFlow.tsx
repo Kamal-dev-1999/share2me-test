@@ -6,11 +6,10 @@
  *   2. Select print type → B&W / Color cards + live total
  *   3. Payment          → shop's UPI QR, amount, "Payment Pending"
  *   4. Confirmation     → pending screen that flips to ✓ success once the
- *                         shopkeeper confirms (Phase 1: polls localStorage;
- *                         Phase 2: backend/webhook)
+ *                         shopkeeper confirms via Socket.IO real-time event.
  *
- * The student can NOT self-confirm payment (spec) — confirmation always
- * comes from the shopkeeper's "Confirm payment received" action.
+ * The student can NOT self-confirm payment — confirmation always
+ * comes from the shopkeeper via PATCH /printshop/jobs/:id/confirm.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,18 +20,30 @@ import {
   Download, IndianRupee, MapPin, ChevronLeft, QrCode, Banknote,
 } from "lucide-react";
 import {
-  getShopSettings, addPrintJob, getPrintJob, inr, formatBytes,
-  type PrintType, type PrintJob, type PrintShopSettings, type PaymentMethod,
+  getPublicShopSettings, submitPrintJob, inr, formatBytes, DEFAULT_SETTINGS,
+  type PrintType, type PrintJob, type PublicShopInfo, type PaymentMethod,
 } from "@/lib/printShop";
 import { countPages } from "@/lib/pageCount";
+import { io as socketIO } from "socket.io-client";
 
 type Step = 1 | 2 | 3 | 4;
 
 const STEP_LABELS = ["Upload", "Print type", "Payment", "Done"];
 
-export function PrintFlow({ shopName }: { shopName: string }) {
-  const [settings] = useState<PrintShopSettings>(() => getShopSettings());
+export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: string }) {
+  const [settings, setSettings] = useState<PublicShopInfo | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [step, setStep] = useState<Step>(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Load real shop settings from backend on mount
+  useEffect(() => {
+    getPublicShopSettings(shopCode)
+      .then(setSettings)
+      .catch(() => setSettings(null))
+      .finally(() => setSettingsLoading(false));
+  }, [shopCode]);
 
   // Step 1 state
   const [file, setFile] = useState<File | null>(null);
@@ -49,7 +60,8 @@ export function PrintFlow({ shopName }: { shopName: string }) {
   const [payMethod, setPayMethod] = useState<PaymentMethod | null>(null);
   const [job, setJob] = useState<PrintJob | null>(null);
 
-  const pricePerPage = printType === "color" ? settings.colorPrice : settings.bwPrice;
+  const effectiveSettings = settings ?? DEFAULT_SETTINGS;
+  const pricePerPage = printType === "color" ? effectiveSettings.colorPrice : effectiveSettings.bwPrice;
   const total = useMemo(
     () => (pages && printType ? pages * pricePerPage : 0),
     [pages, printType, pricePerPage]
@@ -61,7 +73,6 @@ export function PrintFlow({ shopName }: { shopName: string }) {
     setPages(null);
     setCounting(true);
     try {
-      // PDF / Word / PowerPoint / Excel / text — all counted client-side.
       setPages(await countPages(f));
     } catch {
       setPages(1);
@@ -70,33 +81,68 @@ export function PrintFlow({ shopName }: { shopName: string }) {
     }
   };
 
-  // ── Step 3 → 4: record job (payment stays PENDING) ─────────────
-  const submitJob = (method: PaymentMethod) => {
-    if (!file || !pages || !printType) return;
-    const created = addPrintJob({
-      documentName: file.name,
-      fileSizeBytes: file.size,
-      fileType: file.type || "application/octet-stream",
-      pages,
-      senderName: senderName.trim() || "Anonymous",
-      printType,
-      pricePerPage,
-      totalAmount: total,
-      paymentMethod: method,
-    });
-    setJob(created);
-    setStep(4);
+  // ── Step 3 → 4: submit job to backend ──────────────────────────
+  const submitJob = async (method: PaymentMethod) => {
+    if (!file || !pages || !printType || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await submitPrintJob({
+        shopCode,
+        senderName: senderName.trim() || "Anonymous",
+        documentName: file.name,
+        fileSizeBytes: file.size,
+        fileType: file.type || "application/octet-stream",
+        pages,
+        printType,
+        paymentMethod: method,
+      });
+      // Build a local PrintJob object from the server response
+      const created: PrintJob = {
+        id: result.jobId,
+        documentName: file.name,
+        fileSizeBytes: file.size,
+        fileType: file.type || "application/octet-stream",
+        pages,
+        senderName: senderName.trim() || "Anonymous",
+        printType,
+        pricePerPage: result.pricePerPage,
+        totalAmount: result.totalAmount,
+        paymentMethod: method,
+        paymentStatus: "pending",
+        paymentId: null,
+        paidAt: null,
+        createdAt: result.createdAt,
+      };
+      setJob(created);
+      setStep(4);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "submission_failed";
+      setSubmitError(msg === "shop_not_accepting" ? "This shop is not currently accepting orders." : "Submission failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // ── Step 4: poll for shopkeeper confirmation ───────────────────
+  // ── Step 4: listen for shopkeeper confirmation via Socket.IO ───
   useEffect(() => {
     if (step !== 4 || !job || job.paymentStatus === "paid") return;
-    const t = setInterval(() => {
-      const fresh = getPrintJob(job.id);
-      if (fresh && fresh.paymentStatus !== job.paymentStatus) setJob(fresh);
-    }, 2500);
-    return () => clearInterval(t);
+    const socket = socketIO(
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000",
+      { transports: ["websocket", "polling"] }
+    );
+    socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus: string; paymentId?: string; paidAt?: string }) => {
+      if (payload.jobId !== job.id) return;
+      setJob((prev) => prev ? { ...prev, paymentStatus: payload.paymentStatus as "paid" | "failed" | "pending", paymentId: payload.paymentId ?? null, paidAt: payload.paidAt ?? null } : prev);
+    });
+    return () => { socket.disconnect(); };
   }, [step, job]);
+
+  if (settingsLoading) return (
+    <div className="flex items-center justify-center py-16">
+      <div className="w-6 h-6 rounded-full border-2 border-[#111827] border-t-transparent animate-spin" />
+    </div>
+  );
 
   // ── Receipt (client-generated PDF) ─────────────────────────────
   const downloadReceipt = async () => {
@@ -146,20 +192,20 @@ export function PrintFlow({ shopName }: { shopName: string }) {
           <p className="text-[12px] text-[#111827]/60">Printing at</p>
           <h2 className="text-[18px] font-bold text-[#111827] leading-tight flex items-center gap-2">
             {shopName}
-            {settings.locationName && (
+            {effectiveSettings.locationName && (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#111827]/60">
-                <MapPin className="w-3 h-3" /> {settings.locationName}
+                <MapPin className="w-3 h-3" /> {effectiveSettings.locationName}
               </span>
             )}
           </h2>
         </div>
         <span
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${
-            settings.paymentQr ? "bg-emerald-500/15 text-emerald-700" : "bg-orange-500/15 text-orange-700"
+            effectiveSettings.qrUrl ? "bg-emerald-500/15 text-emerald-700" : "bg-orange-500/15 text-orange-700"
           }`}
         >
-          <span className={`w-2 h-2 rounded-full ${settings.paymentQr ? "bg-emerald-500" : "bg-orange-500"}`} />
-          {settings.paymentQr ? "UPI payments accepted" : "Payment QR not set up"}
+          <span className={`w-2 h-2 rounded-full ${effectiveSettings.qrUrl ? "bg-emerald-500" : "bg-orange-500"}`} />
+          {effectiveSettings.qrUrl ? "UPI payments accepted" : "Payment QR not set up"}
         </span>
       </div>
 
@@ -251,10 +297,10 @@ export function PrintFlow({ shopName }: { shopName: string }) {
           <motion.div key="s2" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
             <h3 className="text-[16px] font-bold text-[#111827] mb-3">Select printing type</h3>
             <div className="grid sm:grid-cols-2 gap-3">
-              {([
-                { type: "bw" as PrintType,    icon: Printer, title: "Black & White", price: settings.bwPrice,    grad: ["#4b5563", "#111827"] },
-                { type: "color" as PrintType, icon: Palette, title: "Color",          price: settings.colorPrice, grad: ["#f472b6", "#8b5cf6"] },
-              ]).map(({ type, icon: Icon, title, price, grad }) => {
+              {[
+                { type: "bw" as PrintType,    icon: Printer, title: "Black & White", price: effectiveSettings.bwPrice,    grad: ["#4b5563", "#111827"] },
+                { type: "color" as PrintType, icon: Palette, title: "Color",          price: effectiveSettings.colorPrice, grad: ["#f472b6", "#8b5cf6"] },
+              ].map(({ type, icon: Icon, title, price, grad }) => {
                 const active = printType === type;
                 return (
                   <button
@@ -317,18 +363,18 @@ export function PrintFlow({ shopName }: { shopName: string }) {
 
             {/* Payment method choice */}
             <div className="grid sm:grid-cols-2 gap-3 mb-4">
-              {([
+              {[
                 {
                   method: "online" as PaymentMethod, icon: QrCode, title: "Pay online",
-                  desc: settings.paymentQr ? "Scan the shop's UPI QR" : "Not available — QR not set up",
-                  disabled: !settings.paymentQr, grad: ["#34d399", "#059669"],
+                  desc: effectiveSettings.qrUrl ? "Scan the shop's UPI QR" : "Not available — QR not set up",
+                  disabled: !effectiveSettings.qrUrl, grad: ["#34d399", "#059669"],
                 },
                 {
                   method: "cash" as PaymentMethod, icon: Banknote, title: "Pay cash",
                   desc: "Pay at the counter on pickup",
                   disabled: false, grad: ["#fbbf24", "#d97706"],
                 },
-              ]).map(({ method, icon: Icon, title, desc, disabled, grad }) => {
+              ].map(({ method, icon: Icon, title, desc, disabled, grad }) => {
                 const active = payMethod === method;
                 return (
                   <button
@@ -355,11 +401,11 @@ export function PrintFlow({ shopName }: { shopName: string }) {
               })}
             </div>
 
-            {payMethod === "online" && settings.paymentQr && (
+            {payMethod === "online" && effectiveSettings.qrUrl && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center bg-white/60 border border-white/70 rounded-2xl p-6">
                 <p className="text-[14px] font-bold text-[#111827] mb-3">Scan to pay {inr(total)}</p>
-                <img src={settings.paymentQr} alt="Shop payment QR" className="w-56 h-56 object-contain rounded-2xl bg-white border border-white/80 shadow-md" />
+                <img src={effectiveSettings.qrUrl} alt="Shop payment QR" className="w-56 h-56 object-contain rounded-2xl bg-white border border-white/80 shadow-md" />
                 <p className="mt-3 text-[18px] font-extrabold text-[#111827] flex items-center gap-1">
                   <IndianRupee className="w-4 h-4" /> Amount to pay: {inr(total)}
                 </p>
@@ -386,16 +432,17 @@ export function PrintFlow({ shopName }: { shopName: string }) {
               </motion.div>
             )}
 
+            {submitError && <p className="mt-3 text-red-500 text-[12px] font-semibold text-center">{submitError}</p>}
             <div className="mt-4 flex gap-2">
               <button onClick={() => setStep(2)} className="h-12 px-5 rounded-full bg-white/60 border border-white/70 text-[13px] font-semibold text-[#111827] inline-flex items-center gap-1.5">
                 <ChevronLeft className="w-4 h-4" /> Back
               </button>
               <button
-                disabled={!payMethod}
+                disabled={!payMethod || submitting}
                 onClick={() => payMethod && submitJob(payMethod)}
-                className="flex-1 h-12 rounded-full bg-[#111827] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-40"
+                className="flex-1 h-12 rounded-full bg-[#111827] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-40 inline-flex items-center justify-center gap-2"
               >
-                {payMethod === "cash" ? "Submit — I'll pay cash at the counter" : "I've paid — submit document"}
+                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : (payMethod === "cash" ? "Submit — I'll pay cash at the counter" : "I've paid — submit document")}
               </button>
             </div>
           </motion.div>

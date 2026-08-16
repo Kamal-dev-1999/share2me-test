@@ -9,7 +9,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Store, GraduationCap, Users, ArrowRight } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Store, GraduationCap, Users, ArrowRight, Loader2 } from "lucide-react";
 import { setRole, type UserRole } from "@/lib/printShop";
 
 const ROLES: {
@@ -47,11 +48,17 @@ export function RoleSelectModal({ onSelected, account }: {
   /** Google account email — the choice is remembered per account. */
   account?: string | null;
 }) {
+  const { data: session } = useSession();
+  const token = (session as { backendToken?: string })?.backendToken;
   const [picked, setPicked] = useState<UserRole | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!picked) return;
-    setRole(picked, account);
+    setLoading(true);
+    // Persist role to backend DB; falls back gracefully if not authenticated yet
+    try { await setRole(picked, account, token); } catch { /* non-fatal */ }
+    setLoading(false);
     onSelected(picked);
   };
 
@@ -104,11 +111,10 @@ export function RoleSelectModal({ onSelected, account }: {
 
         <button
           onClick={confirm}
-          disabled={!picked}
+          disabled={!picked || loading}
           className="mt-6 w-full sm:w-auto sm:ml-auto flex items-center justify-center gap-2 h-11 px-8 rounded-full bg-[#111827] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Continue
-          <ArrowRight className="w-4 h-4" />
+          {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><span>Continue</span><ArrowRight className="w-4 h-4" /></>}
         </button>
       </motion.div>
     </div>

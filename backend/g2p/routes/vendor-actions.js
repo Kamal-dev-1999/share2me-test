@@ -64,13 +64,30 @@ router.use(async (req, res, next) => {
 router.get('/me', async (req, res) => {
   try {
     const vRes = await query(`
-      SELECT id, name, share2me_id, persona, persona_selected, plan_type, phone, company, website, bio 
+      SELECT id, name, share2me_id, persona, persona_selected, plan_type, phone, company, website, bio, role 
       FROM vendors WHERE id = $1
     `, [req.vendorId]);
     if (vRes.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
     res.json(vRes.rows[0]);
   } catch (err) {
     console.error('[G2P] Fetch vendor profile error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Set vendor role (shopkeeper / student / assistant) — replaces localStorage-based role
+router.post('/role', async (req, res) => {
+  const { role } = req.body;
+  const allowedRoles = ['shopkeeper', 'student', 'assistant'];
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ error: 'invalid_role', allowed: allowedRoles });
+  }
+  try {
+    await query(`UPDATE vendors SET role = $1 WHERE id = $2`, [role, req.vendorId]);
+    console.log(`[G2P] Vendor ${req.vendorId} set role to '${role}'`);
+    res.json({ success: true, role });
+  } catch (err) {
+    console.error('[G2P] POST /role error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });
