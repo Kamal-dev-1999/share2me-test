@@ -249,7 +249,9 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         ...prev, 
         paymentStatus: (payload.paymentStatus || prev.paymentStatus) as any, 
         paymentId: payload.paymentId || prev.paymentId, 
-        paidAt: payload.paidAt || prev.paidAt 
+        paidAt: payload.paidAt || prev.paidAt,
+        jobStatus: (payload.jobStatus || prev.jobStatus) as any,
+        printedAt: payload.printedAt || prev.printedAt
       } : prev);
     });
     return () => { socket.disconnect(); };
@@ -627,10 +629,40 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         )}
 
         {/* ── STEP 5 — Pending → Success ── */}
-        {step === 5 && job && (
-          <motion.div key="s4" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}>
-            {isPaid ? (
-              <div className="flex flex-col items-center text-center bg-white/60 border border-white/70 rounded-2xl p-8">
+        {step === 5 && job && (() => {
+          const isPaid = job.paymentStatus === "paid";
+          const isPrinted = job.jobStatus === "printed";
+
+          if (isPaid && isPrinted) {
+            return (
+              <motion.div key="s5-done" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center text-center bg-white/60 border border-white/70 rounded-2xl p-8">
+                <motion.span
+                  initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5 }}
+                  className="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center mb-5 shadow-[0_12px_32px_rgba(16,185,129,0.4)]"
+                >
+                  <CheckCircle2 className="w-10 h-10" />
+                </motion.span>
+                <h3 className="text-[24px] font-extrabold text-[#111827] mb-2">Thank you!</h3>
+                <p className="text-[14px] text-[#111827]/70 max-w-[300px] mb-6">
+                  Your payment is confirmed and your document is printed. Please collect your prints from the counter.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+                  <button onClick={downloadReceipt} className="flex-1 h-12 rounded-full bg-white/80 border border-white text-[#111827] text-[14px] font-bold shadow-sm flex items-center justify-center gap-2 hover:bg-white transition-colors">
+                    <Download className="w-4 h-4" /> Receipt
+                  </button>
+                  <button onClick={() => {
+                    setJob(null); setFile(null); setPages(null); setPrintType(null); setPayMethod(null); setStep(1);
+                  }} className="flex-1 h-12 rounded-full bg-[#111827] text-white text-[14px] font-bold shadow-sm flex items-center justify-center gap-2 hover:bg-black transition-colors">
+                    <Upload className="w-4 h-4" /> Send more
+                  </button>
+                </div>
+              </motion.div>
+            );
+          }
+
+          if (isPaid && !isPrinted) {
+            return (
+              <motion.div key="s5-paid" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center text-center bg-white/60 border border-white/70 rounded-2xl p-8">
                 <motion.span
                   initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5 }}
                   className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mb-4 shadow-[0_12px_32px_rgba(16,185,129,0.4)]"
@@ -641,42 +673,66 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
                 <p className="text-[13px] text-[#111827]/60 mt-1 mb-4">
                   {job.senderName} · {job.documentName}
                 </p>
-                <div className="w-full max-w-sm text-left bg-white/70 rounded-2xl border border-white/80 p-4 text-[13px]">
-                  <div className="flex justify-between py-1"><span className="text-[#111827]/60">Pages</span><b>{job.pages}</b></div>
-                  <div className="flex justify-between py-1"><span className="text-[#111827]/60">Print type</span><b>{job.printType === "color" ? "Color" : "Black & White"}</b></div>
-                  <div className="flex justify-between py-1"><span className="text-[#111827]/60">Price per page</span><b>{inr(job.pricePerPage)}</b></div>
+                <div className="w-full max-w-sm text-left bg-white/70 rounded-2xl border border-white/80 p-4 text-[13px] mb-5">
                   <div className="flex justify-between py-1"><span className="text-[#111827]/60">Amount paid</span><b className="text-emerald-600">{inr(job.totalAmount)} Paid</b></div>
                   <div className="flex justify-between py-1"><span className="text-[#111827]/60">Payment ID</span><b className="font-mono text-[11px]">{job.paymentId}</b></div>
-                  <div className="flex justify-between py-1"><span className="text-[#111827]/60">Date</span><b>{job.paidAt && new Date(job.paidAt).toLocaleString("en-IN")}</b></div>
                 </div>
-                <button
-                  onClick={downloadReceipt}
-                  className="mt-5 inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors"
-                >
+                <div className="flex items-center gap-3 bg-blue-500/10 text-blue-700 px-4 py-3 rounded-xl border border-blue-500/20 text-[13px] text-left w-full max-w-sm mb-5">
+                  <Printer className="w-5 h-5 shrink-0" />
+                  <p>Your document is in the print queue. We'll update this screen as soon as it's printed!</p>
+                </div>
+                <button onClick={downloadReceipt} className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors">
                   <Download className="w-4 h-4" /> Download receipt
                 </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center text-center bg-white/60 border border-white/70 rounded-2xl p-8">
-                <span className="w-16 h-16 rounded-full bg-orange-500/15 text-orange-600 flex items-center justify-center mb-4">
-                  <Clock className="w-8 h-8" />
-                </span>
-                <h3 className="text-[20px] font-extrabold text-[#111827]">Document submitted</h3>
+              </motion.div>
+            );
+          }
+
+          if (isPrinted && !isPaid) {
+            return (
+              <motion.div key="s5-printed" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center text-center bg-white/60 border border-white/70 rounded-2xl p-8">
+                <motion.span
+                  initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: "spring", bounce: 0.5 }}
+                  className="w-16 h-16 rounded-full bg-blue-500 text-white flex items-center justify-center mb-4 shadow-[0_12px_32px_rgba(59,130,246,0.4)]"
+                >
+                  <Printer className="w-8 h-8" />
+                </motion.span>
+                <h3 className="text-[20px] font-extrabold text-[#111827]">Document Printed!</h3>
                 <p className="text-[13px] text-[#111827]/60 mt-2 max-w-[320px]">
-                  <b>{job.documentName}</b> ({job.pages} pages, {job.printType === "color" ? "Color" : "B&W"}) is with the shop.{" "}
-                  {job.paymentMethod === "cash" ? (
-                    <>Pay <b>{inr(job.totalAmount)}</b> in <span className="text-amber-600 font-semibold">cash at the counter</span> when you collect your prints.</>
-                  ) : (
-                    <>Payment of <b>{inr(job.totalAmount)}</b> is <span className="text-orange-600 font-semibold">pending verification</span> by the shopkeeper.</>
-                  )}
+                  <b>{job.documentName}</b> is ready to collect.
                 </p>
-                <span className="mt-4 inline-flex items-center gap-2 text-[12px] text-[#111827]/50">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> This page updates automatically once confirmed
+                <div className="mt-5 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 max-w-[300px] w-full">
+                  <p className="text-[14px] font-bold text-amber-700 mb-1">Payment Required</p>
+                  <p className="text-[13px] text-amber-700/80">Please pay <b>{inr(job.totalAmount)}</b> at the counter to collect your prints.</p>
+                </div>
+                <span className="mt-5 inline-flex items-center gap-2 text-[12px] text-[#111827]/50">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Waiting for shopkeeper to confirm payment...
                 </span>
-              </div>
-            )}
-          </motion.div>
-        )}
+              </motion.div>
+            );
+          }
+
+          // !isPaid && !isPrinted (Pending both)
+          return (
+            <motion.div key="s5-pending" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center text-center bg-white/60 border border-white/70 rounded-2xl p-8">
+              <span className="w-16 h-16 rounded-full bg-orange-500/15 text-orange-600 flex items-center justify-center mb-4">
+                <Clock className="w-8 h-8" />
+              </span>
+              <h3 className="text-[20px] font-extrabold text-[#111827]">Document submitted</h3>
+              <p className="text-[13px] text-[#111827]/60 mt-2 max-w-[320px]">
+                <b>{job.documentName}</b> ({job.pages} pages, {job.printType === "color" ? "Color" : "B&W"}) is with the shop.{" "}
+                {job.paymentMethod === "cash" ? (
+                  <>Pay <b>{inr(job.totalAmount)}</b> in <span className="text-amber-600 font-semibold">cash at the counter</span> when you collect your prints.</>
+                ) : (
+                  <>Payment of <b>{inr(job.totalAmount)}</b> is <span className="text-orange-600 font-semibold">pending verification</span> by the shopkeeper.</>
+                )}
+              </p>
+              <span className="mt-5 inline-flex items-center gap-2 text-[12px] text-[#111827]/50">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> This page updates automatically once confirmed
+              </span>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );
