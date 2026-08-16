@@ -285,10 +285,31 @@ router.get('/analytics', async (req, res) => {
       ORDER BY date ASC
     `, [req.vendorId]);
 
+    // 5. Storage Capacity and Plan Type
+    const vendorRes = await query(`SELECT plan_type FROM vendors WHERE id = $1`, [req.vendorId]);
+    const planType = vendorRes.rows[0].plan_type || 'FREE';
+    
+    const storageRes = await query(`
+      SELECT COALESCE(SUM(f.size_bytes), 0) as total_bytes 
+      FROM files f
+      JOIN requests r ON r.id = f.request_id
+      WHERE r.vendor_id = $1 AND r.deleted_at IS NULL AND f.status != 'deleted'
+    `, [req.vendorId]);
+    
+    const storageUsed = parseInt(storageRes.rows[0].total_bytes, 10);
+    const TOTAL_MAX_SIZES = {
+      FREE: 1 * 1024 * 1024 * 1024,
+      PRO: 10 * 1024 * 1024 * 1024
+    };
+    const storageLimit = TOTAL_MAX_SIZES[planType] || TOTAL_MAX_SIZES.FREE;
+
     res.json({
       overview: {
         totalBandwidth: parseInt(bandwidthRes.rows[0].total_bandwidth, 10),
         totalUploads: parseInt(bandwidthRes.rows[0].total_uploads, 10),
+        storageUsed,
+        storageLimit,
+        planType
       },
       fileTypes: typeRes.rows,
       recentActivity: recentRes.rows,

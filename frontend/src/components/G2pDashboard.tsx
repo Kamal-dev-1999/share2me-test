@@ -1214,6 +1214,46 @@ export default function G2pDashboard({
                 </div>
               ) : (
                 <div className="flex flex-col gap-6">
+                  {/* STORAGE OVERVIEW */}
+                  <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-bold text-[#111827]">Storage Capacity</h3>
+                        <p className="text-xs text-[#111827]/60 mt-1 font-mono uppercase tracking-wider">
+                          {analyticsData.overview.planType} PLAN
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-[#111827]">{formatSize(analyticsData.overview.storageUsed || 0)}</span>
+                        <span className="text-sm font-bold text-[#111827]/60 ml-2">/ {formatSize(analyticsData.overview.storageLimit || 1073741824)}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="w-full bg-white/40 border border-white/60 rounded-full h-4 overflow-hidden relative">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(100, ((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) * 100)}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        className={`h-full rounded-full ${((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) > 0.9 ? 'bg-red-500' : 'bg-gradient-to-r from-[#c084fc] to-[#9333ea]'}`}
+                      />
+                    </div>
+                    
+                    {analyticsData.overview.planType === 'FREE' && ((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) > 0.8 && (
+                      <div className="flex justify-between items-center mt-2 bg-[#111827]/5 rounded-xl p-3 border border-[#111827]/10">
+                        <span className="text-xs font-bold text-[#111827]">Running low on space?</span>
+                        <button 
+                          onClick={() => {
+                            setActiveTab('settings');
+                            setIsUpgradeModalOpen(true);
+                          }}
+                          className="text-xs font-bold text-white bg-[#111827] hover:bg-black px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Upgrade to PRO
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* METRIC CARDS */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">

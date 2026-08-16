@@ -83,9 +83,15 @@ router.post('/presign', async (req, res) => {
     `, [vendorId]);
     
     const totalBytes = parseInt(vendorStorageRes.rows[0].total_bytes, 10);
-    if (totalBytes + sizeBytes > 1024 * 1024 * 1024) {
+    const TOTAL_MAX_SIZES = {
+      FREE: 1 * 1024 * 1024 * 1024,  // 1 GB
+      PRO: 10 * 1024 * 1024 * 1024   // 10 GB
+    };
+    const totalMaxSize = TOTAL_MAX_SIZES[planType] || TOTAL_MAX_SIZES.FREE;
+
+    if (totalBytes + sizeBytes > totalMaxSize) {
       await client.query('ROLLBACK');
-      return res.status(429).json({ error: 'vendor_storage_full' });
+      return res.status(429).json({ error: 'vendor_storage_full', message: `Total storage capacity for ${planType} plan reached.` });
     }
 
     // Generate unique R2 key
