@@ -91,7 +91,6 @@ router.post('/role', async (req, res) => {
     res.status(500).json({ error: 'internal_error' });
   }
 });
-
 // Update vendor's persona
 router.post('/persona', async (req, res) => {
   const { persona } = req.body;

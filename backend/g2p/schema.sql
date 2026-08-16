@@ -12,6 +12,7 @@ CREATE TABLE vendors (
   accepting_requests BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   auth_provider_id TEXT UNIQUE, -- e.g. "google-oauth2|12345"
+<<<<<<< HEAD
   email TEXT, -- used to prefill Stripe Checkout
 
   -- Stripe subscription state (written by g2p/routes/webhooks.js)
@@ -22,6 +23,8 @@ CREATE TABLE vendors (
   subscription_ends_at TIMESTAMPTZ,
 
   -- User tiering / profile (v3.5)
+=======
+>>>>>>> b8885170d50f4fbb1438507969bf03312450ec0a
   persona VARCHAR(20) DEFAULT 'PERSONAL',
   persona_selected BOOLEAN DEFAULT false,
   plan_type VARCHAR(20) DEFAULT 'FREE',

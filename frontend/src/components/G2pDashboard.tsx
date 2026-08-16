@@ -1067,7 +1067,11 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
+<<<<<<< HEAD
               className="md:h-full md:min-h-0 flex flex-col gap-6 overflow-y-auto pr-2"
+=======
+              className="md:h-full flex flex-col gap-6 overflow-y-auto pr-2"
+>>>>>>> b8885170d50f4fbb1438507969bf03312450ec0a
             >
               <div>
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Portal Settings</h2>
@@ -1586,12 +1590,20 @@ export default function G2pDashboard({
                   </div>
 
                   <button
+<<<<<<< HEAD
                     onClick={handleUpgradeCheckout}
                     disabled={isCheckoutLoading || planType === "PRO"}
                     className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.2)] disabled:opacity-50 relative z-10 flex items-center justify-center gap-2"
                   >
                     {isCheckoutLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                     {planType === "PRO" ? "Active Plan" : isCheckoutLoading ? "Opening Stripe…" : "Upgrade to Premium"}
+=======
+                    onClick={handleUpgradePlan}
+                    disabled={planType === "PRO"}
+                    className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.2)] disabled:opacity-50 relative z-10"
+                  >
+                    {planType === "PRO" ? "Active Plan" : "Upgrade to Premium"}
+>>>>>>> b8885170d50f4fbb1438507969bf03312450ec0a
                   </button>
 
                   <div className="flex flex-col gap-4 mt-auto relative z-10">
