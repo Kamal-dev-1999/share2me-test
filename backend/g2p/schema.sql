@@ -19,7 +19,16 @@ CREATE TABLE vendors (
   stripe_customer_id TEXT,
   stripe_subscription_id TEXT,
   subscription_status TEXT,                   -- Stripe status: trialing/active/past_due/canceled…
-  subscription_ends_at TIMESTAMPTZ
+  subscription_ends_at TIMESTAMPTZ,
+
+  -- User tiering / profile (v3.5)
+  persona VARCHAR(20) DEFAULT 'PERSONAL',
+  persona_selected BOOLEAN DEFAULT false,
+  plan_type VARCHAR(20) DEFAULT 'FREE',
+  phone TEXT,
+  company TEXT,
+  website TEXT,
+  bio TEXT
 );
 
 -- Requests Table

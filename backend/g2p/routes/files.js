@@ -24,20 +24,17 @@ router.post('/presign', async (req, res) => {
     return res.status(400).json({ error: 'invalid_file_type' });
   }
 
-  // 100MB max per file for safety
-  if (sizeBytes > 100 * 1024 * 1024) {
-    return res.status(400).json({ error: 'file_too_large' });
-  }
-
   let client;
   try {
     client = await getTransactionClient();
     await client.query('BEGIN');
 
-    // Verify request ownership
+    // Verify request ownership and get vendor plan_type
     const reqCheck = await client.query(`
-      SELECT id, vendor_id FROM requests 
-      WHERE id = $1 AND status_token = $2 AND deleted_at IS NULL
+      SELECT r.id, r.vendor_id, v.plan_type 
+      FROM requests r
+      JOIN vendors v ON r.vendor_id = v.id
+      WHERE r.id = $1 AND r.status_token = $2 AND r.deleted_at IS NULL
       FOR UPDATE
     `, [requestId, statusToken]);
 
@@ -46,6 +43,23 @@ router.post('/presign', async (req, res) => {
       return res.status(404).json({ error: 'request_not_found' });
     }
     const vendorId = reqCheck.rows[0].vendor_id;
+    const planType = reqCheck.rows[0].plan_type || 'FREE';
+
+    // Enforce plan-aware quotas
+    const MAX_SIZES = {
+      FREE: 50 * 1024 * 1024,
+      PRO: 500 * 1024 * 1024
+    };
+    const maxSize = MAX_SIZES[planType] || MAX_SIZES.FREE;
+
+    if (sizeBytes > maxSize) {
+      await client.query('ROLLBACK');
+      return res.status(413).json({ 
+        error: 'payload_too_large', 
+        maxSize, 
+        message: `File exceeds the maximum limit for ${planType} plan.`
+      });
+    }
 
     // Retry flow check: delete stale pending_upload rows for this exact file request to avoid cap collisions
     await client.query(`
@@ -69,9 +83,15 @@ router.post('/presign', async (req, res) => {
     `, [vendorId]);
     
     const totalBytes = parseInt(vendorStorageRes.rows[0].total_bytes, 10);
-    if (totalBytes + sizeBytes > 1024 * 1024 * 1024) {
+    const TOTAL_MAX_SIZES = {
+      FREE: 1 * 1024 * 1024 * 1024,  // 1 GB
+      PRO: 10 * 1024 * 1024 * 1024   // 10 GB
+    };
+    const totalMaxSize = TOTAL_MAX_SIZES[planType] || TOTAL_MAX_SIZES.FREE;
+
+    if (totalBytes + sizeBytes > totalMaxSize) {
       await client.query('ROLLBACK');
-      return res.status(429).json({ error: 'vendor_storage_full' });
+      return res.status(429).json({ error: 'vendor_storage_full', message: `Total storage capacity for ${planType} plan reached.` });
     }
 
     // Generate unique R2 key
