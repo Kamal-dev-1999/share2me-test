@@ -49,7 +49,7 @@ export interface PrintJob {
   paidAt: string | null;
   createdAt: string;
   printConfig?: PrintConfig | null;
-  jobStatus?: 'queued' | 'printed' | 'cancelled';
+  jobStatus?: 'queued' | 'printing' | 'printed' | 'cancelled';
   printedAt?: string | null;
   razorpayOrderId?: string | null;
   amountPaise?: number;
@@ -319,6 +319,20 @@ export async function markJobPrinted(jobId: string, token: string, printConfig?:
 
 export async function markJobFailed(jobId: string, token: string): Promise<void> {
   await apiPatch(`/jobs/${jobId}/fail`, token);
+}
+
+// ─── Agent operations ─────────────────────────────────────────────────────────
+
+export async function getAgentPrinters(token: string): Promise<{ printers: string[]; online: boolean }> {
+  return apiGet<{ printers: string[]; online: boolean }>('/printers', token);
+}
+
+export async function batchPrint(jobIds: string[], printerName: string, token: string): Promise<{ success: boolean; count: number }> {
+  return apiPost<{ success: boolean; count: number }>('/print-batch', { jobIds, printerName }, token);
+}
+
+export async function getAgentToken(token: string): Promise<{ token: string }> {
+  return apiPost<{ token: string }>('/agent-token', {}, token);
 }
 
 // ─────────────────────────────────────────────────────────────

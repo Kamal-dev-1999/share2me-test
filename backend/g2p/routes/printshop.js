@@ -20,7 +20,7 @@ const { generatePresignedGetUrl, s3, R2_BUCKET } = require('../lib/storage');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const RateLimiter = require('../../lib/RateLimiter');
-const { emitToVendor, emitToJob } = require('../socket');
+const { emitToVendor, emitToJob, getAgentPrinters, dispatchJobToAgent, isAgentOnline } = require('../socket');
 const Razorpay = require('razorpay');
 const { v4: uuidv4 } = require('uuid');
 
@@ -694,6 +694,83 @@ router.get('/analytics', requireShopkeeper, async (req, res) => {
     });
   } catch (err) {
     console.error('[PrintShop] GET /analytics error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ─── PROTECTED: GET /printshop/printers ───────────────────────────────────────
+router.get('/printers', requireShopkeeper, async (req, res) => {
+  try {
+    const printers = getAgentPrinters(req.vendorId);
+    res.json({ printers, online: isAgentOnline(req.vendorId) });
+  } catch (err) {
+    console.error('[PrintShop] GET /printers error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ─── PROTECTED: POST /printshop/print-batch ───────────────────────────────────
+router.post('/print-batch', requireShopkeeper, async (req, res) => {
+  try {
+    const { jobIds, printerName } = req.body;
+    if (!Array.isArray(jobIds) || jobIds.length === 0 || !printerName) {
+      return res.status(400).json({ error: 'invalid_payload' });
+    }
+
+    if (!isAgentOnline(req.vendorId)) {
+      return res.status(400).json({ error: 'agent_offline' });
+    }
+
+    // Fetch job details and sign URLs for the agent
+    const jobsRes = await query(
+      `SELECT * FROM printshop_jobs WHERE id = ANY($1) AND vendor_id = $2`, 
+      [jobIds, req.vendorId]
+    );
+
+    if (jobsRes.rows.length === 0) {
+      return res.status(404).json({ error: 'jobs_not_found' });
+    }
+
+    for (const job of jobsRes.rows) {
+      if (!job.r2_key) continue;
+      
+      const fileUrl = await generatePresignedGetUrl(job.r2_key, 60 * 15); // 15 mins
+      
+      const printConfig = job.print_config ? (typeof job.print_config === 'string' ? JSON.parse(job.print_config) : job.print_config) : {};
+      
+      dispatchJobToAgent(req.vendorId, {
+        type: 'print_job',
+        jobId: job.id,
+        fileUrl,
+        copies: printConfig.copies || 1,
+        colorMode: job.print_type,
+        printerName
+      });
+      
+      // Update DB to queued
+      await query(`UPDATE printshop_jobs SET status = 'queued', printer_name = $1 WHERE id = $2`, [printerName, job.id]);
+      emitToVendor(req.vendorId, 'printshop:job_updated', { jobId: job.id, jobStatus: 'queued' });
+      emitToJob(job.id, 'printshop:job_updated', { jobId: job.id, jobStatus: 'queued' });
+    }
+
+    res.json({ success: true, count: jobsRes.rows.length });
+  } catch (err) {
+    console.error('[PrintShop] POST /print-batch error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ─── PROTECTED: POST /printshop/agent-token ───────────────────────────────────
+router.post('/agent-token', requireShopkeeper, async (req, res) => {
+  try {
+    // Check existing
+    let dbRes = await query('SELECT print_agent_token FROM vendors WHERE id = $1', [req.vendorId]);
+    if (!dbRes.rows[0].print_agent_token) {
+      dbRes = await query('UPDATE vendors SET print_agent_token = gen_random_uuid() WHERE id = $1 RETURNING print_agent_token', [req.vendorId]);
+    }
+    res.json({ token: dbRes.rows[0].print_agent_token });
+  } catch (err) {
+    console.error('[PrintShop] POST /agent-token error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });

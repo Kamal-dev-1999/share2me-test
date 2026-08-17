@@ -12,13 +12,14 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText, CheckCircle2, Clock, XCircle, IndianRupee, Palette, Printer,
-  X, ChevronRight, User, CalendarDays, BadgeCheck, CheckSquare, Printer as PrinterIcon, Download,
+  X, ChevronRight, User, CalendarDays, BadgeCheck, CheckSquare, Printer as PrinterIcon, Download, Key, RefreshCw
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
   getPrintJobs, confirmJobPayment, markJobFailed, markJobPrinted, computeKpis, revenueSeries,
+  getAgentPrinters, batchPrint, getAgentToken,
   inr, formatBytes,
   type PrintJob, type RevenueRange,
 } from "@/lib/printShop";
@@ -28,15 +29,20 @@ import { io as socketIO, Socket } from "socket.io-client";
 // Shared bits
 // ─────────────────────────────────────────────────────────────
 
-export function useJobs(token?: string): [PrintJob[], () => void, boolean] {
+export function useJobs(token?: string): [PrintJob[], () => void, boolean, string[], boolean] {
   const [jobs, setJobs] = useState<PrintJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [agentPrinters, setAgentPrinters] = useState<string[]>([]);
+  const [agentOnline, setAgentOnline] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!token) return;
     try {
       const fresh = await getPrintJobs(token);
       setJobs(fresh);
+      const agentState = await getAgentPrinters(token);
+      setAgentPrinters(agentState.printers);
+      setAgentOnline(agentState.online);
     } catch (err) { console.error('useJobs ERROR:', err); } finally {
       setLoading(false);
     }
@@ -57,21 +63,25 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean] {
     socket.on("printshop:new_job", () => { refresh(); });
     socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus?: string; paymentId?: string; paidAt?: string; jobStatus?: string; printedAt?: string }) => {
       setJobs((prev) => prev.map((j) => j.id === payload.jobId
-        ? { 
-            ...j, 
-            paymentStatus: (payload.paymentStatus || j.paymentStatus) as PrintJob["paymentStatus"], 
-            paymentId: payload.paymentId || j.paymentId, 
-            paidAt: payload.paidAt || j.paidAt,
-            jobStatus: (payload.jobStatus || j.jobStatus) as PrintJob["jobStatus"],
-            printedAt: payload.printedAt || j.printedAt
-          }
+        ? {
+          ...j,
+          paymentStatus: (payload.paymentStatus || j.paymentStatus) as PrintJob["paymentStatus"],
+          paymentId: payload.paymentId || j.paymentId,
+          paidAt: payload.paidAt || j.paidAt,
+          jobStatus: (payload.jobStatus || j.jobStatus) as PrintJob["jobStatus"],
+          printedAt: payload.printedAt || j.printedAt
+        }
         : j
       ));
+    });
+    socket.on("printshop:printers_updated", (payload: { printers: string[] }) => {
+      setAgentPrinters(payload.printers);
+      setAgentOnline(payload.printers.length > 0);
     });
     return () => { socket.disconnect(); };
   }, [token, refresh]);
 
-  return [jobs, refresh, loading];
+  return [jobs, refresh, loading, agentPrinters, agentOnline];
 }
 
 export function StatusPill({ job }: { job: PrintJob }) {
@@ -87,6 +97,13 @@ export function StatusPill({ job }: { job: PrintJob }) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-700 text-[11px] font-bold whitespace-nowrap">
           <span className="w-2 h-2 rounded-full bg-indigo-500" /> Printed & Paid
+        </span>
+      );
+    }
+    if (job.jobStatus === "queued" || job.jobStatus === "printing") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-700 text-[11px] font-bold whitespace-nowrap">
+          <RefreshCw className="w-3 h-3 animate-spin" /> {job.jobStatus === "printing" ? "Printing..." : "Queued"}
         </span>
       );
     }
@@ -111,12 +128,12 @@ export function StatusPill({ job }: { job: PrintJob }) {
 function Kpis({ jobs }: { jobs: PrintJob[] }) {
   const k = computeKpis(jobs);
   const cards = [
-    { label: "Total Documents",  value: String(k.totalDocuments),  icon: FileText,     grad: ["#60a5fa", "#2563eb"] },
-    { label: "Paid Documents",   value: String(k.paidDocuments),   icon: CheckCircle2, grad: ["#4ade80", "#059669"] },
-    { label: "Pending Payments", value: String(k.pendingPayments), icon: Clock,        grad: ["#fcd34d", "#f59e0b"] },
-    { label: "Total Revenue",    value: inr(k.totalRevenue),       icon: IndianRupee,  grad: ["#a78bfa", "#7c3aed"] },
-    { label: "Color Prints",     value: String(k.colorPrints),     icon: Palette,      grad: ["#f472b6", "#db2777"] },
-    { label: "B&W Prints",       value: String(k.bwPrints),        icon: PrinterIcon,  grad: ["#94a3b8", "#475569"] },
+    { label: "Total Documents", value: String(k.totalDocuments), icon: FileText, grad: ["#60a5fa", "#2563eb"] },
+    { label: "Paid Documents", value: String(k.paidDocuments), icon: CheckCircle2, grad: ["#4ade80", "#059669"] },
+    { label: "Pending Payments", value: String(k.pendingPayments), icon: Clock, grad: ["#fcd34d", "#f59e0b"] },
+    { label: "Total Revenue", value: inr(k.totalRevenue), icon: IndianRupee, grad: ["#a78bfa", "#7c3aed"] },
+    { label: "Color Prints", value: String(k.colorPrints), icon: Palette, grad: ["#f472b6", "#db2777"] },
+    { label: "B&W Prints", value: String(k.bwPrints), icon: PrinterIcon, grad: ["#94a3b8", "#475569"] },
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -150,9 +167,8 @@ function RevenueChart({ jobs }: { jobs: PrintJob[] }) {
             <button
               key={r}
               onClick={() => setRange(r)}
-              className={`px-3 py-1 rounded-full text-[11px] font-semibold capitalize transition-colors ${
-                range === r ? "bg-[#111827] text-white" : "text-[#111827]/60 hover:text-[#111827]"
-              }`}
+              className={`px-3 py-1 rounded-full text-[11px] font-semibold capitalize transition-colors ${range === r ? "bg-[#111827] text-white" : "text-[#111827]/60 hover:text-[#111827]"
+                }`}
             >
               {r}
             </button>
@@ -280,9 +296,8 @@ function JobDrawer({ job, onClose, onConfirm, onFail, onPrint }: {
                 return (
                   <div key={label} className="flex gap-3">
                     <div className="flex flex-col items-center">
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                        done ? "bg-emerald-500 text-white" : "bg-[#111827]/10 text-[#111827]/40"
-                      }`}>
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center ${done ? "bg-emerald-500 text-white" : "bg-[#111827]/10 text-[#111827]/40"
+                        }`}>
                         {done ? <CheckCircle2 className="w-3 h-3" /> : <span className="w-1.5 h-1.5 rounded-full bg-current" />}
                       </span>
                       {i < TIMELINE_STEPS.length - 1 && (
@@ -310,7 +325,7 @@ function JobDrawer({ job, onClose, onConfirm, onFail, onPrint }: {
               </button>
             </div>
           )}
-          
+
           {job.paymentStatus === "paid" && job.jobStatus !== "printed" && (
             <button onClick={() => onPrint(job.id)} className="w-full h-11 rounded-full bg-[#111827] text-white text-[13px] font-bold hover:bg-black transition-colors inline-flex items-center justify-center gap-2">
               <PrinterIcon className="w-4 h-4" /> Mark as Printed
@@ -327,32 +342,181 @@ function JobDrawer({ job, onClose, onConfirm, onFail, onPrint }: {
 // ─────────────────────────────────────────────────────────────
 
 export function PrintShopPanel({ token }: { token: string | null }) {
-  const [jobs, refresh, loading] = useJobs(token || undefined);
+  const [jobs, refresh, loading, agentPrinters, agentOnline] = useJobs(token || undefined);
   const [openJobId, setOpenJobId] = useState<string | null>(null);
   const openJob = jobs.find((j) => j.id === openJobId) ?? null;
 
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+  const [selectedPrinter, setSelectedPrinter] = useState<string>("");
+  const [agentToken, setAgentToken] = useState<string | null>(null);
+  const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
+  const [batchPrinting, setBatchPrinting] = useState(false);
+
+  useEffect(() => {
+    if (agentPrinters.length > 0 && !selectedPrinter) {
+      setSelectedPrinter(agentPrinters[0]);
+    }
+  }, [agentPrinters, selectedPrinter]);
+
   const confirm = async (id: string) => {
     if (!token) return;
-    try { await confirmJobPayment(id, token); refresh(); } catch {}
+    try { await confirmJobPayment(id, token); refresh(); } catch { }
   };
   const fail = async (id: string) => {
     if (!token) return;
-    try { await markJobFailed(id, token); refresh(); } catch {}
+    try { await markJobFailed(id, token); refresh(); } catch { }
   };
   const print = async (id: string) => {
     if (!token) return;
-    try { await markJobPrinted(id, token); refresh(); } catch {}
+    try { await markJobPrinted(id, token); refresh(); } catch { }
+  };
+
+  const handleSelectJob = (id: string) => {
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const pendingJobs = jobs.filter(j => j.paymentStatus === 'paid' && j.jobStatus !== 'printed');
+    if (selectedJobIds.size === pendingJobs.length) {
+      setSelectedJobIds(new Set());
+    } else {
+      setSelectedJobIds(new Set(pendingJobs.map(j => j.id)));
+    }
+  };
+
+  const handleBatchPrint = async () => {
+    if (!token || selectedJobIds.size === 0 || !selectedPrinter) return;
+    setBatchPrinting(true);
+    try {
+      await batchPrint(Array.from(selectedJobIds), selectedPrinter, token);
+      setSelectedJobIds(new Set());
+      refresh();
+    } catch (err) {
+      alert("Failed to send jobs to printer. Make sure the agent is running.");
+    } finally {
+      setBatchPrinting(false);
+    }
+  };
+
+  const fetchAgentToken = async () => {
+    if (!token) return;
+    try {
+      const res = await getAgentToken(token);
+      setAgentToken(res.token);
+    } catch (err) { console.error(err); }
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Agent Status Bar */}
+      <div className="bg-white/50 border border-white/70 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`w-2.5 h-2.5 rounded-full ${agentOnline ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
+            <h3 className="text-[14px] font-bold text-[#111827]">Local Print Agent</h3>
+          </div>
+          <p className="text-[12px] text-[#111827]/60">
+            {agentOnline ? `Connected • ${agentPrinters.length} printers found` : "Offline • Run the agent on your PC to auto-print"}
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            if (!isAgentMenuOpen) fetchAgentToken();
+            setIsAgentMenuOpen(!isAgentMenuOpen);
+          }}
+          className="px-4 py-2 bg-indigo-50 text-indigo-700 text-[13px] font-bold rounded-xl hover:bg-indigo-100 transition-colors"
+        >
+          {isAgentMenuOpen ? "Hide Setup" : "Agent Setup"}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {isAgentMenuOpen && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <div className="bg-[#111827] text-white p-5 rounded-2xl flex flex-col gap-4">
+              <h4 className="font-bold text-[14px] flex items-center gap-2"><Key className="w-4 h-4 text-emerald-400" /> Link Print Agent</h4>
+
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-[12px] font-bold">1</div>
+                <div>
+                  <p className="text-[13px] font-medium mb-1">Download & Open the Print Agent</p>
+                  <p className="text-[12px] text-white/60 mb-2">Run the agent application on this computer. It will wait for your connection.</p>
+                  <a href="/Share2Me-PrintAgent.exe" download className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[13px] font-medium transition-colors border border-white/10">
+                    <Download className="w-3.5 h-3.5" /> Download Agent (.exe)
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-[12px] font-bold">2</div>
+                <div>
+                  <p className="text-[13px] font-medium mb-1">Link to Website</p>
+                  <p className="text-[12px] text-white/60 mb-3">Once the agent is open, click below to securely connect it.</p>
+
+                  <button
+                    onClick={async () => {
+                      if (!agentToken) return;
+                      try {
+                        const res = await fetch('http://localhost:13337/auth', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ token: agentToken })
+                        });
+                        if (res.ok) alert('Agent linked successfully! The terminal should now say Connected.');
+                        else alert('Failed to link agent. Make sure it is running!');
+                      } catch (err) {
+                        alert('Could not connect to the agent. Make sure you opened the .exe first!');
+                      }
+                    }}
+                    disabled={!agentToken}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[13px] font-bold transition-colors disabled:opacity-50"
+                  >
+                    Connect Agent
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Kpis jobs={jobs} />
       <RevenueChart jobs={jobs} />
 
       {/* Shared documents list */}
       <div className="bg-white/50 border border-white/70 rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#111827]/10 flex items-center justify-between">
-          <h3 className="text-[14px] font-bold text-[#111827]">Print Jobs</h3>
+        <div className="px-4 py-3 border-b border-[#111827]/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h3 className="text-[14px] font-bold text-[#111827]">Print Jobs</h3>
+            <button onClick={toggleSelectAll} className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800">
+              Select All Ready
+            </button>
+          </div>
+          {selectedJobIds.size > 0 && (
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedPrinter}
+                onChange={(e) => setSelectedPrinter(e.target.value)}
+                className="bg-white border border-[#111827]/10 rounded-lg px-2 py-1.5 text-[12px] text-[#111827] focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[150px]"
+              >
+                {agentPrinters.map(p => <option key={p} value={p}>{p}</option>)}
+                {agentPrinters.length === 0 && <option value="">No printers found</option>}
+              </select>
+              <button
+                onClick={handleBatchPrint}
+                disabled={batchPrinting || !selectedPrinter || !agentOnline}
+                className="bg-[#111827] text-white text-[12px] font-bold px-4 py-1.5 rounded-lg hover:bg-black disabled:opacity-50 flex items-center gap-2"
+              >
+                {batchPrinting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <PrinterIcon className="w-3.5 h-3.5" />}
+                Print Selected ({selectedJobIds.size})
+              </button>
+            </div>
+          )}
         </div>
 
         {jobs.length === 0 ? (
@@ -364,59 +528,69 @@ export function PrintShopPanel({ token }: { token: string | null }) {
             {jobs.map((job) => (
               <button
                 key={job.id}
-                onClick={() => setOpenJobId(job.id)}
-                className="w-full text-left px-4 py-3.5 hover:bg-white/40 transition-colors flex items-center gap-3"
+                className={`w-full text-left px-4 py-3.5 transition-colors flex items-center gap-3 ${selectedJobIds.has(job.id) ? 'bg-indigo-50/50' : 'hover:bg-white/40'}`}
               >
-                <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-                  job.printType === "color"
+                {job.paymentStatus === 'paid' && job.jobStatus !== 'printed' && (
+                  <div className="shrink-0 pt-1" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedJobIds.has(job.id)}
+                      onChange={() => handleSelectJob(job.id)}
+                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                    />
+                  </div>
+                )}
+                <div onClick={() => setOpenJobId(job.id)} className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${job.printType === "color"
                     ? "bg-gradient-to-br from-[#f472b6] to-[#8b5cf6]"
                     : "bg-gradient-to-br from-[#4b5563] to-[#111827]"
-                }`}>
-                  {job.printType === "color" ? <Palette className="w-5 h-5 text-white" /> : <PrinterIcon className="w-5 h-5 text-white" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-bold text-[#111827] truncate">{job.documentName}</p>
-                  <p className="text-[12px] text-[#111827]/55 flex items-center gap-1.5 flex-wrap">
-                    <User className="w-3 h-3" /> {job.senderName}
-                    <span>·</span> {job.pages} pages · {job.printType === "color" ? "Color" : "B&W"} · {inr(job.pricePerPage)}/page
-                    {job.printConfig?.copies && job.printConfig.copies > 1 && <span className="font-semibold text-[#111827]">· {job.printConfig.copies} copies</span>}
-                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                      job.paymentMethod === "cash" ? "bg-amber-500/15 text-amber-700" : "bg-emerald-500/15 text-emerald-700"
-                    }`}>{job.paymentMethod === "cash" ? "CASH" : "UPI"}</span>
-                    <span className="hidden sm:inline-flex items-center gap-1"><CalendarDays className="w-3 h-3" />
-                      {new Date(job.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
-                    </span>
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <StatusPill job={job} />
-                  {job.paymentStatus === "pending" && (
-                    <span
-                      role="button" tabIndex={0}
-                      onClick={(e) => { e.stopPropagation(); confirm(job.id); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); confirm(job.id); } }}
-                      className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
-                    >
-                      <BadgeCheck className="w-3.5 h-3.5" /> Confirm
-                    </span>
-                  )}
-                  {job.paymentStatus === "paid" && job.jobStatus !== "printed" && (
-                    <span
-                      role="button" tabIndex={0}
-                      onClick={(e) => { e.stopPropagation(); print(job.id); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); print(job.id); } }}
-                      className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#111827] text-white text-[11px] font-bold hover:bg-black transition-colors cursor-pointer"
-                    >
-                      <CheckSquare className="w-3.5 h-3.5" /> Printed
-                    </span>
-                  )}
-                  <ChevronRight className="w-4 h-4 text-[#111827]/30" />
+                    }`}>
+                    {job.printType === "color" ? <Palette className="w-5 h-5 text-white" /> : <PrinterIcon className="w-5 h-5 text-white" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-bold text-[#111827] truncate">{job.documentName}</p>
+                    <p className="text-[12px] text-[#111827]/55 flex items-center gap-1.5 flex-wrap">
+                      <User className="w-3 h-3" /> {job.senderName}
+                      <span>·</span> {job.pages} pages · {job.printType === "color" ? "Color" : "B&W"} · {inr(job.pricePerPage)}/page
+                      {job.printConfig?.copies && job.printConfig.copies > 1 && <span className="font-semibold text-[#111827]">· {job.printConfig.copies} copies</span>}
+                      <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${job.paymentMethod === "cash" ? "bg-amber-500/15 text-amber-700" : "bg-emerald-500/15 text-emerald-700"
+                        }`}>{job.paymentMethod === "cash" ? "CASH" : "UPI"}</span>
+                      <span className="hidden sm:inline-flex items-center gap-1"><CalendarDays className="w-3 h-3" />
+                        {new Date(job.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusPill job={job} />
+                    {job.paymentStatus === "pending" && (
+                      <span
+                        role="button" tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); confirm(job.id); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); confirm(job.id); } }}
+                        className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
+                      >
+                        <BadgeCheck className="w-3.5 h-3.5" /> Confirm
+                      </span>
+                    )}
+                    {job.paymentStatus === "paid" && job.jobStatus !== "printed" && (
+                      <span
+                        role="button" tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); print(job.id); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); print(job.id); } }}
+                        className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#111827] text-white text-[11px] font-bold hover:bg-black transition-colors cursor-pointer"
+                      >
+                        <CheckSquare className="w-3.5 h-3.5" /> Mark Printed
+                      </span>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-[#111827]/30" onClick={() => setOpenJobId(job.id)} />
+                  </div>
                 </div>
               </button>
             ))}
           </div>
         )}
       </div>
+
 
       <AnimatePresence>
         {openJob && (

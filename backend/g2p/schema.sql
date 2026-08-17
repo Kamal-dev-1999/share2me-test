@@ -34,7 +34,10 @@ CREATE TABLE vendors (
   stripe_account_id TEXT,
   charges_enabled BOOLEAN DEFAULT false,
   price_per_page_bw NUMERIC(10, 2),
-  price_per_page_color NUMERIC(10, 2)
+  price_per_page_color NUMERIC(10, 2),
+
+  -- Print Agent
+  print_agent_token UUID UNIQUE DEFAULT gen_random_uuid()
 );
 
 -- Requests Table
@@ -103,14 +106,21 @@ CREATE TABLE IF NOT EXISTS printshop_jobs (
   payment_id TEXT, -- Razorpay Payment ID or Stripe ID
   paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  status TEXT DEFAULT 'pending', -- 'pending', 'printed', 'cancelled'
+  status TEXT DEFAULT 'pending', -- 'pending', 'queued', 'printing', 'printed', 'cancelled'
   r2_key TEXT, -- physical file in S3/R2
+  printer_name TEXT,
+  print_error TEXT,
   deleted_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_printshop_jobs_vendor ON printshop_jobs(vendor_id, created_at DESC);
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS r2_key TEXT;
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS printer_name TEXT;
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS print_error TEXT;
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+-- Print Agent Token
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS print_agent_token UUID UNIQUE DEFAULT gen_random_uuid();
 
 -- Print Shop Settings Table
 CREATE TABLE IF NOT EXISTS printshop_settings (
