@@ -49,7 +49,7 @@ function loadToken() {
       const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
       return data.token;
     }
-  } catch (err) {}
+  } catch (err) { }
   return null;
 }
 
@@ -66,25 +66,23 @@ function saveToken(token) {
 
 async function startAgent() {
   if (process.platform === 'win32' && process.pkg && !process.argv.includes('--hidden')) {
-    const vbsPath = path.join(os.tmpdir(), 'share2me_hidden.vbs');
-    // VBScript to run a command silently (0 = hide window)
-    fs.writeFileSync(vbsPath, `CreateObject("WScript.Shell").Run """" & WScript.Arguments(0) & """ --hidden", 0, False`);
-    
-    const { execSync } = require('child_process');
-    // Run the VBScript, passing our executable path
-    execSync(`wscript.exe "${vbsPath}" "${process.execPath}"`);
-    
-    // Exit this visible console process
+    const { spawn } = require('child_process');
+    const child = spawn(process.execPath, ['--hidden'], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    });
+    child.unref();
     process.exit(0);
   }
 
   if (process.argv.includes('--hidden')) {
     // Redirect console output to a log file to prevent crashes when stdout is closed
     const logStream = fs.createWriteStream(path.join(os.tmpdir(), 'Share2Me-Agent.log'), { flags: 'a' });
-    console.log = function() {
+    console.log = function () {
       logStream.write(Array.from(arguments).join(' ') + '\n');
     };
-    console.error = function() {
+    console.error = function () {
       logStream.write('[ERROR] ' + Array.from(arguments).join(' ') + '\n');
     };
   }
@@ -96,7 +94,8 @@ async function startAgent() {
     const server = http.createServer((req, res) => {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Request-Private-Network');
+      res.setHeader('Access-Control-Allow-Private-Network', 'true');
 
       if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -130,7 +129,7 @@ async function startAgent() {
         res.end();
       }
     });
-    
+
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.log('Agent is already running! Exiting this instance.');
@@ -138,7 +137,7 @@ async function startAgent() {
       }
     });
 
-    server.listen(13337, 'localhost', () => {
+    server.listen(13337, '127.0.0.1', () => {
       console.log('Local Bridge running on port 13337 (Single instance lock active).');
       resolve();
     });
@@ -170,16 +169,16 @@ function connectSocket(token) {
         console.error('Authentication failed:', res.error);
         return; // Don't exit, they can re-link from dashboard
       }
-      
+
       console.log('Authentication successful! Fetching printers...');
-      
+
       try {
         const { exec } = require('child_process');
         exec('wmic printer get name', (err, stdout) => {
           if (err) throw err;
           const printerNames = stdout.split('\n')
-                                     .map(p => p.trim())
-                                     .filter(p => p && p.toLowerCase() !== 'name');
+            .map(p => p.trim())
+            .filter(p => p && p.toLowerCase() !== 'name');
           console.log(`Found ${printerNames.length} printers.`);
           socket.emit('agent:printers', { printers: printerNames });
         });
@@ -193,28 +192,28 @@ function connectSocket(token) {
   socket.on('agent:print_job', async (job) => {
     console.log(`\n[New Job] ${job.jobId} -> ${job.printerName}`);
     console.log(`Copies: ${job.copies}, Color Mode: ${job.colorMode}`);
-    
+
     // Download to system temp folder (pkg prevents writing to __dirname)
     const tempFilePath = path.join(os.tmpdir(), `job_${job.jobId}_${crypto.randomBytes(4).toString('hex')}.pdf`);
-    
+
     try {
       console.log('Downloading file...');
       await downloadFile(job.fileUrl, tempFilePath);
       console.log('Printing...');
-      
+
       const printOpts = {
         printer: job.printerName,
         copies: job.copies,
         monochrome: job.colorMode === 'bw'
       };
-      
+
       const sumatraPath = getSumatraPath();
       if (sumatraPath) {
         printOpts.sumatraPdfPath = sumatraPath;
       }
-      
+
       await print(tempFilePath, printOpts);
-      
+
       console.log('Print spooled successfully!');
       socket.emit('agent:job_status', { jobId: job.jobId, status: 'printed' });
     } catch (err) {
