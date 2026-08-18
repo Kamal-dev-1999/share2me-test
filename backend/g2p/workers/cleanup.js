@@ -46,6 +46,42 @@ async function runG2PCleanup() {
          console.log(`[G2P Cleanup] Deleted abandoned file ${row.id}`);
       }
     }
+
+    // Task D: Print Shop Data Retention Cleanup
+    const printshopExpiredRes = await query(`
+      SELECT j.id, j.r2_key 
+      FROM printshop_jobs j
+      JOIN printshop_settings s ON j.vendor_id = s.vendor_id
+      WHERE j.created_at < NOW() - (COALESCE(s.retention_hours, 24) || ' hours')::interval
+    `);
+
+    if (printshopExpiredRes.rowCount > 0) {
+      const { deleteObjects } = require('../lib/storage');
+      
+      const r2KeysToDelete = printshopExpiredRes.rows
+        .map(r => r.r2_key)
+        .filter(Boolean);
+        
+      if (r2KeysToDelete.length > 0) {
+        await deleteObjects(r2KeysToDelete);
+        console.log(`[PrintShop Cleanup] Deleted ${r2KeysToDelete.length} files from R2`);
+      }
+
+      const jobIdsToDelete = printshopExpiredRes.rows.map(r => r.id);
+      
+      // Soft delete: Scrub personal data and mark as deleted so revenue math persists
+      await query(`
+        UPDATE printshop_jobs
+        SET deleted_at = NOW(),
+            document_name = 'Deleted Document',
+            sender_name = 'Anonymous',
+            r2_key = NULL
+        WHERE id = ANY($1::uuid[])
+      `, [jobIdsToDelete]);
+      
+      console.log(`[PrintShop Cleanup] Soft deleted & scrubbed ${jobIdsToDelete.length} expired print jobs`);
+    }
+
   } catch (err) {
     console.error('[G2P Cleanup] Error during cleanup tick:', err);
   } finally {

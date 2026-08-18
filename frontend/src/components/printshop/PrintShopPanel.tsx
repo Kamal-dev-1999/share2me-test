@@ -19,9 +19,9 @@ import {
 } from "recharts";
 import {
   getPrintJobs, confirmJobPayment, markJobFailed, markJobPrinted, computeKpis, revenueSeries,
-  getAgentPrinters, batchPrint, getAgentToken,
+  getAgentPrinters, batchPrint, getAgentToken, updatePrintConfig, filterJobsByRange,
   inr, formatBytes,
-  type PrintJob, type RevenueRange,
+  type PrintJob, type RevenueRange, type PrintConfig,
 } from "@/lib/printShop";
 import { io as socketIO, Socket } from "socket.io-client";
 
@@ -155,22 +155,21 @@ function Kpis({ jobs }: { jobs: PrintJob[] }) {
 // Revenue chart
 // ─────────────────────────────────────────────────────────────
 
-function RevenueChart({ jobs }: { jobs: PrintJob[] }) {
-  const [range, setRange] = useState<RevenueRange>("daily");
+function RevenueChart({ jobs, range, setRange }: { jobs: PrintJob[], range: RevenueRange, setRange: (r: RevenueRange) => void }) {
   const data = useMemo(() => revenueSeries(jobs, range), [jobs, range]);
   return (
     <div className="bg-white/50 border border-white/70 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h3 className="text-[14px] font-bold text-[#111827]">Revenue</h3>
         <div className="inline-flex bg-white/60 rounded-full p-0.5 border border-white/80">
-          {(["daily", "weekly", "monthly"] as RevenueRange[]).map((r) => (
+          {(["daily", "weekly", "monthly", "all_time"] as RevenueRange[]).map((r) => (
             <button
               key={r}
               onClick={() => setRange(r)}
               className={`px-3 py-1 rounded-full text-[11px] font-semibold capitalize transition-colors ${range === r ? "bg-[#111827] text-white" : "text-[#111827]/60 hover:text-[#111827]"
                 }`}
             >
-              {r}
+              {r.replace("_", " ")}
             </button>
           ))}
         </div>
@@ -212,10 +211,11 @@ const TIMELINE_STEPS = [
   "Printed & Completed",
 ];
 
-function JobDrawer({ job, onClose, onConfirm, onFail, onPrint }: {
+function JobDrawer({ job, onClose, onConfirm, onFail, onPrint, onUpdateConfig }: {
   job: PrintJob; onClose: () => void;
   onConfirm: (id: string) => void; onFail: (id: string) => void;
   onPrint: (id: string) => void;
+  onUpdateConfig: (id: string, config: Partial<PrintConfig>) => Promise<void>;
 }) {
   let doneCount = 2; // initial
   if (job.printConfig) doneCount = 3;
@@ -234,6 +234,17 @@ function JobDrawer({ job, onClose, onConfirm, onFail, onPrint }: {
       ))}
     </div>
   );
+
+  const [editingConfig, setEditingConfig] = useState(false);
+  const [draftConfig, setDraftConfig] = useState<Partial<PrintConfig>>(job.printConfig || { copies: 1, doubleSided: false, stapling: false, paperSize: 'A4' });
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  const handleSaveConfig = async () => {
+    setSavingConfig(true);
+    await onUpdateConfig(job.id, draftConfig);
+    setSavingConfig(false);
+    setEditingConfig(false);
+  };
 
   return (
     <>
@@ -270,13 +281,52 @@ function JobDrawer({ job, onClose, onConfirm, onFail, onPrint }: {
             </a>
           )}
 
-          <Section title="Printing Config" rows={[
-            ["Print type", job.printType === "color" ? "Color" : "Black & White"],
-            ["Paper Size", job.printConfig?.paperSize ?? "A4"],
-            ["Copies", String(job.printConfig?.copies ?? 1)],
-            ["Double Sided", job.printConfig?.doubleSided ? "Yes" : "No"],
-            ["Stapling", job.printConfig?.stapling ? "Yes" : "No"],
-          ]} />
+          <div className="bg-white/60 border border-white/80 rounded-2xl p-4">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-[12px] font-bold text-[#111827]/60 uppercase tracking-wide">Printing Config</h4>
+              {job.jobStatus !== "printed" && (
+                <button 
+                  onClick={() => editingConfig ? handleSaveConfig() : setEditingConfig(true)}
+                  disabled={savingConfig}
+                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2 py-1 rounded"
+                >
+                  {savingConfig ? "Saving..." : editingConfig ? "Save" : "Edit"}
+                </button>
+              )}
+            </div>
+            
+            {editingConfig ? (
+              <div className="space-y-2 mt-2">
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-[#111827]/60">Copies</span>
+                  <input type="number" min={1} max={50} value={draftConfig.copies || 1} onChange={(e) => setDraftConfig(p => ({...p, copies: parseInt(e.target.value)}))} className="w-16 border rounded px-1 py-0.5 text-right" />
+                </div>
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-[#111827]/60">Paper Size</span>
+                  <select value={draftConfig.paperSize || 'A4'} onChange={(e) => setDraftConfig(p => ({...p, paperSize: e.target.value as 'A4'|'A3'}))} className="border rounded px-1 py-0.5 text-right bg-white">
+                    <option value="A4">A4</option>
+                    <option value="A3">A3</option>
+                  </select>
+                </div>
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-[#111827]/60">Double Sided</span>
+                  <input type="checkbox" checked={draftConfig.doubleSided || false} onChange={(e) => setDraftConfig(p => ({...p, doubleSided: e.target.checked}))} />
+                </div>
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-[#111827]/60">Stapling</span>
+                  <input type="checkbox" checked={draftConfig.stapling || false} onChange={(e) => setDraftConfig(p => ({...p, stapling: e.target.checked}))} />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1 mt-2">
+                <div className="flex justify-between text-[13px]"><span className="text-[#111827]/60">Print type</span><span className="font-semibold">{job.printType === "color" ? "Color" : "Black & White"}</span></div>
+                <div className="flex justify-between text-[13px]"><span className="text-[#111827]/60">Paper Size</span><span className="font-semibold">{job.printConfig?.paperSize ?? "A4"}</span></div>
+                <div className="flex justify-between text-[13px]"><span className="text-[#111827]/60">Copies</span><span className="font-semibold">{job.printConfig?.copies ?? 1}</span></div>
+                <div className="flex justify-between text-[13px]"><span className="text-[#111827]/60">Double Sided</span><span className="font-semibold">{job.printConfig?.doubleSided ? "Yes" : "No"}</span></div>
+                <div className="flex justify-between text-[13px]"><span className="text-[#111827]/60">Stapling</span><span className="font-semibold">{job.printConfig?.stapling ? "Yes" : "No"}</span></div>
+              </div>
+            )}
+          </div>
 
           <Section title="Payment Information" rows={[
             ["Status", job.paymentStatus.toUpperCase()],
@@ -351,6 +401,28 @@ export function PrintShopPanel({ token }: { token: string | null }) {
   const [agentToken, setAgentToken] = useState<string | null>(null);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [batchPrinting, setBatchPrinting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"Active" | "Completed">("Active");
+  const [analyticsRange, setAnalyticsRange] = useState<RevenueRange>("daily");
+  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
+
+  const toggleBatch = (key: string) => {
+    setExpandedBatches(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const displayedJobs = useMemo(() => {
+    // Only display jobs that haven't been soft deleted by the 12-hour janitor
+    const visibleJobs = jobs.filter(j => !j.deletedAt);
+    if (activeTab === "Active") {
+      return visibleJobs.filter(j => j.jobStatus !== "printed");
+    } else {
+      return visibleJobs.filter(j => j.jobStatus === "printed");
+    }
+  }, [jobs, activeTab]);
 
   useEffect(() => {
     if (agentPrinters.length > 0 && !selectedPrinter) {
@@ -358,18 +430,49 @@ export function PrintShopPanel({ token }: { token: string | null }) {
     }
   }, [agentPrinters, selectedPrinter]);
 
-  const confirm = async (id: string) => {
+  const onConfirm = async (id: string) => {
     if (!token) return;
     try { await confirmJobPayment(id, token); refresh(); } catch { }
   };
-  const fail = async (id: string) => {
+  const onFail = async (id: string) => {
     if (!token) return;
     try { await markJobFailed(id, token); refresh(); } catch { }
   };
-  const print = async (id: string) => {
+  const onPrint = async (id: string) => {
     if (!token) return;
     try { await markJobPrinted(id, token); refresh(); } catch { }
   };
+
+  const onConfirmBatch = async (ids: string[]) => {
+    if (!token) return;
+    try {
+      await Promise.all(ids.map(id => confirmJobPayment(id, token)));
+      refresh();
+    } catch { }
+  };
+  const onPrintBatch = async (ids: string[]) => {
+    if (!token) return;
+    try {
+      await Promise.all(ids.map(id => markJobPrinted(id, token)));
+      refresh();
+    } catch { }
+  };
+
+  const groupedJobs = useMemo(() => {
+    const groups: { key: string; jobs: PrintJob[] }[] = [];
+    for (const job of displayedJobs) {
+      // Use exact timestamp to only group files from the exact same transaction (batch)
+      const dateKey = job.createdAt;
+      const key = `${job.senderName}_${dateKey}_${job.paymentStatus}`;
+      const last = groups[groups.length - 1];
+      if (last && last.key === key) {
+        last.jobs.push(job);
+      } else {
+        groups.push({ key, jobs: [job] });
+      }
+    }
+    return groups;
+  }, [displayedJobs]);
 
   const handleSelectJob = (id: string) => {
     setSelectedJobIds((prev) => {
@@ -380,8 +483,18 @@ export function PrintShopPanel({ token }: { token: string | null }) {
     });
   };
 
+  const handleUpdateConfig = async (id: string, config: Partial<PrintConfig>) => {
+    if (!token) return;
+    try {
+      await updatePrintConfig(id, config, token);
+      refresh();
+    } catch (err) {
+      alert("Failed to update config");
+    }
+  };
+
   const toggleSelectAll = () => {
-    const pendingJobs = jobs.filter(j => j.paymentStatus === 'paid' && j.jobStatus !== 'printed');
+    const pendingJobs = displayedJobs.filter(j => j.paymentStatus === 'paid' && j.jobStatus !== 'printed');
     if (selectedJobIds.size === pendingJobs.length) {
       setSelectedJobIds(new Set());
     } else {
@@ -485,20 +598,38 @@ export function PrintShopPanel({ token }: { token: string | null }) {
         )}
       </AnimatePresence>
 
-      <Kpis jobs={jobs} />
-      <RevenueChart jobs={jobs} />
+      <Kpis jobs={filterJobsByRange(jobs, analyticsRange)} />
+      <RevenueChart jobs={jobs} range={analyticsRange} setRange={setAnalyticsRange} />
 
       {/* Shared documents list */}
       <div className="bg-white/50 border border-white/70 rounded-2xl overflow-hidden">
         <div className="px-4 py-3 border-b border-[#111827]/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h3 className="text-[14px] font-bold text-[#111827]">Print Jobs</h3>
+            
+            <div className="flex bg-[#111827]/5 rounded-lg p-1 ml-4">
+              <button 
+                onClick={() => setActiveTab("Active")}
+                className={`px-3 py-1 text-[12px] font-bold rounded-md transition-colors ${activeTab === "Active" ? "bg-white shadow-sm text-[#111827]" : "text-[#111827]/60 hover:text-[#111827]"}`}
+              >
+                Active
+              </button>
+              <button 
+                onClick={() => setActiveTab("Completed")}
+                className={`px-3 py-1 text-[12px] font-bold rounded-md transition-colors ${activeTab === "Completed" ? "bg-white shadow-sm text-[#111827]" : "text-[#111827]/60 hover:text-[#111827]"}`}
+              >
+                Completed
+              </button>
+            </div>
+          </div>
+          {activeTab === "Active" && (
             <button onClick={toggleSelectAll} className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800">
               Select All Ready
             </button>
-          </div>
-          {selectedJobIds.size > 0 && (
-            <div className="flex items-center gap-2">
+          )}
+        </div>
+        {selectedJobIds.size > 0 && activeTab === "Active" && (
+            <div className="flex items-center gap-2 p-3 border-b border-[#111827]/5 bg-white/40">
               <select
                 value={selectedPrinter}
                 onChange={(e) => setSelectedPrinter(e.target.value)}
@@ -517,76 +648,190 @@ export function PrintShopPanel({ token }: { token: string | null }) {
               </button>
             </div>
           )}
-        </div>
 
-        {jobs.length === 0 ? (
+        {loading ? (
           <div className="p-10 text-center text-[13px] text-[#111827]/50">
-            No print jobs yet — documents submitted through your portal QR will appear here.
+            Loading...
+          </div>
+        ) : displayedJobs.length === 0 ? (
+          <div className="p-10 text-center text-[13px] text-[#111827]/50">
+            No {activeTab.toLowerCase()} print jobs.
           </div>
         ) : (
           <div className="divide-y divide-[#111827]/5">
-            {jobs.map((job) => (
-              <button
-                key={job.id}
-                className={`w-full text-left px-4 py-3.5 transition-colors flex items-center gap-3 ${selectedJobIds.has(job.id) ? 'bg-indigo-50/50' : 'hover:bg-white/40'}`}
-              >
-                {job.paymentStatus === 'paid' && job.jobStatus !== 'printed' && (
-                  <div className="shrink-0 pt-1" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedJobIds.has(job.id)}
-                      onChange={() => handleSelectJob(job.id)}
-                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                    />
-                  </div>
-                )}
-                <div onClick={() => setOpenJobId(job.id)} className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
-                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${job.printType === "color"
-                    ? "bg-gradient-to-br from-[#f472b6] to-[#8b5cf6]"
-                    : "bg-gradient-to-br from-[#4b5563] to-[#111827]"
-                    }`}>
-                    {job.printType === "color" ? <Palette className="w-5 h-5 text-white" /> : <PrinterIcon className="w-5 h-5 text-white" />}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-bold text-[#111827] truncate">{job.documentName}</p>
-                    <p className="text-[12px] text-[#111827]/55 flex items-center gap-1.5 flex-wrap">
-                      <User className="w-3 h-3" /> {job.senderName}
-                      <span>·</span> {job.pages} pages · {job.printType === "color" ? "Color" : "B&W"} · {inr(job.pricePerPage)}/page
-                      {job.printConfig?.copies && job.printConfig.copies > 1 && <span className="font-semibold text-[#111827]">· {job.printConfig.copies} copies</span>}
-                      <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${job.paymentMethod === "cash" ? "bg-amber-500/15 text-amber-700" : "bg-emerald-500/15 text-emerald-700"
-                        }`}>{job.paymentMethod === "cash" ? "CASH" : "UPI"}</span>
-                      <span className="hidden sm:inline-flex items-center gap-1"><CalendarDays className="w-3 h-3" />
-                        {new Date(job.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusPill job={job} />
-                    {job.paymentStatus === "pending" && (
-                      <span
-                        role="button" tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); confirm(job.id); }}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); confirm(job.id); } }}
-                        className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
-                      >
-                        <BadgeCheck className="w-3.5 h-3.5" /> Confirm
-                      </span>
+            {groupedJobs.map((group) => {
+              if (group.jobs.length === 1) {
+                const job = group.jobs[0];
+                return (
+                  <button
+                    key={job.id}
+                    className={`w-full text-left px-4 py-3.5 transition-colors flex items-center gap-3 ${selectedJobIds.has(job.id) ? 'bg-indigo-50/50' : 'hover:bg-white/40'}`}
+                  >
+                    {job.paymentStatus === 'paid' && job.jobStatus !== 'printed' && (
+                      <div className="shrink-0 pt-1" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedJobIds.has(job.id)}
+                          onChange={() => handleSelectJob(job.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        />
+                      </div>
                     )}
-                    {job.paymentStatus === "paid" && job.jobStatus !== "printed" && (
-                      <span
-                        role="button" tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); print(job.id); }}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); print(job.id); } }}
-                        className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#111827] text-white text-[11px] font-bold hover:bg-black transition-colors cursor-pointer"
-                      >
-                        <CheckSquare className="w-3.5 h-3.5" /> Mark Printed
+                    <div onClick={() => setOpenJobId(job.id)} className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                      <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${job.printType === "color"
+                        ? "bg-gradient-to-br from-[#f472b6] to-[#8b5cf6]"
+                        : "bg-gradient-to-br from-[#4b5563] to-[#111827]"
+                        }`}>
+                        {job.printType === "color" ? <Palette className="w-5 h-5 text-white" /> : <PrinterIcon className="w-5 h-5 text-white" />}
                       </span>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-[#111827]/30" onClick={() => setOpenJobId(job.id)} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-bold text-[#111827] truncate">{job.documentName}</p>
+                        <p className="text-[12px] text-[#111827]/55 flex items-center gap-1.5 flex-wrap">
+                          <User className="w-3 h-3" /> {job.senderName}
+                          <span>·</span> {job.pages} pages · {job.printType === "color" ? "Color" : "B&W"} · {inr(job.pricePerPage)}/page
+                          {job.printConfig?.copies && job.printConfig.copies > 1 && <span className="font-semibold text-[#111827]">· {job.printConfig.copies} copies</span>}
+                          <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${job.paymentMethod === "cash" ? "bg-amber-500/15 text-amber-700" : "bg-emerald-500/15 text-emerald-700"
+                            }`}>{job.paymentMethod === "cash" ? "CASH" : "UPI"}</span>
+                          <span className="hidden sm:inline-flex items-center gap-1"><CalendarDays className="w-3 h-3" />
+                            {new Date(job.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusPill job={job} />
+                        {job.paymentStatus === "pending" && (
+                          <span
+                            role="button" tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); onConfirm(job.id); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onConfirm(job.id); } }}
+                            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
+                          >
+                            <BadgeCheck className="w-3.5 h-3.5" /> Confirm
+                          </span>
+                        )}
+                        {job.paymentStatus === "paid" && job.jobStatus !== "printed" && (
+                          <span
+                            role="button" tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); onPrint(job.id); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onPrint(job.id); } }}
+                            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#111827] text-white text-[11px] font-bold hover:bg-black transition-colors cursor-pointer"
+                          >
+                            <CheckSquare className="w-3.5 h-3.5" /> Mark Printed
+                          </span>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-[#111827]/30" onClick={() => setOpenJobId(job.id)} />
+                      </div>
+                    </div>
+                  </button>
+                );
+              }
+
+              // Batch Group
+              const firstJob = group.jobs[0];
+              const batchTotalAmount = group.jobs.reduce((sum, j) => sum + j.totalAmount, 0);
+              
+              const isExpanded = expandedBatches.has(group.key);
+              
+              return (
+                <div key={group.key} className="w-full flex flex-col border-b border-[#111827]/5 last:border-b-0 hover:bg-white/20 transition-colors">
+                  <div 
+                    onClick={() => toggleBatch(group.key)}
+                    className="px-4 py-3 bg-white/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#111827]/5 cursor-pointer hover:bg-white/60"
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide">
+                        Batch of {group.jobs.length}
+                      </span>
+                      <span className="text-[13px] font-bold text-[#111827] flex items-center gap-1">
+                        <User className="w-3.5 h-3.5" /> {firstJob.senderName}
+                      </span>
+                      <span className="text-[12px] text-[#111827]/60 flex items-center gap-1">
+                        <CalendarDays className="w-3 h-3" />
+                        {new Date(firstJob.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${firstJob.paymentMethod === "cash" ? "bg-amber-500/15 text-amber-700" : "bg-emerald-500/15 text-emerald-700"}`}>
+                        {firstJob.paymentMethod === "cash" ? "CASH" : "UPI"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 self-end sm:self-auto" onClick={e => e.stopPropagation()}>
+                      <span className="text-[13px] font-bold text-[#111827]">
+                        Total: {inr(batchTotalAmount)}
+                      </span>
+                      {firstJob.paymentStatus === "pending" && (
+                        <button
+                          onClick={() => onConfirmBatch(group.jobs.map(j => j.id))}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors"
+                        >
+                          <BadgeCheck className="w-3.5 h-3.5" /> Confirm All
+                        </button>
+                      )}
+                      {firstJob.paymentStatus === "paid" && firstJob.jobStatus !== "printed" && (
+                        <button
+                          onClick={() => onPrintBatch(group.jobs.map(j => j.id))}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#111827] text-white text-[11px] font-bold hover:bg-black transition-colors"
+                        >
+                          <CheckSquare className="w-3.5 h-3.5" /> Print All
+                        </button>
+                      )}
+                      <div className="w-px h-5 bg-[#111827]/10 mx-1 hidden sm:block" />
+                      <button className="p-1 rounded-md hover:bg-white/50 transition-colors" onClick={() => toggleBatch(group.key)}>
+                        <ChevronRight className={`w-5 h-5 text-[#111827]/40 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                      </button>
+                    </div>
                   </div>
+
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="flex flex-col divide-y divide-[#111827]/5">
+                    {group.jobs.map(job => (
+                      <button
+                        key={job.id}
+                        onClick={() => setOpenJobId(job.id)}
+                        className={`w-full text-left pl-6 pr-4 py-2.5 transition-colors flex items-center gap-3 ${selectedJobIds.has(job.id) ? 'bg-indigo-50/50' : 'hover:bg-white/60'}`}
+                      >
+                        {job.paymentStatus === 'paid' && job.jobStatus !== 'printed' && (
+                          <div className="shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectedJobIds.has(job.id)}
+                              onChange={() => handleSelectJob(job.id)}
+                              className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                            />
+                          </div>
+                        )}
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm ${job.printType === "color"
+                          ? "bg-gradient-to-br from-[#f472b6] to-[#8b5cf6]"
+                          : "bg-gradient-to-br from-[#4b5563] to-[#111827]"
+                          }`}>
+                          {job.printType === "color" ? <Palette className="w-4 h-4 text-white" /> : <PrinterIcon className="w-4 h-4 text-white" />}
+                        </span>
+                        <div className="min-w-0 flex-1 flex flex-col justify-center">
+                          <p className="text-[13px] font-bold text-[#111827] truncate leading-tight">{job.documentName}</p>
+                          <p className="text-[11px] text-[#111827]/60 flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {job.pages} pages · {job.printType === "color" ? "Color" : "B&W"} · {inr(job.pricePerPage)}/page
+                            {job.printConfig?.copies && job.printConfig.copies > 1 && <span className="font-semibold text-[#111827]">· {job.printConfig.copies} copies</span>}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <StatusPill job={job} />
+                          <ChevronRight className="w-3 h-3 text-[#111827]/30" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -597,9 +842,10 @@ export function PrintShopPanel({ token }: { token: string | null }) {
           <JobDrawer
             job={openJob}
             onClose={() => setOpenJobId(null)}
-            onConfirm={(id) => { confirm(id); }}
-            onFail={(id) => { fail(id); }}
-            onPrint={(id) => { print(id); }}
+            onConfirm={onConfirm}
+            onFail={onFail}
+            onPrint={onPrint}
+            onUpdateConfig={handleUpdateConfig}
           />
         )}
       </AnimatePresence>

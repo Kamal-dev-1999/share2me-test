@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS printshop_settings (
   location_name TEXT,
   qr_r2_key TEXT,
   is_accepting BOOLEAN DEFAULT true,
+  retention_hours INTEGER DEFAULT 24,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -141,3 +142,6 @@ ALTER TABLE vendors ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS razorpay_account_id TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS bank_account_number TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS bank_ifsc TEXT;
+
+-- Print Shop Data Retention
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS retention_hours INTEGER DEFAULT 24;

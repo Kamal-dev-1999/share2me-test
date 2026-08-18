@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * "Printing & Payment Settings" — shopkeeper-only section inside Dashboard → Settings.
@@ -14,7 +14,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   QrCode, IndianRupee, Printer, Palette, CheckCircle2, MapPin,
-  Loader2, Download, AtSign, Copy, Check,
+  Loader2, Download, AtSign, Copy, Check, Clock,
 } from "lucide-react";
 /* eslint-disable @next/next/no-img-element */
 import {
@@ -95,6 +95,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
         colorPrice: settings.colorPrice,
         locationName: settings.locationName,
         isAccepting: settings.isAccepting,
+        retentionHours: settings.retentionHours || 24,
       }, token);
       setSavedToast(true);
       setTimeout(() => setSavedToast(false), 2600);
@@ -277,6 +278,28 @@ export function PrintingSettings({ token }: { token: string | null }) {
                 placeholder="e.g. Sharma Xerox, Gate 2"
                 className="w-full bg-white rounded-xl border border-white/80 px-3 py-2.5 text-[13px] text-[#111827] focus:outline-none focus:border-[#111827]/40"
               />
+            </label>
+          </div>
+
+          <div className="bg-white/50 border border-white/70 rounded-2xl p-4 mt-4">
+            <label className="block">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#111827]/60 mb-1.5">
+                <Clock className="w-3.5 h-3.5" /> Data Retention Period
+              </span>
+              <select
+                value={settings.retentionHours || 24}
+                onChange={(e) => setSettings((s) => ({ ...s, retentionHours: Number(e.target.value) }))}
+                className="w-full bg-white rounded-xl border border-white/80 px-3 py-2.5 text-[13px] text-[#111827] focus:outline-none focus:border-[#111827]/40 cursor-pointer"
+              >
+                <option value={12}>12 Hours</option>
+                <option value={24}>24 Hours</option>
+                <option value={48}>2 Days</option>
+                <option value={168}>7 Days</option>
+                <option value={720}>30 Days</option>
+              </select>
+              <p className="mt-2 text-[10px] text-[#111827]/50 leading-tight">
+                Jobs older than this will be automatically and permanently deleted from your dashboard and storage.
+              </p>
             </label>
           </div>
 

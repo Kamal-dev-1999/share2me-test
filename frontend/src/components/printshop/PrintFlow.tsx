@@ -36,6 +36,8 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const submittingRef = useRef(false);
+
   // Load real shop settings from backend on mount
   useEffect(() => {
     getPublicShopSettings(shopCode)
@@ -49,20 +51,19 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true' && params.get('jobId')) {
       const jobId = params.get('jobId')!;
-      setJob({
+      setJobs([{
         id: jobId, documentName: "Document", fileSizeBytes: 0, fileType: "",
         pages: 1, senderName: "You", printType: "bw", pricePerPage: 0,
         totalAmount: 0, paymentMethod: "online", paymentStatus: "paid",
-        paymentId: "stripe", paidAt: new Date().toISOString(), createdAt: new Date().toISOString()
-      });
+        paymentId: "stripe", paidAt: new Date().toISOString(), createdAt: new Date().toISOString(),
+        printConfig: { copies: 1, paperSize: 'A4', doubleSided: false, stapling: false }
+      }]);
       setStep(4);
     }
   }, []);
 
   // Step 1 state
-  const [file, setFile] = useState<File | null>(null);
-  const [pages, setPages] = useState<number | null>(null);
-  const [counting, setCounting] = useState(false);
+  const [filesState, setFilesState] = useState<{ id: string; file: File; pages: number; counting: boolean; config?: PrintConfig & { printType?: PrintType } }[]>([]);
   const [senderName, setSenderName] = useState("");
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -80,63 +81,97 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
 
   // Step 4/5 state
   const [payMethod, setPayMethod] = useState<PaymentMethod | null>(null);
-  const [job, setJob] = useState<PrintJob | null>(null);
+  const [jobs, setJobs] = useState<PrintJob[]>([]);
 
   const effectiveSettings = settings ?? DEFAULT_SETTINGS;
   const qrConfigured = !!effectiveSettings.qrUrl || !!effectiveSettings.charges_enabled;
-  const effectiveCopies = printConfig.copies || 1;
-  // Double-sided reduces page count by half (rounded up)
-  const effectivePages = pages ? (printConfig.doubleSided ? Math.ceil(pages / 2) : pages) : 0;
-  const pricePerPage = printType === "color" ? effectiveSettings.colorPrice : effectiveSettings.bwPrice;
-  const total = useMemo(
-    () => (effectivePages && printType ? effectivePages * pricePerPage * effectiveCopies : 0),
-    [effectivePages, printType, pricePerPage, effectiveCopies]
-  );
-
-  // ── Step 1: upload + page count ────────────────────────────────
-  const handleFile = async (f: File) => {
-    setFile(f);
-    setPages(null);
-    setCounting(true);
-    try {
-      setPages(await countPages(f));
-    } catch {
-      setPages(1);
-    } finally {
-      setCounting(false);
+  
+  const total = useMemo(() => {
+    if (!printType) return 0;
+    let sum = 0;
+    for (const fs of filesState) {
+      if (!fs.pages) continue;
+      const type = fs.config?.printType || printType;
+      const price = type === "color" ? effectiveSettings.colorPrice : effectiveSettings.bwPrice;
+      const copies = fs.config?.copies || printConfig.copies || 1;
+      const dSided = fs.config?.doubleSided ?? printConfig.doubleSided;
+      const effectivePages = dSided ? Math.ceil(fs.pages / 2) : fs.pages;
+      sum += effectivePages * price * copies;
     }
+    return sum;
+  }, [filesState, printType, printConfig, effectiveSettings]);
+
+  const isCounting = filesState.some(f => f.counting);
+  const totalPages = filesState.reduce((sum, f) => sum + (f.pages || 0), 0);  // ── Step 1: upload + page count ────────────────────────────────
+  const handleFiles = async (fileList: FileList | File[]) => {
+    const newFiles = Array.from(fileList).slice(0, 10 - filesState.length);
+    if (newFiles.length === 0) return;
+
+    const added = newFiles.map(f => ({
+      id: Math.random().toString(36).substring(7),
+      file: f,
+      pages: 0,
+      counting: true
+    }));
+    
+    setFilesState(prev => [...prev, ...added]);
+
+    for (const item of added) {
+      try {
+        const p = await countPages(item.file);
+        setFilesState(prev => prev.map(fs => fs.id === item.id ? { ...fs, pages: p, counting: false } : fs));
+      } catch {
+        setFilesState(prev => prev.map(fs => fs.id === item.id ? { ...fs, pages: 1, counting: false } : fs));
+      }
+    }
+  };
+
+  const removeFile = (id: string) => {
+    setFilesState(prev => prev.filter(fs => fs.id !== id));
   };
 
   // ── Step 3 → 4: submit job to backend ──────────────────────────
   const submitJob = async (method: PaymentMethod) => {
-    if (!file || !pages || !printType || submitting) return;
+    if (filesState.length === 0 || !printType || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const result = await submitPrintJob({
-        shopCode,
-        senderName: senderName.trim() || "Anonymous",
-        documentName: file.name,
-        fileSizeBytes: file.size,
-        fileType: file.type || "application/octet-stream",
-        pages: effectivePages,
-        printType,
-        paymentMethod: method,
-        printConfig,
+      // @ts-ignore
+      const { submitBulkPrintJob } = await import("@/lib/printShop");
+      
+      const payloadFiles = filesState.map(fs => {
+        const dSided = fs.config?.doubleSided ?? printConfig.doubleSided;
+        const effectivePages = dSided ? Math.ceil(fs.pages / 2) : fs.pages;
+        return {
+          documentName: fs.file.name,
+          fileSizeBytes: fs.file.size,
+          fileType: fs.file.type || "application/octet-stream",
+          pages: effectivePages,
+          printConfig: fs.config,
+        };
       });
 
-      if (result.uploadUrl) {
-        const uploadRes = await fetch(result.uploadUrl, {
+      const result = await submitBulkPrintJob({
+        shopCode,
+        senderName: senderName.trim() || "Anonymous",
+        paymentMethod: method,
+        printType,
+        files: payloadFiles,
+      });
+
+      // Upload all files concurrently
+      await Promise.all(result.jobs.map((job, idx) => {
+        if (!job.uploadUrl) return Promise.resolve();
+        const fileObj = filesState[idx].file;
+        return fetch(job.uploadUrl, {
           method: 'PUT',
-          body: file,
-          headers: {
-            'Content-Type': file.type || "application/octet-stream"
-          }
+          body: fileObj,
+          headers: { 'Content-Type': fileObj.type || "application/octet-stream" }
+        }).then(res => {
+          if (!res.ok) throw new Error("Failed to upload document");
         });
-        if (!uploadRes.ok) {
-          throw new Error("Failed to upload document to cloud storage.");
-        }
-      }
+      }));
 
       if (method === 'online' && result.razorpayOrderId) {
         const loaded = await new Promise((resolve) => {
@@ -150,6 +185,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         if (!loaded) {
           setSubmitError("Failed to load Razorpay SDK. Please check your connection.");
           setSubmitting(false);
+          submittingRef.current = false;
           return;
         }
 
@@ -158,33 +194,32 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
           amount: result.amountPaise,
           currency: "INR",
           name: shopName,
-          description: "Print Job Payment",
+          description: "Bulk Print Job Payment",
           order_id: result.razorpayOrderId,
           handler: async function (response: any) {
             try {
-              const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/printshop/verify-payment`, {
+              const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/printshop/verify-payment-bulk`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   razorpay_payment_id: response.razorpay_payment_id,
                   razorpay_order_id: response.razorpay_order_id,
                   razorpay_signature: response.razorpay_signature,
-                  jobId: result.jobId
+                  jobIds: result.jobs.map(j => j.jobId)
                 })
               });
               if (!verifyRes.ok) throw new Error("Payment verification failed");
               
-              const created: PrintJob = {
-                id: result.jobId, documentName: file.name, fileSizeBytes: file.size,
-                fileType: file.type || "application/octet-stream", pages: effectivePages,
-                senderName: senderName.trim() || "Anonymous", printType,
-                pricePerPage: result.pricePerPage, totalAmount: result.totalAmount,
+              const createdJobs: PrintJob[] = result.jobs.map((j, idx) => ({
+                id: j.jobId, documentName: filesState[idx].file.name, fileSizeBytes: filesState[idx].file.size,
+                fileType: filesState[idx].file.type || "application/octet-stream", pages: payloadFiles[idx].pages,
+                senderName: senderName.trim() || "Anonymous", printType: payloadFiles[idx].printConfig?.printType || printType,
+                pricePerPage: j.pricePerPage, totalAmount: j.totalAmount,
                 paymentMethod: method, paymentStatus: "paid",
                 paymentId: response.razorpay_payment_id, paidAt: new Date().toISOString(),
-                createdAt: new Date().toISOString(),
-                printConfig,
-              };
-              setJob(created);
+                createdAt: j.createdAt, printConfig: payloadFiles[idx].printConfig || printConfig,
+              }));
+              setJobs(createdJobs);
               setStep(5);
             } catch (err) {
               setSubmitError("Payment verification failed. If money was deducted, please contact the shopkeeper.");
@@ -202,60 +237,58 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         });
         rzp.open();
         setSubmitting(false);
+        submittingRef.current = false;
         return;
       }
 
-      const created: PrintJob = {
-        id: result.jobId,
-        documentName: file.name,
-        fileSizeBytes: file.size,
-        fileType: file.type || "application/octet-stream",
-        pages: effectivePages,
-        senderName: senderName.trim() || "Anonymous",
-        printType,
-        pricePerPage: result.pricePerPage,
-        totalAmount: result.totalAmount,
-        paymentMethod: method,
-        paymentStatus: "pending",
-        paymentId: null,
-        paidAt: null,
-        createdAt: result.createdAt,
-        printConfig,
-      };
-      setJob(created);
+      const createdJobs: PrintJob[] = result.jobs.map((j, idx) => ({
+        id: j.jobId, documentName: filesState[idx].file.name, fileSizeBytes: filesState[idx].file.size,
+        fileType: filesState[idx].file.type || "application/octet-stream", pages: payloadFiles[idx].pages,
+        senderName: senderName.trim() || "Anonymous", printType: payloadFiles[idx].printConfig?.printType || printType,
+        pricePerPage: j.pricePerPage, totalAmount: j.totalAmount,
+        paymentMethod: method, paymentStatus: "pending",
+        paymentId: null, paidAt: null,
+        createdAt: j.createdAt, printConfig: payloadFiles[idx].printConfig || printConfig,
+      }));
+      setJobs(createdJobs);
       setStep(5);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "submission_failed";
-      setSubmitError(msg === "shop_not_accepting" ? "This shop is not currently accepting orders." : "Submission failed. Please try again.");
+      console.error(err);
+      setSubmitError(err instanceof Error && err.message === "shop_not_accepting" ? "This shop is not currently accepting orders." : "Submission failed. Please try again.");
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   };
 
   useEffect(() => {
-    if (step !== 5 || !job || job.paymentStatus === "paid") return;
+    if (step !== 5 || jobs.length === 0) return;
     const socket = socketIO(
       process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000",
       { transports: ["websocket", "polling"] }
     );
 
     socket.on("connect", () => {
-      socket.emit("g2p:join_job_room", { jobId: job.id });
+      for (const j of jobs) {
+        socket.emit("g2p:join_job_room", { jobId: j.id });
+      }
     });
 
     socket.on("printshop:job_updated", (payload: { jobId: string; paymentStatus?: string; paymentId?: string; paidAt?: string; jobStatus?: string; printedAt?: string }) => {
-      if (payload.jobId !== job.id) return;
-      setJob((prev) => prev ? { 
-        ...prev, 
-        paymentStatus: (payload.paymentStatus || prev.paymentStatus) as any, 
-        paymentId: payload.paymentId || prev.paymentId, 
-        paidAt: payload.paidAt || prev.paidAt,
-        jobStatus: (payload.jobStatus || prev.jobStatus) as any,
-        printedAt: payload.printedAt || prev.printedAt
-      } : prev);
+      setJobs(prev => prev.map(j => {
+        if (j.id !== payload.jobId) return j;
+        return {
+          ...j,
+          paymentStatus: (payload.paymentStatus || j.paymentStatus) as any,
+          paymentId: payload.paymentId || j.paymentId,
+          paidAt: payload.paidAt || j.paidAt,
+          jobStatus: (payload.jobStatus || j.jobStatus) as any,
+          printedAt: payload.printedAt || j.printedAt
+        };
+      }));
     });
     return () => { socket.disconnect(); };
-  }, [step, job]);
+  }, [step, jobs.length]);
 
   if (settingsLoading) return (
     <div className="flex items-center justify-center py-16">
@@ -264,43 +297,50 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
   );
 
   const downloadReceipt = async () => {
-    if (!job) return;
+    if (jobs.length === 0) return;
     const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
     const doc = await PDFDocument.create();
-    const page = doc.addPage([420, 520]);
+    const page = doc.addPage([420, 600]);
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const ink = rgb(0.07, 0.09, 0.15);
-    let y = 470;
+    let y = 550;
     const line = (label: string, value: string, big = false) => {
       page.drawText(label, { x: 40, y, size: 10, font, color: rgb(0.45, 0.45, 0.5) });
       page.drawText(value, { x: 200, y, size: big ? 14 : 11, font: bold, color: ink });
       y -= big ? 28 : 22;
     };
-    page.drawText("Share2Me — Print Receipt", { x: 40, y: 490, size: 16, font: bold, color: ink });
-    y = 450;
-    line("Shop", shopName);
-    line("Customer", job.senderName);
-    line("Document", job.documentName.slice(0, 34));
-    line("Pages", String(job.pages));
-    line("Print type", job.printType === "color" ? "Color" : "Black & White");
-    line("Price per page", `Rs ${job.pricePerPage}`);
-    line("Amount paid", `Rs ${job.totalAmount}`, true);
-    line("Method", job.paymentMethod === "cash" ? "Cash at counter" : "UPI (online)");
-    line("Payment ID", job.paymentId ?? "-");
-    line("Date", job.paidAt ? new Date(job.paidAt).toLocaleString("en-IN") : "-");
-    line("Status", "PAID");
+    
+    page.drawText(shopName, { x: 40, y: y + 20, size: 18, font: bold, color: ink });
+    y -= 30;
+    line("Receipt Date", new Date().toLocaleString());
+    line("Total Amount", inr(jobs.reduce((acc, j) => acc + j.totalAmount, 0)), true);
+    line("Payment Status", jobs[0].paymentStatus.toUpperCase(), true);
+    line("Payment ID", jobs[0].paymentId || "N/A");
+    line("Sender Name", jobs[0].senderName);
+    
+    y -= 10;
+    page.drawText("Items", { x: 40, y, size: 14, font: bold, color: ink });
+    y -= 25;
+    for (const j of jobs) {
+      line(`Document`, j.documentName);
+      line(`Pages / Type`, `${j.pages} pages - ${j.printType.toUpperCase()}`);
+      line(`Cost`, inr(j.totalAmount));
+      y -= 10;
+      if (y < 50) break;
+    }
+
     const bytes = await doc.save();
-    const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `receipt-${job.paymentId ?? job.id}.pdf`;
+    a.download = `receipt-${shopName.replace(/\s+/g, '-')}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const isPaid = job?.paymentStatus === "paid";
+  const isPaid = jobs.length > 0 && jobs.every(j => j.paymentStatus === "paid");
 
   return (
     <div className="w-full">
@@ -357,35 +397,42 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
             <div
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
-              onDrop={(e) => { e.preventDefault(); setDragging(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
+              onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files); }}
               onClick={() => inputRef.current?.click()}
               className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
                 dragging ? "border-emerald-500 bg-emerald-500/10" : "border-[#111827]/20 bg-white/40 hover:bg-white/60"
               }`}
             >
-              <input ref={inputRef} type="file" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+              <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => e.target.files && handleFiles(e.target.files)} />
               <Upload className="w-8 h-8 mx-auto text-[#111827]/50 mb-3" strokeWidth={1.75} />
-              <p className="text-[14px] font-semibold text-[#111827]">Drop your document here or tap to browse</p>
-              <p className="text-[12px] text-[#111827]/50 mt-1">PDF, Word, PowerPoint, Excel, text &amp; images — pages counted automatically</p>
+              <p className="text-[14px] font-semibold text-[#111827]">Drop documents here or tap to browse</p>
+              <p className="text-[12px] text-[#111827]/50 mt-1">Select up to 10 files. Pages counted automatically.</p>
             </div>
 
-            {file && (
-              <div className="mt-4 flex items-center gap-3 bg-white/60 border border-white/70 rounded-2xl p-4">
-                <span className="w-11 h-11 rounded-xl bg-[#111827] text-white flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-bold text-[#111827] truncate">{file.name}</p>
-                  <p className="text-[12px] text-[#111827]/60">
-                    {formatBytes(file.size)}
-                    {" · "}
-                    {counting ? (
-                      <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> counting pages…</span>
-                    ) : (
-                      <span className="font-semibold text-[#111827]">{pages} page{pages !== 1 ? "s" : ""}</span>
-                    )}
-                  </p>
-                </div>
+            {filesState.length > 0 && (
+              <div className="mt-4 flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-2 scrollbar-thin">
+                {filesState.map(fs => (
+                  <div key={fs.id} className="flex items-center gap-3 bg-white/60 border border-white/70 rounded-2xl p-3 shrink-0">
+                    <span className="w-10 h-10 rounded-xl bg-[#111827] text-white flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-bold text-[#111827] truncate">{fs.file.name}</p>
+                      <p className="text-[11px] text-[#111827]/60">
+                        {formatBytes(fs.file.size)}
+                        {" · "}
+                        {fs.counting ? (
+                          <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> counting...</span>
+                        ) : (
+                          <span className="font-semibold text-[#111827]">{fs.pages} page{fs.pages !== 1 ? "s" : ""}</span>
+                        )}
+                      </p>
+                    </div>
+                    <button onClick={() => removeFile(fs.id)} className="w-8 h-8 flex items-center justify-center text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors">
+                      <span className="text-xl leading-none">&times;</span>
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -398,7 +445,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
             />
 
             <button
-              disabled={!file || counting || !pages || !senderName.trim()}
+              disabled={filesState.length === 0 || isCounting || totalPages === 0 || !senderName.trim()}
               onClick={() => setStep(2)}
               className="mt-4 w-full h-12 rounded-full bg-[#111827] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-40"
             >
@@ -407,7 +454,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
           </motion.div>
         )}
 
-        {step === 2 && pages && (
+        {step === 2 && filesState.length > 0 && (
           <motion.div key="s2" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
             <h3 className="text-[16px] font-bold text-[#111827] mb-3">Select printing type</h3>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -441,9 +488,8 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
             {printType && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 className="mt-4 bg-white/60 border border-white/70 rounded-2xl p-4 text-[13px]">
-                <div className="flex justify-between py-1"><span className="text-[#111827]/60">Pages</span><b>{pages}</b></div>
-                <div className="flex justify-between py-1"><span className="text-[#111827]/60">Print type</span><b>{printType === "color" ? "Color" : "Black & White"}</b></div>
-                <div className="flex justify-between py-1"><span className="text-[#111827]/60">Price per page</span><b>{inr(pricePerPage)}</b></div>
+                <div className="flex justify-between py-1"><span className="text-[#111827]/60">Total Pages</span><b>{totalPages}</b></div>
+                <div className="flex justify-between py-1"><span className="text-[#111827]/60">Default Print type</span><b>{printType === "color" ? "Color" : "Black & White"}</b></div>
                 <div className="flex justify-between py-2 mt-1 border-t border-[#111827]/10 text-[16px]">
                   <span className="font-bold text-[#111827]">Total</span>
                   <span className="font-extrabold text-[#111827]">{inr(total)}</span>
@@ -466,7 +512,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
           </motion.div>
         )}
 
-        {step === 3 && pages && printType && (
+        {step === 3 && filesState.length > 0 && printType && (
           <motion.div key="s3" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
             <h3 className="text-[16px] font-bold text-[#111827] mb-1">Configure printing</h3>
             <p className="text-[12px] text-[#111827]/60 mb-4">Defaults are pre-filled — adjust as needed or go straight to payment.</p>
@@ -523,6 +569,37 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
                 </div>
               </button>
             </div>
+
+            {filesState.length > 1 && (
+              <div className="mb-4">
+                <p className="text-[12px] font-bold text-[#111827] mb-2">Individual file settings (optional)</p>
+                <div className="flex flex-col gap-2 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
+                  {filesState.map(fs => (
+                    <div key={fs.id} className="bg-white/60 border border-white/70 rounded-2xl p-3 flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-bold text-[#111827] truncate">{fs.file.name}</p>
+                        <p className="text-[10px] text-[#111827]/60">{fs.pages} pages</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <select
+                          className="text-[11px] font-semibold bg-[#111827]/5 border-none rounded-lg px-2 py-1 outline-none text-[#111827]"
+                          value={fs.config?.printType || printType || "bw"}
+                          onChange={(e) => setFilesState(prev => prev.map(f => f.id === fs.id ? { ...f, config: { ...(f.config || printConfig), printType: e.target.value as PrintType } } : f))}
+                        >
+                          <option value="bw">B&W</option>
+                          <option value="color">Color</option>
+                        </select>
+                        <div className="flex items-center bg-[#111827]/5 rounded-lg px-2 py-1 text-[#111827]">
+                          <button className="text-[14px] font-bold px-1" onClick={() => setFilesState(prev => prev.map(f => f.id === fs.id ? { ...f, config: { ...(f.config || printConfig), copies: Math.max(1, (f.config?.copies || printConfig.copies) - 1) } } : f))}>-</button>
+                          <span className="text-[12px] font-bold w-4 text-center">{fs.config?.copies || printConfig.copies}</span>
+                          <button className="text-[14px] font-bold px-1" onClick={() => setFilesState(prev => prev.map(f => f.id === fs.id ? { ...f, config: { ...(f.config || printConfig), copies: Math.min(20, (f.config?.copies || printConfig.copies) + 1) } } : f))}>+</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button onClick={() => setStep(2)} className="h-12 px-5 rounded-full bg-white/60 border border-white/70 text-[13px] font-semibold text-[#111827] inline-flex items-center gap-1.5">
@@ -629,9 +706,11 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         )}
 
         {/* ── STEP 5 — Pending → Success ── */}
-        {step === 5 && job && (() => {
-          const isPaid = job.paymentStatus === "paid";
-          const isPrinted = job.jobStatus === "printed";
+        {step === 5 && jobs.length > 0 && (() => {
+          const isPaid = jobs.every(j => j.paymentStatus === "paid");
+          const isPrinted = jobs.every(j => j.jobStatus === "printed");
+          const batchTotal = jobs.reduce((sum, j) => sum + j.totalAmount, 0);
+          const docName = jobs.length === 1 ? jobs[0].documentName : `${jobs.length} documents`;
 
           if (isPaid && isPrinted) {
             return (
@@ -651,7 +730,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
                     <Download className="w-4 h-4" /> Receipt
                   </button>
                   <button onClick={() => {
-                    setJob(null); setFile(null); setPages(null); setPrintType(null); setPayMethod(null); setStep(1);
+                    setJobs([]); setFilesState([]); setPrintType(null); setPayMethod(null); setStep(1);
                   }} className="flex-1 h-12 rounded-full bg-[#111827] text-white text-[14px] font-bold shadow-sm flex items-center justify-center gap-2 hover:bg-black transition-colors">
                     <Upload className="w-4 h-4" /> Send more
                   </button>
@@ -671,11 +750,11 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
                 </motion.span>
                 <h3 className="text-[20px] font-extrabold text-[#111827]">Payment Successful</h3>
                 <p className="text-[13px] text-[#111827]/60 mt-1 mb-4">
-                  {job.senderName} · {job.documentName}
+                  {jobs[0].senderName} · {docName}
                 </p>
                 <div className="w-full max-w-sm text-left bg-white/70 rounded-2xl border border-white/80 p-4 text-[13px] mb-5">
-                  <div className="flex justify-between py-1"><span className="text-[#111827]/60">Amount paid</span><b className="text-emerald-600">{inr(job.totalAmount)} Paid</b></div>
-                  <div className="flex justify-between py-1"><span className="text-[#111827]/60">Payment ID</span><b className="font-mono text-[11px]">{job.paymentId}</b></div>
+                  <div className="flex justify-between py-1"><span className="text-[#111827]/60">Amount paid</span><b className="text-emerald-600">{inr(batchTotal)} Paid</b></div>
+                  <div className="flex justify-between py-1"><span className="text-[#111827]/60">Payment ID</span><b className="font-mono text-[11px]">{jobs[0].paymentId}</b></div>
                 </div>
                 <div className="flex items-center gap-3 bg-blue-500/10 text-blue-700 px-4 py-3 rounded-xl border border-blue-500/20 text-[13px] text-left w-full max-w-sm mb-5">
                   <Printer className="w-5 h-5 shrink-0" />
@@ -699,11 +778,11 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
                 </motion.span>
                 <h3 className="text-[20px] font-extrabold text-[#111827]">Document Printed!</h3>
                 <p className="text-[13px] text-[#111827]/60 mt-2 max-w-[320px]">
-                  <b>{job.documentName}</b> is ready to collect.
+                  <b>{docName}</b> ready to collect.
                 </p>
                 <div className="mt-5 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 max-w-[300px] w-full">
                   <p className="text-[14px] font-bold text-amber-700 mb-1">Payment Required</p>
-                  <p className="text-[13px] text-amber-700/80">Please pay <b>{inr(job.totalAmount)}</b> at the counter to collect your prints.</p>
+                  <p className="text-[13px] text-amber-700/80">Please pay <b>{inr(batchTotal)}</b> at the counter to collect your prints.</p>
                 </div>
                 <span className="mt-5 inline-flex items-center gap-2 text-[12px] text-[#111827]/50">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Waiting for shopkeeper to confirm payment...
@@ -720,11 +799,11 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
               </span>
               <h3 className="text-[20px] font-extrabold text-[#111827]">Document submitted</h3>
               <p className="text-[13px] text-[#111827]/60 mt-2 max-w-[320px]">
-                <b>{job.documentName}</b> ({job.pages} pages, {job.printType === "color" ? "Color" : "B&W"}) is with the shop.{" "}
-                {job.paymentMethod === "cash" ? (
-                  <>Pay <b>{inr(job.totalAmount)}</b> in <span className="text-amber-600 font-semibold">cash at the counter</span> when you collect your prints.</>
+                <b>{docName}</b> is with the shop.{" "}
+                {jobs[0].paymentMethod === "cash" ? (
+                  <>Pay <b>{inr(batchTotal)}</b> in <span className="text-amber-600 font-semibold">cash at the counter</span> when you collect your prints.</>
                 ) : (
-                  <>Payment of <b>{inr(job.totalAmount)}</b> is <span className="text-orange-600 font-semibold">pending verification</span> by the shopkeeper.</>
+                  <>Payment of <b>{inr(batchTotal)}</b> is <span className="text-orange-600 font-semibold">pending verification</span> by the shopkeeper.</>
                 )}
               </p>
               <span className="mt-5 inline-flex items-center gap-2 text-[12px] text-[#111827]/50">

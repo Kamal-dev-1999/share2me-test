@@ -54,6 +54,7 @@ export interface PrintJob {
   razorpayOrderId?: string | null;
   amountPaise?: number;
   fileUrl?: string | null;
+  deletedAt?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -178,6 +179,7 @@ export interface ShopkeeperSettings {
   upiId?: string;
   qrImageUrl?: string | null;  // Razorpay QR image URL (permanent)
   qrId?: string | null;        // Razorpay QR Code ID
+  retentionHours?: number;
 }
 
 export async function getShopSettings(token: string): Promise<ShopkeeperSettings> {
@@ -185,7 +187,7 @@ export async function getShopSettings(token: string): Promise<ShopkeeperSettings
 }
 
 export async function saveShopSettings(
-  settings: { bwPrice: number; colorPrice: number; locationName: string; isAccepting?: boolean; razorpay_account_id?: string | null; charges_enabled?: boolean },
+  settings: { bwPrice: number; colorPrice: number; locationName: string; isAccepting?: boolean; razorpay_account_id?: string | null; charges_enabled?: boolean; retentionHours?: number },
   token: string
 ): Promise<void> {
   await apiPut('/settings', settings, token);
@@ -258,6 +260,37 @@ export async function submitPrintJob(args: SubmitJobArgs): Promise<SubmitJobResu
   return apiPost<SubmitJobResult>('/jobs', args);
 }
 
+export interface SubmitBulkJobArgs {
+  shopCode: string;
+  senderName: string;
+  paymentMethod: PaymentMethod;
+  printType: PrintType;
+  files: {
+    documentName: string;
+    fileSizeBytes: number;
+    fileType: string;
+    pages: number;
+    printConfig?: PrintConfig;
+  }[];
+}
+
+export interface SubmitBulkJobResult {
+  jobs: {
+    jobId: string;
+    uploadUrl: string;
+    totalAmount: number;
+    pricePerPage: number;
+    createdAt: string;
+  }[];
+  totalBatchAmount: number;
+  razorpayOrderId?: string | null;
+  amountPaise?: number;
+}
+
+export async function submitBulkPrintJob(args: SubmitBulkJobArgs): Promise<SubmitBulkJobResult> {
+  return apiPost<SubmitBulkJobResult>('/jobs/bulk', args);
+}
+
 // ─────────────────────────────────────────────────────────────
 // Print Jobs — shopkeeper operations
 // ─────────────────────────────────────────────────────────────
@@ -293,7 +326,8 @@ function normalizeJob(j: Record<string, unknown>): PrintJob {
     paymentId: (j.payment_id ?? j.paymentId) as string | null,
     paidAt: (j.paid_at ?? j.paidAt) as string | null,
     createdAt: (j.created_at ?? j.createdAt) as string,
-    printConfig: (j.print_config ?? j.printConfig) as PrintConfig | null ?? null,
+    deletedAt: (j.deleted_at ?? j.deletedAt) as string | null,
+    printConfig: (typeof j.print_config === 'string' ? JSON.parse(j.print_config) : j.print_config) as PrintConfig | undefined,
     jobStatus: (j.job_status ?? j.jobStatus) as PrintJob['jobStatus'] ?? 'queued',
     printedAt: (j.printed_at ?? j.printedAt) as string | null ?? null,
   };
@@ -321,7 +355,21 @@ export async function markJobFailed(jobId: string, token: string): Promise<void>
   await apiPatch(`/jobs/${jobId}/fail`, token);
 }
 
-// ─── Agent operations ─────────────────────────────────────────────────────────
+export async function updatePrintConfig(jobId: string, config: Partial<PrintConfig>, token: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/config`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ config })
+  });
+  if (!res.ok) throw new Error('failed_to_update_config');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agent Dashboard Integration
+// ─────────────────────────────────────────────────────────────
 
 export async function getAgentPrinters(token: string): Promise<{ printers: string[]; online: boolean }> {
   return apiGet<{ printers: string[]; online: boolean }>('/printers', token);
@@ -368,7 +416,28 @@ export function computeKpis(jobs: PrintJob[]): PrintShopKpis {
   };
 }
 
-export type RevenueRange = "daily" | "weekly" | "monthly";
+export type RevenueRange = "daily" | "weekly" | "monthly" | "all_time";
+
+export function filterJobsByRange(jobs: PrintJob[], range: RevenueRange): PrintJob[] {
+  const now = new Date();
+  let cutoff = new Date(now);
+  if (range === "daily") {
+    cutoff.setDate(now.getDate() - 6);
+    cutoff.setHours(0, 0, 0, 0);
+  } else if (range === "weekly") {
+    cutoff.setDate(now.getDate() - 7 * 7 - 6);
+    cutoff.setHours(0, 0, 0, 0);
+  } else if (range === "monthly") {
+    cutoff = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  } else {
+    // all_time - return everything
+    return jobs;
+  }
+  return jobs.filter(j => {
+    const d = new Date(j.paidAt || j.createdAt).getTime();
+    return d >= cutoff.getTime();
+  });
+}
 
 export function revenueSeries(jobs: PrintJob[], range: RevenueRange): { label: string; revenue: number }[] {
   const paid = jobs.filter((j) => j.paymentStatus === "paid" && j.paidAt);
@@ -384,16 +453,36 @@ export function revenueSeries(jobs: PrintJob[], range: RevenueRange): { label: s
     }
   } else if (range === "weekly") {
     for (let i = 7; i >= 0; i--) {
-      const to = new Date(now); to.setDate(now.getDate() - i * 7);
-      const from = new Date(to); from.setDate(to.getDate() - 6);
+      const to = new Date(now);
+      to.setDate(now.getDate() - i * 7);
+      to.setHours(23, 59, 59, 999);
+      
+      const from = new Date(now);
+      from.setDate(now.getDate() - i * 7 - 6);
+      from.setHours(0, 0, 0, 0);
+      
       buckets.push({ label: `W${8 - i}`, from, to });
     }
-  } else {
+  } else if (range === "monthly") {
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const from = d;
       const to = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
       buckets.push({ label: d.toLocaleDateString("en-IN", { month: "short" }), from, to });
+    }
+  } else if (range === "all_time") {
+    // For all time, we group by month but dynamically based on the oldest job
+    if (paid.length === 0) {
+      buckets.push({ label: now.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }), from: new Date(0), to: now });
+    } else {
+      const oldest = new Date(Math.min(...paid.map(j => new Date(j.paidAt as string).getTime())));
+      let current = new Date(oldest.getFullYear(), oldest.getMonth(), 1);
+      while (current <= now) {
+        const from = new Date(current);
+        const to = new Date(current.getFullYear(), current.getMonth() + 1, 0, 23, 59, 59);
+        buckets.push({ label: current.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }), from, to });
+        current.setMonth(current.getMonth() + 1);
+      }
     }
   }
 
