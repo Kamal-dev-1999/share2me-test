@@ -577,7 +577,7 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                     onClick={async () => {
                       if (!agentToken) return;
                       try {
-                        const res = await fetch('http://127.0.0.1:13337/auth', {
+                        const res = await fetch('http://localhost:13337/auth', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ token: agentToken, serverUrl: EXPRESS_BACKEND_URL })

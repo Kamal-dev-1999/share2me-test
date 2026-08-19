@@ -64,17 +64,6 @@ function saveConfig(token, serverUrl) {
 }
 
 async function startAgent() {
-  if (process.platform === 'win32' && process.pkg && !process.argv.includes('--hidden')) {
-    const { spawn } = require('child_process');
-    const child = spawn(process.execPath, ['--hidden'], {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true
-    });
-    child.unref();
-    process.exit(0);
-  }
-
   if (process.argv.includes('--hidden')) {
     // Redirect console output to a log file to prevent crashes when stdout is closed
     const logStream = fs.createWriteStream(path.join(os.tmpdir(), 'Share2Me-Agent.log'), { flags: 'a' });
@@ -92,10 +81,13 @@ async function startAgent() {
 
   await new Promise((resolve) => {
     const server = http.createServer((req, res) => {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Request-Private-Network');
+      console.log(`[HTTP] ${req.method} ${req.url}`);
+      const origin = req.headers.origin || '*';
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Request-Private-Network, Authorization, Accept');
       res.setHeader('Access-Control-Allow-Private-Network', 'true');
+      res.setHeader('Access-Control-Max-Age', '86400');
 
       if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -138,7 +130,7 @@ async function startAgent() {
       }
     });
 
-    server.listen(13337, '127.0.0.1', () => {
+    server.listen(13337, '0.0.0.0', () => {
       console.log('Local Bridge running on port 13337 (Single instance lock active).');
       resolve();
     });
