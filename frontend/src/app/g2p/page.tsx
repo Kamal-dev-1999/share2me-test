@@ -23,7 +23,7 @@ function G2PContent() {
   useEffect(() => {
     if (status === "loading") return;
     if (status === "authenticated" && email) {
-      fetch("/api/g2p-token")
+      fetch("/api/g2p-token", { cache: "no-store" })
         .then(res => res.json())
         .then(data => {
           if (data.token) {

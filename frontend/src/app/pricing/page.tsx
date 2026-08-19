@@ -30,7 +30,7 @@ export default function PricingPage() {
   const handleSubscribe = async () => {
     setSubscribing(true);
     try {
-      const tokenRes = await fetch("/api/g2p-token");
+      const tokenRes = await fetch("/api/g2p-token", { cache: "no-store" });
       const tokenData = await tokenRes.json();
       if (!tokenData.token) {
         alert("Please log in to your G2P Receive Portal first to subscribe.");

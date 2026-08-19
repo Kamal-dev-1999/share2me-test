@@ -21,7 +21,9 @@ export async function GET() {
       .setExpirationTime('12h') // 12-hour session for the dashboard
       .sign(secretKey);
 
-    return NextResponse.json({ token });
+    const response = NextResponse.json({ token });
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
+    return response;
   } catch (error) {
     console.error("[Token API] Token generation failed:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

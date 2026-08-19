@@ -515,7 +515,7 @@ export default function G2pDashboard({
     let mounted = true;
 
     // Fetch token for API and Sockets
-    fetch("/api/g2p-token")
+    fetch("/api/g2p-token", { cache: "no-store" })
       .then(res => res.json())
       .then(data => {
         if (!mounted) return;

@@ -223,3 +223,24 @@ Add `printshop_jobs` columns:
 | `frontend/src/components/printshop/PrintingSettings.tsx` | MODIFY | P1 — Show QR after connect, UPI ID input |
 | `frontend/src/components/printshop/PrintShopPanel.tsx` | MODIFY | P1 — Full job table with actions |
 | `frontend/src/lib/printShop.ts` | MODIFY | P0 — Update types for new fields |
+
+---
+
+## Phase 6 — Batch Printing, Analytics Persistence, and Stability (Completed)
+
+### Multi-file Batching UX
+- **Grouped Batches**: Print jobs submitted together by a user at the exact same transaction timestamp are perfectly grouped into a single collapsible "Batch of N" in `PrintShopPanel.tsx`. 
+- **Collapsible Drawer UI**: Batches are collapsed by default to save vertical space in the "Completed" tab. Clicking the header expands the batch to reveal individual files, pages, and print types.
+- **Bulk Actions**: Added "Confirm All" and "Print All" bulk action buttons directly on the batch header, allowing shopkeepers to confirm or mark printed the entire batch of files in a single click without opening the drawer.
+
+### Double Submission Prevention
+- **Ref-Based Lock**: Added a `submittingRef` (using React `useRef`) in `PrintFlow.tsx` to instantly lock the submit button upon the first click. This permanently prevents duplicate database entries caused by users rapidly double-clicking before the React state (`submitting`) could asynchronously propagate.
+
+### Analytics Persistence & Data Retention (Soft Deletion)
+- **Soft Deletion Mechanism**: Modified the 12-hour `cleanup.js` cron worker. Print shop jobs are no longer permanently hard-deleted (`DELETE FROM`). Instead, they are "soft deleted" to preserve historical revenue and volume data for the vendor's dashboard charts.
+- **PII Scrubbing**: During soft deletion, sensitive user data (`sender_name`, `document_name`) is scrubbed to 'Deleted User' and 'Deleted Document', and the `r2_key` is nulled out. This ensures privacy and clears cloud storage while keeping financial data intact.
+
+### Backend Logic Fixes (`printshop.js`)
+- Fixed SQL column naming (`job_status` instead of `status`) in bulk print endpoints.
+- Resolved malformed template literals in queries.
+- Corrected missing `razorpay_account_id` selections in the bulk jobs endpoint to ensure automated platform/vendor revenue splitting works correctly.
