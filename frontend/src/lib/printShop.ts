@@ -61,7 +61,8 @@ export interface PrintJob {
 // API base helper
 // ─────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/g2p/printshop';
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${EXPRESS_BACKEND_URL}/g2p/printshop`;
 
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const headers: Record<string, string> = {};
@@ -120,7 +121,7 @@ async function apiPatch<T>(path: string, token: string): Promise<T> {
  */
 export async function setPersona(persona: UserPersona, _account?: string | null, token?: string): Promise<void> {
   if (!token) return;
-  const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || 'http://localhost:3000/g2p/vendor';
+  const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || `${EXPRESS_BACKEND_URL}/g2p/vendor`;
   await fetch(`${vendorApiBase}/persona`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -135,7 +136,7 @@ export async function setPersona(persona: UserPersona, _account?: string | null,
 export async function getPersona(_account?: string | null, token?: string): Promise<{ persona: UserPersona | null; persona_selected: boolean }> {
   if (!token) return { persona: null, persona_selected: false };
   try {
-    const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || 'http://localhost:3000/g2p/vendor';
+    const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || `${EXPRESS_BACKEND_URL}/g2p/vendor`;
     const res = await fetch(`${vendorApiBase}/me`, { headers: { 'Authorization': `Bearer ${token}` }, cache: 'no-store' });
     if (!res.ok) return { persona: null, persona_selected: false };
     const data = await res.json();

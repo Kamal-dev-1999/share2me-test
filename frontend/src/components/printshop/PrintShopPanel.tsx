@@ -55,7 +55,7 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean, strin
   useEffect(() => {
     if (!token) return;
     const socket: Socket = socketIO(
-      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000",
+      EXPRESS_BACKEND_URL,
       { transports: ["websocket", "polling"] }
     );
 
