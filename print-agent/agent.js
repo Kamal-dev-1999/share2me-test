@@ -43,22 +43,21 @@ function getSumatraPath() {
   return undefined;
 }
 
-function loadToken() {
+function loadConfig() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
-      const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-      return data.token;
+      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
     }
   } catch (err) { }
-  return null;
+  return { token: null, serverUrl: null };
 }
 
-function saveToken(token) {
+function saveConfig(token, serverUrl) {
   try {
     if (!fs.existsSync(CONFIG_DIR)) {
       fs.mkdirSync(CONFIG_DIR, { recursive: true });
     }
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ token }));
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ token, serverUrl }));
   } catch (err) {
     console.error('Failed to save config:', err.message);
   }
@@ -88,7 +87,8 @@ async function startAgent() {
   }
 
   console.log('--- Share2Me Print Agent Started ---');
-  let token = loadToken();
+  let { token, serverUrl } = loadConfig();
+  if (!serverUrl) serverUrl = SERVER_URL;
 
   await new Promise((resolve) => {
     const server = http.createServer((req, res) => {
@@ -110,11 +110,12 @@ async function startAgent() {
             const data = JSON.parse(body);
             if (data.token) {
               token = data.token;
-              saveToken(token);
+              serverUrl = data.serverUrl || process.env.SERVER_URL || 'https://share2me-version-2-0.onrender.com';
+              saveConfig(token, serverUrl);
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ success: true }));
-              console.log('Received token from web dashboard! Connecting...');
-              connectSocket(token);
+              console.log('Received token from web dashboard! Connecting to:', serverUrl);
+              connectSocket(token, serverUrl);
             } else {
               res.writeHead(400);
               res.end(JSON.stringify({ error: 'invalid_token' }));
@@ -146,19 +147,19 @@ async function startAgent() {
   if (!token) {
     console.log('Waiting for connection from the web dashboard... Please click "Link Agent" on the website.');
   } else {
-    connectSocket(token);
+    connectSocket(token, serverUrl);
   }
 }
 
 let socket = null;
 
-function connectSocket(token) {
+function connectSocket(token, url) {
   if (socket) {
     socket.disconnect();
   }
 
-  console.log('Connecting to server...');
-  socket = io(SERVER_URL, {
+  console.log('Connecting to server:', url);
+  socket = io(url, {
     transports: ['websocket', 'polling']
   });
 

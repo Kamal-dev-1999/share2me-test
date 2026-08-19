@@ -25,6 +25,8 @@ import {
 } from "@/lib/printShop";
 import { io as socketIO, Socket } from "socket.io-client";
 
+const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+
 // ─────────────────────────────────────────────────────────────
 // Shared bits
 // ─────────────────────────────────────────────────────────────
@@ -578,7 +580,7 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                         const res = await fetch('http://127.0.0.1:13337/auth', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ token: agentToken })
+                          body: JSON.stringify({ token: agentToken, serverUrl: EXPRESS_BACKEND_URL })
                         });
                         if (res.ok) alert('Agent linked successfully! The terminal should now say Connected.');
                         else alert('Failed to link agent. Make sure it is running!');
