@@ -88,6 +88,15 @@ router.post('/persona', async (req, res) => {
 
   try {
     await query(`UPDATE vendors SET persona = $1, persona_selected = true WHERE id = $2`, [persona, req.vendorId]);
+    
+    if (persona === 'PRINT_SHOP') {
+      await query(`
+        INSERT INTO printshop_settings (vendor_id, bw_price, color_price, is_accepting)
+        VALUES ($1, 2.0, 5.0, true)
+        ON CONFLICT (vendor_id) DO NOTHING
+      `, [req.vendorId]);
+    }
+
     res.json({ success: true, persona });
   } catch (err) {
     console.error('[G2P] Update persona error:', err);

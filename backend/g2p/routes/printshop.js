@@ -71,10 +71,13 @@ router.get('/shop/:code', async (req, res) => {
 
   try {
     const result = await query(`
-      SELECT ps.bw_price, ps.color_price, ps.location_name, ps.qr_r2_key, ps.is_accepting,
+      SELECT COALESCE(ps.bw_price, 2.0) as bw_price, 
+             COALESCE(ps.color_price, 5.0) as color_price, 
+             ps.location_name, ps.qr_r2_key, 
+             COALESCE(ps.is_accepting, true) as is_accepting,
              v.name as shop_name, v.charges_enabled
-      FROM printshop_settings ps
-      JOIN vendors v ON v.id = ps.vendor_id
+      FROM vendors v
+      LEFT JOIN printshop_settings ps ON v.id = ps.vendor_id
       WHERE v.share2me_id = $1 AND v.persona = 'PRINT_SHOP'
     `, [code]);
 
@@ -149,12 +152,15 @@ router.post('/jobs', async (req, res) => {
 
     // Look up the shopkeeper and their OFFICIAL pricing (lock to prevent TOCTOU)
     const shopRes = await client.query(`
-      SELECT v.id as vendor_id, ps.bw_price, ps.color_price, ps.is_accepting,
+      SELECT v.id as vendor_id, 
+             COALESCE(ps.bw_price, 2.0) as bw_price, 
+             COALESCE(ps.color_price, 5.0) as color_price, 
+             COALESCE(ps.is_accepting, true) as is_accepting,
              v.stripe_account_id, v.charges_enabled, v.razorpay_account_id
       FROM vendors v
-      JOIN printshop_settings ps ON ps.vendor_id = v.id
+      LEFT JOIN printshop_settings ps ON v.id = ps.vendor_id
       WHERE v.share2me_id = $1 AND v.persona = 'PRINT_SHOP'
-      FOR UPDATE OF ps
+      FOR UPDATE OF v
     `, [cleanCode]);
 
     if (shopRes.rowCount === 0) {
@@ -318,12 +324,15 @@ router.post('/jobs/bulk', async (req, res) => {
     await client.query('BEGIN');
 
     const shopRes = await client.query(`
-      SELECT v.id as vendor_id, ps.bw_price, ps.color_price, ps.is_accepting,
+      SELECT v.id as vendor_id, 
+             COALESCE(ps.bw_price, 2.0) as bw_price, 
+             COALESCE(ps.color_price, 5.0) as color_price, 
+             COALESCE(ps.is_accepting, true) as is_accepting,
              v.stripe_account_id, v.charges_enabled, v.razorpay_account_id
       FROM vendors v
-      JOIN printshop_settings ps ON ps.vendor_id = v.id
+      LEFT JOIN printshop_settings ps ON v.id = ps.vendor_id
       WHERE v.share2me_id = $1 AND v.persona = 'PRINT_SHOP'
-      FOR UPDATE OF ps
+      FOR UPDATE OF v
     `, [cleanCode]);
 
     if (shopRes.rowCount === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'shop_not_found' }); }
