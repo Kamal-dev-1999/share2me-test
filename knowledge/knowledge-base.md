@@ -6,10 +6,12 @@ This document is the project handoff for coding agents. Read this first when res
 
 ## 1. Project Summary
 
-ShareIt is a browser-based, secure peer-to-peer file transfer app with two transport modes:
+ShareIt is a browser-based, secure peer-to-peer file transfer app with two main flows:
 
-- `optical` — smaller transfers via QR streaming (not yet implemented end-to-end).
-- `webrtc` — larger transfers via WebRTC DataChannels (fully working).
+1. **P2P Transfer**: Two transport modes:
+   - `optical` — smaller transfers via QR streaming (not yet implemented end-to-end).
+   - `webrtc` — larger transfers via WebRTC DataChannels (fully working).
+2. **G2P (Get 2 Peer) / Vendor Dashboard**: A feature allowing vendors, print shops, or normal users to have a personalized Share Portal where others can upload files to them securely.
 
 ---
 
@@ -76,6 +78,12 @@ ShareIt/
 - **Unified App**: Sender and receiver flows are cleanly separated into React components (`SendFlow` and `ReceiveFlow`) but run on the same page.
 - **State Management**: `useTransfer.ts` encapsulates the complex WebRTC, Socket.io, and Web Worker logic from the POC into React hooks.
 - **Signaling & Proxy**: The backend Express server on port 3000 relays socket events AND uses `http-proxy-middleware` to forward all other HTTP requests to the Next.js dev server on port 3001. This allows **a single ngrok URL** to handle both the app UI and WebSockets.
+
+### G2P (Get 2 Peer) Vendor Dashboard
+- **Bento Box UI**: The dashboard (`G2pDashboard.tsx`) has been completely overhauled from a standard table to a modern, responsive grid-based "Bento Box" layout with glass-morphism effects (`backdrop-blur`, `bg-white/20`, dynamic SVG gradients for file-type icons).
+- **Responsive Layout**: Mobile uses a compact pill-shaped bottom/top navigation, while desktop features a glass sidebar with high-level metrics.
+- **Real-Time Sync**: Driven by `socket.io-client`, file uploads and download statuses sync in real-time (`g2p:new_submission`, `g2p:file_downloaded`).
+- **Monetization & Extensions**: Includes Stripe checkout for "Pro Plan" upgrades, debounced custom QR code logo saving, and a specialized "Print Shop" panel (`PrintShopPanel.tsx`) integration.
 
 ### Crypto & Security (End-to-End)
 - **ECDH-based key exchange**: Raw AES key is **never** in metadata or QR output.
