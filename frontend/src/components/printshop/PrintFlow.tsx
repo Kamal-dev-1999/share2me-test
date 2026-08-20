@@ -301,46 +301,167 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
 
   const downloadReceipt = async () => {
     if (jobs.length === 0) return;
-    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
-    const doc = await PDFDocument.create();
-    const page = doc.addPage([420, 600]);
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-    const ink = rgb(0.07, 0.09, 0.15);
-    let y = 550;
-    const line = (label: string, value: string, big = false) => {
-      page.drawText(label, { x: 40, y, size: 10, font, color: rgb(0.45, 0.45, 0.5) });
-      page.drawText(value, { x: 200, y, size: big ? 14 : 11, font: bold, color: ink });
-      y -= big ? 28 : 22;
-    };
-    
-    page.drawText(shopName, { x: 40, y: y + 20, size: 18, font: bold, color: ink });
-    y -= 30;
-    line("Receipt Date", new Date().toLocaleString());
-    line("Total Amount", inr(jobs.reduce((acc, j) => acc + j.totalAmount, 0)), true);
-    line("Payment Status", jobs[0].paymentStatus.toUpperCase(), true);
-    line("Payment ID", jobs[0].paymentId || "N/A");
-    line("Sender Name", jobs[0].senderName);
-    
-    y -= 10;
-    page.drawText("Items", { x: 40, y, size: 14, font: bold, color: ink });
-    y -= 25;
-    for (const j of jobs) {
-      line(`Document`, j.documentName);
-      line(`Pages / Type`, `${j.pages} pages - ${j.printType.toUpperCase()}`);
-      line(`Cost`, inr(j.totalAmount));
-      y -= 10;
-      if (y < 50) break;
-    }
+    try {
+      const { PDFDocument, StandardFonts, rgb, degrees } = await import("pdf-lib");
+      const doc = await PDFDocument.create();
+      // Standard A4 size
+      const page = doc.addPage([595.28, 841.89]);
+      const { width, height } = page.getSize();
+      
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+      const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+      
+      const colors = {
+        primary: rgb(0.067, 0.094, 0.153),   // #111827
+        secondary: rgb(0.294, 0.333, 0.388), // #4b5563
+        lightGray: rgb(0.953, 0.957, 0.965), // #f3f4f6
+        border: rgb(0.898, 0.906, 0.922),    // #e5e7eb
+        success: rgb(0.063, 0.725, 0.506),   // #10b981
+        white: rgb(1, 1, 1),
+      };
 
-    const bytes = await doc.save();
-    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `receipt-${shopName.replace(/\s+/g, '-')}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+      // 1. Watermark
+      page.drawText("SHARE2ME", {
+        x: width / 2 - 180,
+        y: height / 2 - 100,
+        size: 80,
+        font: bold,
+        color: rgb(0.96, 0.97, 0.98),
+        rotate: degrees(45),
+      });
+
+      // 2. Header Block
+      page.drawRectangle({
+        x: 0,
+        y: height - 120,
+        width: width,
+        height: 120,
+        color: colors.primary,
+      });
+      
+      try {
+        const logoRes = await fetch('/logo.png');
+        if (logoRes.ok) {
+          const logoBytes = await logoRes.arrayBuffer();
+          const logoImage = await doc.embedPng(logoBytes);
+          const scale = 30 / logoImage.height;
+          page.drawImage(logoImage, {
+            x: 40,
+            y: height - 60,
+            width: logoImage.width * scale,
+            height: 30,
+          });
+        } else {
+          page.drawText("SHARE2ME", { x: 40, y: height - 50, size: 24, font: bold, color: colors.white });
+        }
+      } catch (e) {
+        page.drawText("SHARE2ME", { x: 40, y: height - 50, size: 24, font: bold, color: colors.white });
+      }
+      page.drawText("OFFICIAL RECEIPT", { x: width - 230, y: height - 50, size: 18, font: bold, color: colors.white });
+      page.drawText(`Shop: ${shopName} (${shopCode})`, { x: 40, y: height - 80, size: 12, font, color: colors.border });
+      
+      const dateStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+      page.drawText(`Date: ${dateStr}`, { x: width - 230, y: height - 80, size: 10, font, color: colors.border });
+
+      // 3. Customer & Payment Details (2 columns)
+      let currentY = height - 180;
+      const leftX = 40;
+      const rightX = width / 2 + 40;
+      
+      // Billing To
+      page.drawText("Billed To", { x: leftX, y: currentY, size: 10, font: bold, color: colors.secondary });
+      page.drawText(jobs[0].senderName || "Guest", { x: leftX, y: currentY - 20, size: 14, font: bold, color: colors.primary });
+      
+      // Payment Details
+      page.drawText("Payment Info", { x: rightX, y: currentY, size: 10, font: bold, color: colors.secondary });
+      page.drawText(`Method: ${jobs[0].paymentMethod?.toUpperCase() || "ONLINE"}`, { x: rightX, y: currentY - 20, size: 11, font, color: colors.primary });
+      page.drawText(`Status:`, { x: rightX, y: currentY - 40, size: 11, font, color: colors.primary });
+      
+      const statusText = jobs[0].paymentStatus.toUpperCase();
+      const statusColor = statusText === 'PAID' ? colors.success : colors.secondary;
+      page.drawText(statusText, { x: rightX + 45, y: currentY - 40, size: 11, font: bold, color: statusColor });
+      
+      if (jobs[0].paymentId) {
+        page.drawText(`Txn ID: ${jobs[0].paymentId}`, { x: rightX, y: currentY - 60, size: 10, font, color: colors.secondary });
+      }
+
+      currentY -= 110;
+
+      // 4. Items Table Header
+      page.drawRectangle({
+        x: 40,
+        y: currentY,
+        width: width - 80,
+        height: 30,
+        color: colors.lightGray,
+      });
+      
+      const col1 = 50;
+      const col2 = 330;
+      const col3 = 450;
+      
+      page.drawText("Description", { x: col1, y: currentY + 10, size: 10, font: bold, color: colors.secondary });
+      page.drawText("Pages / Type", { x: col2, y: currentY + 10, size: 10, font: bold, color: colors.secondary });
+      page.drawText("Amount", { x: col3, y: currentY + 10, size: 10, font: bold, color: colors.secondary });
+
+      currentY -= 30;
+
+      // 5. Items Rows
+      let totalAmount = 0;
+      for (const j of jobs) {
+        totalAmount += j.totalAmount;
+        
+        let docName = j.documentName;
+        if (docName.length > 40) docName = docName.substring(0, 37) + "...";
+        
+        page.drawText(docName, { x: col1, y: currentY, size: 11, font, color: colors.primary });
+        page.drawText(`${j.pages} pgs - ${j.printType.toUpperCase()}`, { x: col2, y: currentY, size: 11, font, color: colors.secondary });
+        page.drawText(inr(j.totalAmount).replace('₹', 'Rs. '), { x: col3, y: currentY, size: 11, font: bold, color: colors.primary });
+        
+        page.drawLine({
+          start: { x: 40, y: currentY - 10 },
+          end: { x: width - 40, y: currentY - 10 },
+          thickness: 1,
+          color: colors.border,
+        });
+        
+        currentY -= 30;
+        if (jobs.length > 10 && currentY < 150) break; // Simple safeguard
+      }
+
+      // 6. Totals
+      currentY -= 20;
+      page.drawText("Total Paid", { x: col2, y: currentY, size: 12, font: bold, color: colors.secondary });
+      page.drawText(inr(totalAmount).replace('₹', 'Rs. '), { x: col3, y: currentY, size: 16, font: bold, color: colors.primary });
+
+      // 7. Footer
+      page.drawRectangle({
+        x: 0,
+        y: 0,
+        width: width,
+        height: 50,
+        color: colors.lightGray,
+      });
+      page.drawText("Generated securely by Share2Me | share2.me", {
+        x: width / 2 - 110,
+        y: 20,
+        size: 10,
+        font,
+        color: colors.secondary,
+      });
+
+      // Save and Download
+      const bytes = await doc.save();
+      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Share2Me-Receipt-${shopName.replace(/\s+/g, '-')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to generate receipt", err);
+    }
   };
 
   const isPaid = jobs.length > 0 && jobs.every(j => j.paymentStatus === "paid");
