@@ -66,6 +66,7 @@ const toPositiveFloat = (n) => {
 // Returns pricing and QR URL for the student print flow.
 // NEVER returns vendor_id — only the public-facing fields.
 router.get('/shop/:code', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const code = sanitizeText(req.params.code, 10).toUpperCase();
   if (!code) return res.status(400).json({ error: 'invalid_code' });
 
@@ -530,6 +531,7 @@ router.post('/verify-payment', async (req, res) => {
 
 // ─── PROTECTED: GET /printshop/jobs ───────────────────────────────────────────
 router.get('/jobs', requireShopkeeper, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   if (settingsLimiter.isRateLimited(req.vendorId)) {
     return res.status(429).json({ error: 'rate_limited' });
   }

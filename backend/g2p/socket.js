@@ -97,11 +97,11 @@ function attachG2PSockets(io, metrics, bannedIPs) {
       
       try {
         if (status === 'printed') {
-          await query("UPDATE printshop_jobs SET status = 'printed', print_error = NULL WHERE id = $1 AND vendor_id = $2", [jobId, socket.agentVendorId]);
+          await query("UPDATE printshop_jobs SET job_status = 'printed', print_error = NULL WHERE id = $1 AND vendor_id = $2", [jobId, socket.agentVendorId]);
           emitToVendor(socket.agentVendorId, 'printshop:job_updated', { jobId, jobStatus: 'printed' });
           emitToJob(jobId, 'printshop:job_updated', { jobId, jobStatus: 'printed' });
         } else if (status === 'failed') {
-          await query("UPDATE printshop_jobs SET status = 'failed', print_error = $1 WHERE id = $2 AND vendor_id = $3", [error, jobId, socket.agentVendorId]);
+          await query("UPDATE printshop_jobs SET job_status = 'failed', print_error = $1 WHERE id = $2 AND vendor_id = $3", [error, jobId, socket.agentVendorId]);
           emitToVendor(socket.agentVendorId, 'printshop:job_updated', { jobId, jobStatus: 'failed', printError: error });
           emitToJob(jobId, 'printshop:job_updated', { jobId, jobStatus: 'failed' });
         }

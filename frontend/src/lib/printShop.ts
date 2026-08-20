@@ -67,7 +67,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${EXPRESS_BACKEND_URL}/g2p
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { headers, cache: 'no-store' });
+  const separator = path.includes('?') ? '&' : '?';
+  const url = `${API_BASE}${path}${separator}_t=${Date.now()}`;
+  const res = await fetch(url, { headers, cache: 'no-store' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'network_error' }));
     throw new Error(err.error || 'api_error');
