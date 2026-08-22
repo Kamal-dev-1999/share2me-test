@@ -121,7 +121,14 @@ async function apiPatch<T>(path: string, token: string): Promise<T> {
  * Sets the vendor's persona in the database.
  * token is the NextAuth session JWT.
  */
-export async function setPersona(persona: UserPersona, _account?: string | null, token?: string): Promise<void> {
+export async function setPersona(persona: UserPersona, account?: string | null, token?: string): Promise<void> {
+  // Write to localStorage immediately so reloads don't re-show the modal
+  // even if the backend call hasn't completed yet.
+  if (typeof window !== 'undefined' && account) {
+    try {
+      localStorage.setItem(`g2p_persona_${account}`, JSON.stringify({ persona, selected: true }));
+    } catch { /* quota exceeded — ignore */ }
+  }
   if (!token) return;
   const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || `${EXPRESS_BACKEND_URL}/g2p/vendor`;
   await fetch(`${vendorApiBase}/persona`, {
@@ -135,14 +142,40 @@ export async function setPersona(persona: UserPersona, _account?: string | null,
  * Returns the vendor's persona from /me response.
  * token is the NextAuth session JWT.
  */
-export async function getPersona(_account?: string | null, token?: string): Promise<{ persona: UserPersona | null; persona_selected: boolean }> {
+export async function getPersona(account?: string | null, token?: string): Promise<{ persona: UserPersona | null; persona_selected: boolean }> {
+  // Fast path: localStorage cache keyed by account email.
+  // Written by setPersona() the moment the user picks a role, so reloads
+  // never re-show the modal even when the backend is slow/unavailable.
+  if (typeof window !== 'undefined' && account) {
+    try {
+      const cached = localStorage.getItem(`g2p_persona_${account}`);
+      if (cached) {
+        const parsed = JSON.parse(cached) as { persona: UserPersona; selected: boolean };
+        if (parsed.selected && parsed.persona) {
+          return { persona: parsed.persona, persona_selected: true };
+        }
+      }
+    } catch { /* corrupt entry — fall through to backend */ }
+  }
+
   if (!token) return { persona: null, persona_selected: false };
   try {
     const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || `${EXPRESS_BACKEND_URL}/g2p/vendor`;
     const res = await fetch(`${vendorApiBase}/me`, { headers: { 'Authorization': `Bearer ${token}` }, cache: 'no-store' });
     if (!res.ok) return { persona: null, persona_selected: false };
     const data = await res.json();
-    return { persona: data.persona as UserPersona ?? null, persona_selected: !!data.persona_selected };
+    const persona = data.persona as UserPersona ?? null;
+    const persona_selected = !!data.persona_selected;
+
+    // Backfill localStorage if backend says selected=true (e.g. first load after
+    // a different device or after clearing storage).
+    if (persona_selected && persona && typeof window !== 'undefined' && account) {
+      try {
+        localStorage.setItem(`g2p_persona_${account}`, JSON.stringify({ persona, selected: true }));
+      } catch { /* ignore */ }
+    }
+
+    return { persona, persona_selected };
   } catch {
     return { persona: null, persona_selected: false };
   }
