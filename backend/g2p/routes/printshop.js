@@ -76,7 +76,7 @@ router.get('/shop/:code', async (req, res) => {
              COALESCE(ps.color_price, 5.0) as color_price, 
              ps.location_name, ps.qr_r2_key, 
              COALESCE(ps.is_accepting, true) as is_accepting,
-             v.name as shop_name, v.charges_enabled
+             COALESCE(NULLIF(TRIM(v.company), ''), v.name) as shop_name, v.charges_enabled
       FROM vendors v
       LEFT JOIN printshop_settings ps ON v.id = ps.vendor_id
       WHERE v.share2me_id = $1 AND v.persona = 'PRINT_SHOP'
