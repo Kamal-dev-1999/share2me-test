@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Copy, Check, Search, Download, Trash2, Calendar,
@@ -7,7 +7,7 @@ import {
   Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, ArrowRight, BarChart, User, Loader2,
   CloudDownload, Share2, Activity, Bell, BellOff, CheckCircle2,
   FileCode, FileSpreadsheet, FileAudio, FileQuestion,
-  Printer, IndianRupee
+  Printer, IndianRupee, LayoutDashboard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
@@ -275,6 +275,7 @@ export default function G2pDashboard({
   const [isPersonaDropdownOpen, setIsPersonaDropdownOpen] = useState(false);
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [analyticsFilter, setAnalyticsFilter] = useState('7d');
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
 
   // QR Customization State
@@ -385,10 +386,10 @@ export default function G2pDashboard({
     }
   }, [playChime]);
 
-  const loadAnalytics = useCallback(async (authToken: string) => {
+  const loadAnalytics = useCallback(async (authToken: string, filter: string) => {
     setIsAnalyticsLoading(true);
     try {
-      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/analytics`, {
+      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/analytics?filter=${filter}`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       if (res.ok) {
@@ -555,10 +556,10 @@ export default function G2pDashboard({
   }, [connectSocket, loadUploads]);
 
   useEffect(() => {
-    if (activeTab === 'analytics' && token && !analyticsData) {
-      loadAnalytics(token);
+    if (activeTab === 'analytics' && token) {
+      loadAnalytics(token, analyticsFilter);
     }
-  }, [activeTab, token, analyticsData, loadAnalytics]);
+  }, [activeTab, token, analyticsFilter, loadAnalytics]);
 
   const handleDeleteUpload = async (uploadId: string) => {
     if (!token) return;
@@ -636,13 +637,25 @@ export default function G2pDashboard({
 
   const isShopkeeper = persona === "PRINT_SHOP";
 
+  // Auto-route Print Shop vendors to their primary tab on persona change
+  useEffect(() => {
+    if (isShopkeeper) {
+      setActiveTab(prev =>
+        prev === "inbox" || prev === "analytics" ? "printshop" : prev
+      );
+    } else {
+      setActiveTab(prev =>
+        prev === "printshop" || prev === "payments" ? "inbox" : prev
+      );
+    }
+  }, [isShopkeeper]);
+
   return (
     <div className="flex flex-col md:flex-row w-full md:h-[calc(100vh-3rem)] text-[#111827] font-sans gap-4 md:gap-6">
 
       {/* SVG Defs for gradient icons */}
       <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
         <defs>
-          {/* Main Layout Gradients */}
           <linearGradient id="g2p-dash" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop stopColor="#38bdf8" offset="0%" />
             <stop stopColor="#3b82f6" offset="100%" />
@@ -655,8 +668,6 @@ export default function G2pDashboard({
             <stop stopColor="#c084fc" offset="0%" />
             <stop stopColor="#9333ea" offset="100%" />
           </linearGradient>
-
-          {/* File Type Gradients */}
           <linearGradient id="grad-pdf" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#ef4444" offset="0%" /><stop stopColor="#b91c1c" offset="100%" /></linearGradient>
           <linearGradient id="grad-word" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#3b82f6" offset="0%" /><stop stopColor="#1d4ed8" offset="100%" /></linearGradient>
           <linearGradient id="grad-excel" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#22c55e" offset="0%" /><stop stopColor="#15803d" offset="100%" /></linearGradient>
@@ -678,7 +689,7 @@ export default function G2pDashboard({
         </defs>
       </svg>
 
-      {/* Live "X paid ₹Y" toasts + chime for the shopkeeper, on any tab */}
+      {/* Live payment toasts for shopkeeper on any tab */}
       {isShopkeeper && <PrintJobNotifier soundEnabled={soundEnabled} token={token} />}
 
       {/* SIDEBAR */}
@@ -690,34 +701,32 @@ export default function G2pDashboard({
             <span className="font-bold text-[15px] truncate text-[#111827] leading-tight">{displayName}</span>
             <span className="text-[13px] text-[#111827]/60">Admin</span>
           </div>
-          <button
-            onClick={onLogout}
-            aria-label="Log out"
-            title="Log out"
-            className="ml-auto shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-[#111827]/50 hover:text-red-600 hover:bg-red-500/10 transition-colors"
-          >
+          <button onClick={onLogout} aria-label="Log out" title="Log out" className="ml-auto shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-[#111827]/50 hover:text-red-600 hover:bg-red-500/10 transition-colors">
             <LogOut className="w-[18px] h-[18px]" strokeWidth={2.25} />
           </button>
         </div>
 
-        {/* MOBILE — compact horizontal tab pill (same colors, old-UX layout) */}
+        {/* MOBILE — persona-aware tab pill */}
         <div className="flex md:hidden items-center justify-around gap-1 p-2 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
-          {([
-            { tab: "inbox" as TabMode, icon: CloudDownload, grad: "g2p-dash" },
-            { tab: "share" as TabMode, icon: Share2, grad: "g2p-share" },
-            { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings" },
-            { tab: "analytics" as TabMode, icon: Activity, grad: "g2p-analytics" },
-            ...(isShopkeeper
+          {(
+            isShopkeeper
               ? [
-                { tab: "printshop" as TabMode, icon: Printer, grad: "g2p-share" },
-                { tab: "payments" as TabMode, icon: IndianRupee, grad: "g2p-analytics" },
-              ]
-              : []),
-          ]).map(({ tab, icon: TabIcon, grad }) => (
+                  { tab: "printshop" as TabMode, icon: LayoutDashboard, grad: "g2p-dash", label: "Print Orders" },
+                  { tab: "share" as TabMode, icon: Share2, grad: "g2p-share", label: "Share Portal" },
+                  { tab: "payments" as TabMode, icon: IndianRupee, grad: "g2p-analytics", label: "Payments" },
+                  { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings", label: "Settings" },
+                ]
+              : [
+                  { tab: "inbox" as TabMode, icon: CloudDownload, grad: "g2p-dash", label: "Dashboard" },
+                  { tab: "share" as TabMode, icon: Share2, grad: "g2p-share", label: "Share Portal" },
+                  { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings", label: "Settings" },
+                  { tab: "analytics" as TabMode, icon: Activity, grad: "g2p-analytics", label: "Analytics" },
+                ]
+          ).map(({ tab, icon: TabIcon, grad, label }) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              aria-label={tab}
+              aria-label={label}
               className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all ${activeTab === tab
                 ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)]"
                 : "hover:bg-white/40"
@@ -734,47 +743,57 @@ export default function G2pDashboard({
             </button>
           ))}
           <div className="w-px h-6 bg-white/40 mx-0.5" />
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            aria-label="Toggle alerts"
-            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all"
-          >
+          <button onClick={() => setSoundEnabled(!soundEnabled)} aria-label="Toggle alerts" className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all">
             {soundEnabled ? (
               <Bell className="w-5 h-5" style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }} strokeWidth={2.5} />
             ) : (
               <BellOff className="w-5 h-5" strokeWidth={2} />
             )}
           </button>
-          <button
-            onClick={() => setIsUpgradeModalOpen(true)}
-            aria-label="Pro plan"
-            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all"
-          >
+          <button onClick={() => setIsUpgradeModalOpen(true)} aria-label="Pro plan" className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all">
             <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white text-[10px] font-black flex items-center justify-center">LL</span>
           </button>
         </div>
 
-        {/* Dashboard Button (desktop) */}
-        <button
-          onClick={() => setActiveTab("inbox")}
-          className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${activeTab === "inbox"
-            ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-            : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
-            }`}
-        >
-          <CloudDownload
-            className="w-5 h-5 transition-transform duration-300"
-            style={activeTab === "inbox" ? { stroke: "url(#g2p-dash)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-            strokeWidth={activeTab === "inbox" ? 2.5 : 2}
-          />
-          <span>Dashboard</span>
-          {uploads.length > 0 && activeTab !== "inbox" && (
-            <span className="ml-auto w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></span>
-          )}
-        </button>
+        {/* Primary Action Button (desktop) — persona-aware */}
+        {isShopkeeper ? (
+          <button
+            onClick={() => setActiveTab("printshop")}
+            className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${activeTab === "printshop"
+              ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+              : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
+              }`}
+          >
+            <LayoutDashboard
+              className="w-5 h-5 transition-transform duration-300"
+              style={activeTab === "printshop" ? { stroke: "url(#g2p-dash)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
+              strokeWidth={activeTab === "printshop" ? 2.5 : 2}
+            />
+            <span>Print Orders</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setActiveTab("inbox")}
+            className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${activeTab === "inbox"
+              ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+              : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
+              }`}
+          >
+            <CloudDownload
+              className="w-5 h-5 transition-transform duration-300"
+              style={activeTab === "inbox" ? { stroke: "url(#g2p-dash)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
+              strokeWidth={activeTab === "inbox" ? 2.5 : 2}
+            />
+            <span>Dashboard</span>
+            {uploads.length > 0 && activeTab !== "inbox" && (
+              <span className="ml-auto w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></span>
+            )}
+          </button>
+        )}
 
-        {/* 4-Grid Secondary Menu (desktop) */}
+        {/* 4-Grid Secondary Menu (desktop) — persona-aware */}
         <div className="hidden md:grid grid-cols-2 gap-3 sm:gap-4">
+          {/* Share Portal — always */}
           <button
             onClick={() => setActiveTab("share")}
             className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "share"
@@ -782,14 +801,11 @@ export default function G2pDashboard({
               : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
               }`}
           >
-            <Share2
-              className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
-              style={activeTab === "share" ? { stroke: "url(#g2p-share)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-              strokeWidth={activeTab === "share" ? 2.5 : 2}
-            />
+            <Share2 className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={activeTab === "share" ? { stroke: "url(#g2p-share)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined} strokeWidth={activeTab === "share" ? 2.5 : 2} />
             <span className="text-[13px] font-bold">Share Portal</span>
           </button>
 
+          {/* Settings — always */}
           <button
             onClick={() => setActiveTab("settings")}
             className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "settings"
@@ -797,73 +813,45 @@ export default function G2pDashboard({
               : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
               }`}
           >
-            <Settings
-              className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
-              style={activeTab === "settings" ? { stroke: "url(#g2p-settings)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-              strokeWidth={activeTab === "settings" ? 2.5 : 2}
-            />
+            <Settings className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={activeTab === "settings" ? { stroke: "url(#g2p-settings)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined} strokeWidth={activeTab === "settings" ? 2.5 : 2} />
             <span className="text-[13px] font-bold">Settings</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("analytics")}
-            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "analytics"
-              ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-              : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-              }`}
-          >
-            <Activity
-              className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
-              style={activeTab === "analytics" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-              strokeWidth={activeTab === "analytics" ? 2.5 : 2}
-            />
-            <span className="text-[13px] font-bold">Analytics</span>
-          </button>
-
-          {isShopkeeper && (
-            <>
-              <button
-                onClick={() => setActiveTab("printshop")}
-                className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "printshop"
-                  ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-                  : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-                  }`}
-              >
-                <Printer
-                  className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
-                  style={activeTab === "printshop" ? { stroke: "url(#g2p-share)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-                  strokeWidth={activeTab === "printshop" ? 2.5 : 2}
-                />
-                <span className="text-[13px] font-bold">Print Shop</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("payments")}
-                className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "payments"
-                  ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-                  : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-                  }`}
-              >
-                <IndianRupee
-                  className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
-                  style={activeTab === "payments" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-                  strokeWidth={activeTab === "payments" ? 2.5 : 2}
-                />
-                <span className="text-[13px] font-bold">Payments</span>
-              </button>
-            </>
+          {/* Analytics — Personal/Educator only */}
+          {!isShopkeeper && (
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "analytics"
+                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
+                }`}
+            >
+              <Activity className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={activeTab === "analytics" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined} strokeWidth={activeTab === "analytics" ? 2.5 : 2} />
+              <span className="text-[13px] font-bold">Analytics</span>
+            </button>
           )}
 
+          {/* Payments — Print Shop only */}
+          {isShopkeeper && (
+            <button
+              onClick={() => setActiveTab("payments")}
+              className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "payments"
+                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
+                }`}
+            >
+              <IndianRupee className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={activeTab === "payments" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined} strokeWidth={activeTab === "payments" ? 2.5 : 2} />
+              <span className="text-[13px] font-bold">Payments</span>
+            </button>
+          )}
+
+          {/* Alerts toggle — always */}
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] bg-white/20 hover:bg-white/40 border-white/30 text-[#111827] group"
           >
             {soundEnabled ? (
-              <Bell
-                className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
-                style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }}
-                strokeWidth={2.5}
-              />
+              <Bell className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }} strokeWidth={2.5} />
             ) : (
               <BellOff className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
             )}
@@ -871,23 +859,17 @@ export default function G2pDashboard({
           </button>
         </div>
 
-        {/* Pro Plan Banner (desktop — mobile reaches it via the LL pill button) */}
+        {/* Pro Plan Banner */}
         <div className="mt-auto hidden md:block">
           <button onClick={() => setIsUpgradeModalOpen(true)} className="w-full text-left bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.25)] flex flex-col group hover:scale-[1.02] transition-transform">
-            {/* Minimal truck graphic / decoration */}
             <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none" />
-
             <div className="flex items-center gap-3 mb-2 relative z-10">
               <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-white/30 shrink-0">
                 <span className="font-black text-white text-base leading-none">LL</span>
               </div>
               <h4 className="font-bold text-[19px] tracking-tight text-white leading-none">Pro Plan</h4>
             </div>
-
-            <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">
-              Expedite cargo fleet with real-time tracking
-            </p>
-
+            <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">Expedite cargo fleet with real-time tracking</p>
             <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
               ₹199/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
             </div>
@@ -897,8 +879,6 @@ export default function G2pDashboard({
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      {/* Mobile: no outer shell — the inner card is the single box.
-          Desktop: full glass panel as before. */}
       <main className="flex-1 min-w-0 md:bg-white/20 md:backdrop-blur-[32px] md:border md:border-white/30 md:rounded-[32px] p-0 md:p-6 md:shadow-[0_8px_32px_rgba(0,0,0,0.08)] md:overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">
 
@@ -912,109 +892,64 @@ export default function G2pDashboard({
               transition={{ duration: 0.2 }}
               className="flex flex-col gap-4 md:gap-6 md:h-full md:min-h-0"
             >
-              {/* TOP METRICS BENTO BOXES — desktop only; mobile goes straight to uploads */}
               <div className="hidden md:grid md:grid-cols-3 gap-4 sm:gap-6">
                 <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#111827]/70 font-display">Active Requests</span>
-                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center">
-                      <Inbox className="w-4 h-4 text-[#111827]" />
-                    </div>
+                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center"><Inbox className="w-4 h-4 text-[#111827]" /></div>
                   </div>
                   <div className="text-3xl font-black text-[#111827]">{uploads.length}</div>
                 </div>
-
                 <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#111827]/70 font-display">Files Received</span>
-                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center">
-                      <FileText className="w-4 h-4 text-[#111827]" />
-                    </div>
+                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center"><FileText className="w-4 h-4 text-[#111827]" /></div>
                   </div>
-                  <div className="text-3xl font-black text-[#111827]">
-                    {uploads.reduce((acc, u) => acc + u.files.length, 0)}
-                  </div>
+                  <div className="text-3xl font-black text-[#111827]">{uploads.reduce((acc, u) => acc + u.files.length, 0)}</div>
                 </div>
-
                 <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#111827]/70 font-display">Storage Used</span>
-                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center">
-                      <HardDrive className="w-4 h-4 text-[#111827]" />
-                    </div>
+                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center"><HardDrive className="w-4 h-4 text-[#111827]" /></div>
                   </div>
-                  <div className="text-3xl font-black text-[#111827]">
-                    {formatSize(uploads.reduce((acc, u) => acc + u.files.reduce((sum, f) => sum + f.size, 0), 0))}
-                  </div>
+                  <div className="text-3xl font-black text-[#111827]">{formatSize(uploads.reduce((acc, u) => acc + u.files.reduce((sum, f) => sum + f.size, 0), 0))}</div>
                 </div>
               </div>
 
-              {/* MAIN DATA TABLE */}
               <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col flex-1 min-h-[calc(100dvh-190px)] md:min-h-0 overflow-hidden">
                 <div className="p-4 sm:p-6 border-b border-white/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
                   <h2 className="text-lg font-bold text-[#111827] font-display">Uploads</h2>
-
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="relative w-full sm:w-64">
                       <Search className="w-4 h-4 text-[#111827]/50 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Search sender or message..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white/50 border border-white/60 rounded-full pl-9 pr-4 py-2 text-sm text-[#111827] placeholder-[#111827]/50 focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all shadow-sm"
-                      />
+                      <input type="text" placeholder="Search sender or message..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-white/50 border border-white/60 rounded-full pl-9 pr-4 py-2 text-sm text-[#111827] placeholder-[#111827]/50 focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all shadow-sm" />
                     </div>
-                    <button
-                      onClick={() => setSortOrder(prev => prev === "latest" ? "oldest" : "latest")}
-                      className="bg-white/50 border border-white/60 hover:bg-white/70 text-sm font-bold text-[#111827] px-4 py-2 rounded-full transition-colors flex items-center gap-2 shrink-0 shadow-sm"
-                    >
+                    <button onClick={() => setSortOrder(prev => prev === "latest" ? "oldest" : "latest")} className="bg-white/50 border border-white/60 hover:bg-white/70 text-sm font-bold text-[#111827] px-4 py-2 rounded-full transition-colors flex items-center gap-2 shrink-0 shadow-sm">
                       <ArrowUpDown className="w-4 h-4" />
                       <span className="hidden sm:inline font-display">{sortOrder === "latest" ? "Latest" : "Oldest"}</span>
                     </button>
                   </div>
                 </div>
-
                 <div className="flex flex-col flex-1 md:overflow-x-auto md:min-h-0">
                   <div className="md:min-w-[800px] flex flex-col flex-1 md:min-h-0">
-                    {/* Table Header — desktop only; mobile rows carry their own labels */}
                     <div className="hidden md:grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-center p-4 border-b border-white/30 bg-[#111827]/5 text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">
-                      <div>Sender</div>
-                      <div>Message</div>
-                      <div>Files</div>
-                      <div>Total Size</div>
-                      <div>Date</div>
-                      <div className="text-right pr-2">Actions</div>
+                      <div>Sender</div><div>Message</div><div>Files</div><div>Total Size</div><div>Date</div><div className="text-right pr-2">Actions</div>
                     </div>
-
-                    {/* Table Body */}
                     <div className="flex flex-col flex-1 bg-white/20 md:overflow-y-auto md:min-h-0 md:relative">
                       <AnimatePresence mode="popLayout">
                         {processedUploads.map((record) => (
-                          <UploadRecordRow
-                            key={record.uploadId}
-                            record={record}
-                            onDelete={handleDeleteUpload}
-                            onAction={handleAction}
-                          />
+                          <UploadRecordRow key={record.uploadId} record={record} onDelete={handleDeleteUpload} onAction={handleAction} />
                         ))}
                       </AnimatePresence>
-
                       {processedUploads.length === 0 && (
                         <div className="flex flex-col flex-1 items-center justify-center text-center p-6 md:h-full md:absolute md:inset-0">
                           <div className="w-16 h-16 rounded-2xl bg-white/50 border border-white/60 flex items-center justify-center mb-4 shadow-sm">
                             <Inbox className="w-8 h-8 text-[#111827]/40" />
                           </div>
                           <h3 className="text-lg font-bold text-[#111827] mb-2 font-display">Your inbox is empty</h3>
-                          <p className="text-sm text-[#111827]/60 max-w-sm">
-                            No one has sent you files yet. Share your portal code with others so they can drop files securely into your inbox.
-                          </p>
-                          <button
-                            onClick={() => setActiveTab("share")}
-                            className="mt-6 inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
-                          >
-                            View your Share Portal
-                            <ArrowRight className="w-4 h-4" />
+                          <p className="text-sm text-[#111827]/60 max-w-sm">No one has sent you files yet. Share your portal code with others so they can drop files securely into your inbox.</p>
+                          <button onClick={() => setActiveTab("share")} className="mt-6 inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors shadow-[0_8px_20px_rgba(0,0,0,0.18)]">
+                            View your Share Portal <ArrowRight className="w-4 h-4" />
                           </button>
                         </div>
                       )}
@@ -1025,7 +960,6 @@ export default function G2pDashboard({
             </motion.div>
           )}
 
-          {/* --- SHARE PORTAL VIEW --- */}
           {/* --- SHARE PORTAL VIEW --- */}
           {activeTab === "share" && (
             <motion.div
@@ -1038,25 +972,15 @@ export default function G2pDashboard({
             >
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-[#111827] font-display">Your Share Portal</h2>
-                <p className="text-sm text-[#111827]/60 mt-2 max-w-sm">
-                  Scan the QR or share the code — uploads land in your inbox even while you're offline.
-                </p>
+                <p className="text-sm text-[#111827]/60 mt-2 max-w-sm">Scan the QR or share the code — uploads land in your inbox even while you&apos;re offline.</p>
               </div>
-
               <div className="bg-white/50 rounded-[32px] border border-white/60 p-6 shadow-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={qrImageUrl} alt="QR Code" className="w-56 h-56 rounded-2xl border border-white/60" />
               </div>
-
               <div className="w-full max-w-sm flex items-center bg-white/50 border border-white/60 rounded-2xl p-2 pl-6 shadow-sm">
-                <span className="flex-1 text-lg font-bold tracking-[0.2em] text-[#111827] uppercase font-mono">
-                  {user.shareCode || activeShareCode || "LOADING..."}
-                </span>
-                <button
-                  onClick={copyToClipboard}
-                  disabled={!user.shareCode && !activeShareCode}
-                  className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 disabled:opacity-50 shadow-sm"
-                >
+                <span className="flex-1 text-lg font-bold tracking-[0.2em] text-[#111827] uppercase font-mono">{user.shareCode || activeShareCode || "LOADING..."}</span>
+                <button onClick={copyToClipboard} disabled={!user.shareCode && !activeShareCode} className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 disabled:opacity-50 shadow-sm">
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   {copied ? "Copied" : "Copy"}
                 </button>
@@ -1079,137 +1003,70 @@ export default function G2pDashboard({
                 <p className="text-sm text-[#111827]/60">Customize your display name and QR code appearance.</p>
               </div>
 
-              {/* Printing & Payment — shopkeeper role only */}
               {isShopkeeper && <PrintingSettings token={token} />}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Profile Settings */}
                 <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
                   <h3 className="font-bold text-[#111827]">Profile Info</h3>
-
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Display Name</label>
-                      <input
-                        type="text"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
-                      />
+                      <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Enter your name" className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors" />
                     </div>
-
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex flex-col gap-1">
                         <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Phone</label>
-                        <input
-                          type="text"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="Phone number"
-                          className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
-                        />
+                        <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors" />
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Company</label>
-                        <input
-                          type="text"
-                          value={company}
-                          onChange={(e) => setCompany(e.target.value)}
-                          placeholder="Company name"
-                          className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
-                        />
+                        <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company name" className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors" />
                       </div>
                     </div>
-
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Website</label>
-                      <input
-                        type="text"
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        placeholder="https://..."
-                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
-                      />
+                      <input type="text" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors" />
                     </div>
-
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Bio</label>
-                      <textarea
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        placeholder="A short description..."
-                        rows={3}
-                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors resize-none"
-                      />
+                      <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A short description..." rows={3} className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors resize-none" />
                     </div>
-
                     <div className="pt-2">
-                      <button
-                        onClick={handleUpdateProfile}
-                        disabled={isUpdatingProfile || !displayName.trim()}
-                        className="w-full bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-                      >
+                      <button onClick={handleUpdateProfile} disabled={isUpdatingProfile || !displayName.trim()} className="w-full bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50">
                         {isUpdatingProfile ? "Saving Profile..." : "Save Profile"}
                       </button>
                       {profileUpdateStatus && (
-                        <p className={`text-xs font-medium mt-2 text-center ${profileUpdateStatus.includes("successfully") ? "text-green-600" : "text-red-500"}`}>
-                          {profileUpdateStatus}
-                        </p>
+                        <p className={`text-xs font-medium mt-2 text-center ${profileUpdateStatus.includes("successfully") ? "text-green-600" : "text-red-500"}`}>{profileUpdateStatus}</p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Right Column: User Type & QR Settings */}
                 <div className="flex flex-col gap-6">
-                  {/* User Type Settings */}
                   <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
                     <h3 className="font-bold text-[#111827]">User Type</h3>
                     <div className="flex flex-col gap-3 relative">
                       <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Current Persona</label>
-
-                      {/* Custom Framer Motion Dropdown */}
                       <div className="relative">
-                        <button
-                          onClick={() => setIsPersonaDropdownOpen(!isPersonaDropdownOpen)}
-                          className="w-full bg-white/40 border border-white/60 hover:bg-white/60 rounded-xl px-4 py-3 text-sm text-[#111827] flex justify-between items-center transition-colors text-left"
-                        >
+                        <button onClick={() => setIsPersonaDropdownOpen(!isPersonaDropdownOpen)} className="w-full bg-white/40 border border-white/60 hover:bg-white/60 rounded-xl px-4 py-3 text-sm text-[#111827] flex justify-between items-center transition-colors text-left">
                           <span className="font-medium">
                             {persona === "PERSONAL" && "Personal (50MB Limit)"}
                             {persona === "EDUCATOR" && "Educator (200MB Limit)"}
                             {persona === "PRINT_SHOP" && "Business / Print Shop (500MB Limit)"}
                           </span>
-                          <motion.div
-                            animate={{ rotate: isPersonaDropdownOpen ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
+                          <motion.div animate={{ rotate: isPersonaDropdownOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
                             <svg className="w-4 h-4 text-[#111827]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                           </motion.div>
                         </button>
-
                         <AnimatePresence>
                           {isPersonaDropdownOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 w-full mt-2 bg-white/80 backdrop-blur-xl border border-white/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
-                            >
+                            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="absolute top-full left-0 w-full mt-2 bg-white/80 backdrop-blur-xl border border-white/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
                               {[
                                 { value: "PERSONAL", label: "Personal (50MB Limit)" },
                                 { value: "EDUCATOR", label: "Educator (200MB Limit)" },
                                 { value: "PRINT_SHOP", label: "Business / Print Shop (500MB Limit)" }
                               ].map(opt => (
-                                <button
-                                  key={opt.value}
-                                  onClick={() => {
-                                    setPersona(opt.value);
-                                    setIsPersonaDropdownOpen(false);
-                                  }}
-                                  className={`w-full text-left px-4 py-3 text-sm hover:bg-black/5 transition-colors ${persona === opt.value ? 'bg-[#111827]/5 font-bold text-[#111827]' : 'text-[#111827]/80'}`}
-                                >
+                                <button key={opt.value} onClick={() => { setPersona(opt.value); setIsPersonaDropdownOpen(false); }} className={`w-full text-left px-4 py-3 text-sm hover:bg-black/5 transition-colors ${persona === opt.value ? 'bg-[#111827]/5 font-bold text-[#111827]' : 'text-[#111827]/80'}`}>
                                   {opt.label}
                                 </button>
                               ))}
@@ -1217,81 +1074,46 @@ export default function G2pDashboard({
                           )}
                         </AnimatePresence>
                       </div>
-
-                      <button
-                        onClick={() => handleUpdatePersona(persona)}
-                        disabled={isUpdatingPersona}
-                        className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 mt-1"
-                      >
+                      <button onClick={() => handleUpdatePersona(persona)} disabled={isUpdatingPersona} className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 mt-1">
                         {isUpdatingPersona ? "Updating..." : "Update User Type"}
                       </button>
                       {personaUpdateStatus && (
-                        <p className={`text-xs font-medium ${personaUpdateStatus.includes("successfully") ? "text-green-600" : "text-red-500"}`}>
-                          {personaUpdateStatus}
-                        </p>
+                        <p className={`text-xs font-medium ${personaUpdateStatus.includes("successfully") ? "text-green-600" : "text-red-500"}`}>{personaUpdateStatus}</p>
                       )}
-                      <p className="text-xs text-[#111827]/60 leading-relaxed mt-1">
-                        Your user type dictates your maximum file size limits (if on Free tier).
-                        Changes apply immediately.
-                      </p>
+                      <p className="text-xs text-[#111827]/60 leading-relaxed mt-1">Your user type dictates your maximum file size limits (if on Free tier). Changes apply immediately.</p>
                     </div>
                   </div>
 
-                  {/* QR Settings */}
                   <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
                     <h3 className="font-bold text-[#111827]">QR Code Appearance</h3>
-
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Foreground</label>
                         <div className="flex items-center gap-3 bg-white/40 border border-white/60 rounded-xl p-2">
-                          <input
-                            type="color"
-                            value={qrFgColor}
-                            onChange={(e) => setQrFgColor(e.target.value)}
-                            className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
-                          />
+                          <input type="color" value={qrFgColor} onChange={(e) => setQrFgColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0" />
                           <span className="text-xs text-[#111827]/60 font-mono">{qrFgColor.toUpperCase()}</span>
                         </div>
                       </div>
                       <div className="flex-1">
                         <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Background</label>
                         <div className="flex items-center gap-3 bg-white/40 border border-white/60 rounded-xl p-2">
-                          <input
-                            type="color"
-                            value={qrBgColor}
-                            onChange={(e) => setQrBgColor(e.target.value)}
-                            className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
-                          />
+                          <input type="color" value={qrBgColor} onChange={(e) => setQrBgColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0" />
                           <span className="text-xs text-[#111827]/60 font-mono">{qrBgColor.toUpperCase()}</span>
                         </div>
                       </div>
                     </div>
-
                     <div>
                       <label className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider block mb-2 font-mono">Center Logo URL</label>
-                      <input
-                        type="text"
-                        value={qrLogoUrl}
-                        onChange={(e) => setQrLogoUrl(e.target.value)}
-                        placeholder="https://example.com/logo.png"
-                        className="w-full bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors"
-                      />
+                      <input type="text" value={qrLogoUrl} onChange={(e) => setQrLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" className="w-full bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-4 py-3 text-sm text-[#111827] outline-none transition-colors" />
                     </div>
-
-                    <button
-                      onClick={saveQrSettings}
-                      className="w-full bg-[#111827] hover:bg-black text-white py-3 rounded-xl text-sm font-bold transition-all shadow-sm mt-2"
-                    >
-                      Save Preferences
-                    </button>
+                    <button onClick={saveQrSettings} className="w-full bg-[#111827] hover:bg-black text-white py-3 rounded-xl text-sm font-bold transition-all shadow-sm mt-2">Save Preferences</button>
                   </div>
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* --- PRINT SHOP VIEW (shopkeeper only) --- */}
+          {/* --- PRINT ORDERS VIEW (shopkeeper only) --- */}
           {activeTab === "printshop" && isShopkeeper && (
             <motion.div
               key="printshop"
@@ -1302,8 +1124,8 @@ export default function G2pDashboard({
               className="flex flex-col gap-6 md:h-full p-4 md:p-6 overflow-y-auto"
             >
               <div>
-                <h2 className="text-2xl font-bold text-[#111827] font-display">Print Shop</h2>
-                <p className="text-sm text-[#111827]/60">Shared documents, payment status and revenue for your print counter.</p>
+                <h2 className="text-2xl font-bold text-[#111827] font-display">Print Orders</h2>
+                <p className="text-sm text-[#111827]/60">Incoming print jobs, payment status and revenue from your shop QR code.</p>
               </div>
               <PrintShopPanel token={token} />
             </motion.div>
@@ -1327,7 +1149,7 @@ export default function G2pDashboard({
             </motion.div>
           )}
 
-          {/* --- ANALYTICS VIEW --- */}
+          {/* --- ANALYTICS VIEW (Personal/Educator only) --- */}
           {activeTab === "analytics" && (
             <motion.div
               key="analytics"
@@ -1338,7 +1160,16 @@ export default function G2pDashboard({
               className="flex flex-col gap-6 md:h-full p-4 md:p-6 overflow-y-auto"
             >
               <div>
-                <h2 className="text-2xl font-bold text-[#111827] font-display">Analytics Overview</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h2 className="text-2xl font-bold text-[#111827] font-display">Analytics Overview</h2>
+                  <div className="flex items-center gap-1 bg-white/40 border border-white/60 p-1 rounded-full shadow-sm">
+                    {['7d', '30d', 'all'].map(f => (
+                      <button key={f} onClick={() => setAnalyticsFilter(f)} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${analyticsFilter === f ? 'bg-[#111827] text-white' : 'text-[#111827]/60 hover:text-[#111827]'}`}>
+                        {f === '7d' ? '7 Days' : f === '30d' ? '30 Days' : 'All Time'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <p className="text-sm text-[#111827]/60">Real-time metrics and historical data for your portal.</p>
               </div>
 
@@ -1349,21 +1180,17 @@ export default function G2pDashboard({
                 </div>
               ) : (
                 <div className="flex flex-col gap-6">
-                  {/* STORAGE OVERVIEW */}
                   <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="font-bold text-[#111827]">Storage Capacity</h3>
-                        <p className="text-xs text-[#111827]/60 mt-1 font-mono uppercase tracking-wider">
-                          {analyticsData.overview.planType} PLAN
-                        </p>
+                        <p className="text-xs text-[#111827]/60 mt-1 font-mono uppercase tracking-wider">{analyticsData.overview.planType} PLAN</p>
                       </div>
                       <div className="text-right">
                         <span className="text-2xl font-black text-[#111827]">{formatSize(analyticsData.overview.storageUsed || 0)}</span>
                         <span className="text-sm font-bold text-[#111827]/60 ml-2">/ {formatSize(analyticsData.overview.storageLimit || 1073741824)}</span>
                       </div>
                     </div>
-
                     <div className="w-full bg-white/40 border border-white/60 rounded-full h-4 overflow-hidden relative">
                       <motion.div
                         initial={{ width: 0 }}
@@ -1372,43 +1199,28 @@ export default function G2pDashboard({
                         className={`h-full rounded-full ${((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) > 0.9 ? 'bg-red-500' : 'bg-gradient-to-r from-[#c084fc] to-[#9333ea]'}`}
                       />
                     </div>
-
                     {analyticsData.overview.planType === 'FREE' && ((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) > 0.8 && (
                       <div className="flex justify-between items-center mt-2 bg-[#111827]/5 rounded-xl p-3 border border-[#111827]/10">
                         <span className="text-xs font-bold text-[#111827]">Running low on space?</span>
-                        <button
-                          onClick={() => {
-                            setActiveTab('settings');
-                            setIsUpgradeModalOpen(true);
-                          }}
-                          className="text-xs font-bold text-white bg-[#111827] hover:bg-black px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Upgrade to PRO
-                        </button>
+                        <button onClick={() => { setActiveTab('settings'); setIsUpgradeModalOpen(true); }} className="text-xs font-bold text-white bg-[#111827] hover:bg-black px-4 py-2 rounded-lg transition-colors">Upgrade to PRO</button>
                       </div>
                     )}
                   </div>
 
-                  {/* METRIC CARDS */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
                       <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Total Bandwidth</span>
                       <span className="text-3xl font-black text-[#111827]">{formatSize(analyticsData.overview.totalBandwidth)}</span>
                     </div>
                     <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
-                      <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Total Uploads</span>
-                      <span className="text-3xl font-black text-[#111827]">{analyticsData.overview.totalUploads}</span>
-                    </div>
-                    <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
                       <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Total Files</span>
-                      <span className="text-3xl font-black text-[#111827]">{uploads.reduce((acc, u) => acc + u.files.length, 0)}</span>
+                      <span className="text-3xl font-black text-[#111827]">{analyticsData.overview.totalFiles}</span>
                     </div>
                   </div>
 
-                  {/* CHARTS */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[300px]">
                     <div className="lg:col-span-2 bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col">
-                      <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">Uploads Over Time (Last 7 Days)</h3>
+                      <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">Uploads Over Time {analyticsFilter === '7d' ? '(Last 7 Days)' : analyticsFilter === '30d' ? '(Last 30 Days)' : '(All Time)'}</h3>
                       <div className="flex-1 min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={analyticsData.timeSeries}>
@@ -1419,24 +1231,14 @@ export default function G2pDashboard({
                               </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(17,24,39,0.1)" vertical={false} />
-                            <XAxis
-                              dataKey="date"
-                              tickFormatter={(str) => str ? new Date(str as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-                              stroke="rgba(17,24,39,0.4)"
-                              fontSize={12}
-                              tickMargin={10}
-                            />
+                            <XAxis dataKey="date" tickFormatter={(str) => str ? new Date(str as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} stroke="rgba(17,24,39,0.4)" fontSize={12} tickMargin={10} />
                             <YAxis stroke="rgba(17,24,39,0.4)" fontSize={12} allowDecimals={false} />
-                            <Tooltip
-                              contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.6)', backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', color: '#111827', fontWeight: 'bold' }}
-                              labelFormatter={(label) => label ? new Date(label as string).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : ''}
-                            />
+                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.6)', backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', color: '#111827', fontWeight: 'bold' }} labelFormatter={(label) => label ? new Date(label as string).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : ''} />
                             <Area type="monotone" dataKey="uploads" stroke="#9333ea" strokeWidth={3} fillOpacity={1} fill="url(#colorUploads)" />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
-
                     <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col">
                       <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">File Types</h3>
                       <div className="flex-1 min-h-[250px] flex items-center justify-center">
@@ -1445,16 +1247,7 @@ export default function G2pDashboard({
                         ) : (
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                              <Pie
-                                data={analyticsData.fileTypes}
-                                dataKey="count"
-                                nameKey="file_type"
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                              >
+                              <Pie data={analyticsData.fileTypes} dataKey="count" nameKey="file_type" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
                                 {analyticsData.fileTypes.map((entry: any, index: number) => {
                                   const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
                                   return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
@@ -1468,7 +1261,6 @@ export default function G2pDashboard({
                     </div>
                   </div>
 
-                  {/* RECENT ACTIVITY */}
                   <div className="bg-white/50 border border-white/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
                     <div className="p-4 border-b border-white/60">
                       <h3 className="text-sm font-bold text-[#111827] font-display">Recent Activity</h3>
@@ -1498,7 +1290,6 @@ export default function G2pDashboard({
                       )}
                     </div>
                   </div>
-
                 </div>
               )}
             </motion.div>
@@ -1517,107 +1308,44 @@ export default function G2pDashboard({
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 md:p-8"
           >
             <div className="w-full max-w-4xl relative flex flex-col items-center">
-              {/* Close Button */}
-              <button
-                onClick={() => setIsUpgradeModalOpen(false)}
-                className="absolute -top-12 right-0 md:top-0 md:-right-12 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-md"
-              >
+              <button onClick={() => setIsUpgradeModalOpen(false)} className="absolute -top-12 right-0 md:top-0 md:-right-12 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-md">
                 <X className="w-6 h-6" />
               </button>
-
               <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-10">Upgrade Plan</h2>
-
               <div className="flex flex-col md:flex-row items-stretch gap-6 w-full max-w-3xl">
-
-                {/* Basic Plan */}
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                  className="flex-1 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[32px] p-8 shadow-2xl flex flex-col relative overflow-hidden"
-                >
+                <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="flex-1 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[32px] p-8 shadow-2xl flex flex-col relative overflow-hidden">
                   <div className="absolute top-6 right-6">
                     <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
                       <div className="w-2.5 h-2.5 rounded-full bg-white/50" />
                     </div>
                   </div>
-
                   <h3 className="text-xl font-bold text-white mb-2">Basic</h3>
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-white">$0.00</span>
-                  </div>
-
-                  <button
-                    disabled
-                    className="w-full py-3 px-4 rounded-xl bg-white/10 text-white/50 font-bold mb-8 cursor-not-allowed"
-                  >
+                  <div className="mb-6"><span className="text-4xl font-bold text-white">$0.00</span></div>
+                  <button disabled className="w-full py-3 px-4 rounded-xl bg-white/10 text-white/50 font-bold mb-8 cursor-not-allowed">
                     {planType === "FREE" ? "Current Plan" : "Downgrade (Contact Support)"}
                   </button>
-
                   <div className="flex flex-col gap-4 mt-auto">
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-white/60 shrink-0" />
-                      <span className="text-sm text-white/80 leading-relaxed">Standard storage capacity for basic needs.</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-white/60 shrink-0" />
-                      <span className="text-sm text-white/80 leading-relaxed">Standard file expiration times.</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-white/60 shrink-0" />
-                      <span className="text-sm text-white/80 leading-relaxed">Basic interface personalization.</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-white/60 shrink-0" />
-                      <span className="text-sm text-white/80 leading-relaxed">Contains standard advertisements.</span>
-                    </div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed">Standard storage capacity for basic needs.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed">Standard file expiration times.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed">Basic interface personalization.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed">Contains standard advertisements.</span></div>
                   </div>
                 </motion.div>
 
-                {/* Premium Plan */}
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                  className="flex-1 bg-white/15 backdrop-blur-2xl border border-white/30 rounded-[32px] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden group"
-                >
+                <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ delay: 0.1 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="flex-1 bg-white/15 backdrop-blur-2xl border border-white/30 rounded-[32px] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#c084fc]/30 to-[#9333ea]/30 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-
                   <h3 className="text-xl font-bold text-white mb-2 relative z-10">Premium</h3>
-                  <div className="mb-6 relative z-10">
-                    <span className="text-4xl font-bold text-white">₹199</span>
-                    <span className="text-white/60 ml-1">/mo</span>
-                  </div>
-
-                  <button
-                    onClick={handleUpgradePlan}
-                    disabled={planType === "PRO"}
-                    className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.2)] disabled:opacity-50 relative z-10"
-                  >
+                  <div className="mb-6 relative z-10"><span className="text-4xl font-bold text-white">₹199</span><span className="text-white/60 ml-1">/mo</span></div>
+                  <button onClick={handleUpgradePlan} disabled={planType === "PRO"} className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.2)] disabled:opacity-50 relative z-10">
                     {planType === "PRO" ? "Active Plan" : "Upgrade to Premium"}
                   </button>
-
                   <div className="flex flex-col gap-4 mt-auto relative z-10">
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-[#c084fc] shrink-0" />
-                      <span className="text-sm text-white/90 leading-relaxed">No ads for a seamless uninterrupted experience.</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-[#c084fc] shrink-0" />
-                      <span className="text-sm text-white/90 leading-relaxed">Significantly more storage capacity for your files.</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-[#c084fc] shrink-0" />
-                      <span className="text-sm text-white/90 leading-relaxed">More time before files expire and auto-delete.</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-[#c084fc] shrink-0" />
-                      <span className="text-sm text-white/90 leading-relaxed">More personalized options and custom branding.</span>
-                    </div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-[#c084fc] shrink-0" /><span className="text-sm text-white/90 leading-relaxed">No ads for a seamless uninterrupted experience.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-[#c084fc] shrink-0" /><span className="text-sm text-white/90 leading-relaxed">Significantly more storage capacity for your files.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-[#c084fc] shrink-0" /><span className="text-sm text-white/90 leading-relaxed">More time before files expire and auto-delete.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-[#c084fc] shrink-0" /><span className="text-sm text-white/90 leading-relaxed">More personalized options and custom branding.</span></div>
                   </div>
                 </motion.div>
-
               </div>
             </div>
           </motion.div>

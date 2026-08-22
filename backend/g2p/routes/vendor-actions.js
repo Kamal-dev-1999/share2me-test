@@ -255,16 +255,144 @@ router.delete('/requests/:requestId', async (req, res) => {
     res.status(500).json({ error: 'internal_error' });
   }
 });
+// Get analytics data for the dashboard);
 
-// Get analytics data for the dashboard
-router.get('/analytics', async (req, res) => {
+router.get('/analytics/test', async (req, res) => {
   try {
-    // 1. Total Bandwidth (sum of file_size_bytes where event is upload_received)
+    const filter = req.query.filter || '7d';
+    let dateCondition = '';
+    let intervalDays = 7;
+    
+    if (filter === '30d') {
+      dateCondition = `AND created_at >= NOW() - INTERVAL '30 days'`;
+      intervalDays = 30;
+    } else if (filter === '7d') {
+      dateCondition = `AND created_at >= NOW() - INTERVAL '7 days'`;
+      intervalDays = 7;
+    } else if (filter === 'all') {
+      dateCondition = '';
+      intervalDays = 0; // indicates no padding or dynamic padding
+    }
+
+    const firstVendor = await query(`SELECT id FROM vendors LIMIT 1`);
+    if (firstVendor.rows.length === 0) return res.json({ error: 'No vendors' });
+    const vendorId = firstVendor.rows[0].id;
+
+    // 1. Total Bandwidth and Total Files
     const bandwidthRes = await query(`
       SELECT COALESCE(SUM(file_size_bytes), 0) as total_bandwidth, COUNT(*)::int as total_uploads
       FROM g2p_analytics_events
       WHERE vendor_id = $1
       AND event_type = 'upload_received'
+      ${dateCondition}
+    `, [vendorId]);
+
+    // 2. File Type Composition
+    const typeRes = await query(`
+      SELECT file_type, COUNT(*)::int as count
+      FROM g2p_analytics_events
+      WHERE vendor_id = $1
+      AND event_type = 'upload_received'
+      ${dateCondition}
+      GROUP BY file_type
+    `, [vendorId]);
+
+    // 3. Recent Activity (last 10 events)
+    const recentRes = await query(`
+      SELECT id, sender_name, event_type, file_size_bytes, file_type, file_name, created_at
+      FROM g2p_analytics_events
+      WHERE vendor_id = $1
+      ${dateCondition}
+      ORDER BY created_at DESC
+      LIMIT 10
+    `, [vendorId]);
+
+    // 4. Time Series
+    let timeSeriesRows = [];
+    if (intervalDays > 0) {
+      const timeSeriesRes = await query(`
+        SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date_str, COUNT(*)::int as uploads
+        FROM g2p_analytics_events
+        WHERE vendor_id = $1
+        AND event_type = 'upload_received'
+        ${dateCondition}
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+        ORDER BY date_str ASC
+      `, [vendorId]);
+
+      const dbSeries = timeSeriesRes.rows;
+      
+      const seriesMap = new Map(dbSeries.map(row => {
+        return [row.date_str, row.uploads];
+      }));
+      
+      for (let i = intervalDays - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        timeSeriesRows.push({
+          date: dateStr,
+          uploads: seriesMap.get(dateStr) || 0
+        });
+      }
+    } else {
+      const timeSeriesRes = await query(`
+        SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date_str, COUNT(*)::int as uploads
+        FROM g2p_analytics_events
+        WHERE vendor_id = $1
+        AND event_type = 'upload_received'
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+        ORDER BY date_str ASC
+      `, [vendorId]);
+      timeSeriesRows = timeSeriesRes.rows.map(row => ({
+        date: row.date_str,
+        uploads: row.uploads
+      }));
+    }
+
+    const vendorRes = await query(`SELECT plan_type FROM vendors WHERE id = $1`, [vendorId]);
+    const planType = vendorRes.rows[0].plan_type || 'FREE';
+    
+    const storageRes = await query(`
+      SELECT COALESCE(SUM(f.size_bytes), 0) as total_bytes 
+      FROM files f
+      JOIN requests r ON r.id = f.request_id
+      WHERE r.vendor_id = $1 AND r.deleted_at IS NULL AND f.status != 'deleted'
+    `, [vendorId]);
+    
+    res.json({
+      success: true
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
+router.get('/analytics', async (req, res) => {
+  try {
+    const filter = req.query.filter || '7d';
+    console.log('[Analytics API] Received filter:', filter, req.query);
+    let dateCondition = '';
+    let intervalDays = 7;
+    
+    if (filter === '30d') {
+      dateCondition = `AND created_at >= NOW() - INTERVAL '30 days'`;
+      intervalDays = 30;
+    } else if (filter === '7d') {
+      dateCondition = `AND created_at >= NOW() - INTERVAL '7 days'`;
+      intervalDays = 7;
+    } else if (filter === 'all') {
+      dateCondition = '';
+      intervalDays = 0; // indicates no padding or dynamic padding
+    }
+
+    // 1. Total Bandwidth and Total Files
+    const bandwidthRes = await query(`
+      SELECT COALESCE(SUM(file_size_bytes), 0) as total_bandwidth, COUNT(*)::int as total_uploads
+      FROM g2p_analytics_events
+      WHERE vendor_id = $1
+      AND event_type = 'upload_received'
+      ${dateCondition}
     `, [req.vendorId]);
 
     // 2. File Type Composition
@@ -273,6 +401,7 @@ router.get('/analytics', async (req, res) => {
       FROM g2p_analytics_events
       WHERE vendor_id = $1
       AND event_type = 'upload_received'
+      ${dateCondition}
       GROUP BY file_type
     `, [req.vendorId]);
 
@@ -281,20 +410,55 @@ router.get('/analytics', async (req, res) => {
       SELECT id, sender_name, event_type, file_size_bytes, file_type, file_name, created_at
       FROM g2p_analytics_events
       WHERE vendor_id = $1
+      ${dateCondition}
       ORDER BY created_at DESC
       LIMIT 10
     `, [req.vendorId]);
 
-    // 4. Time Series (uploads per day for the last 7 days)
-    const timeSeriesRes = await query(`
-      SELECT DATE(created_at) as date, COUNT(*)::int as uploads
-      FROM g2p_analytics_events
-      WHERE vendor_id = $1
-      AND event_type = 'upload_received'
-      AND created_at >= NOW() - INTERVAL '7 days'
-      GROUP BY DATE(created_at)
-      ORDER BY date ASC
-    `, [req.vendorId]);
+    // 4. Time Series
+    let timeSeriesRows = [];
+    if (intervalDays > 0) {
+      const timeSeriesRes = await query(`
+        SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date_str, COUNT(*)::int as uploads
+        FROM g2p_analytics_events
+        WHERE vendor_id = $1
+        AND event_type = 'upload_received'
+        ${dateCondition}
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+        ORDER BY date_str ASC
+      `, [req.vendorId]);
+
+      const dbSeries = timeSeriesRes.rows;
+      
+      // Pad missing days
+      const seriesMap = new Map(dbSeries.map(row => {
+        return [row.date_str, row.uploads];
+      }));
+      
+      for (let i = intervalDays - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        timeSeriesRows.push({
+          date: dateStr,
+          uploads: seriesMap.get(dateStr) || 0
+        });
+      }
+    } else {
+      // For 'all' filter, just return the data without padding
+      const timeSeriesRes = await query(`
+        SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date_str, COUNT(*)::int as uploads
+        FROM g2p_analytics_events
+        WHERE vendor_id = $1
+        AND event_type = 'upload_received'
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+        ORDER BY date_str ASC
+      `, [req.vendorId]);
+      timeSeriesRows = timeSeriesRes.rows.map(row => ({
+        date: row.date_str,
+        uploads: row.uploads
+      }));
+    }
 
     // 5. Storage Capacity and Plan Type
     const vendorRes = await query(`SELECT plan_type FROM vendors WHERE id = $1`, [req.vendorId]);
@@ -317,17 +481,18 @@ router.get('/analytics', async (req, res) => {
     res.json({
       overview: {
         totalBandwidth: parseInt(bandwidthRes.rows[0].total_bandwidth, 10),
-        totalUploads: parseInt(bandwidthRes.rows[0].total_uploads, 10),
+        totalFiles: parseInt(bandwidthRes.rows[0].total_uploads, 10),
         storageUsed,
         storageLimit,
         planType
       },
       fileTypes: typeRes.rows,
       recentActivity: recentRes.rows,
-      timeSeries: timeSeriesRes.rows,
+      timeSeries: timeSeriesRows
     });
   } catch (err) {
     console.error('[G2P] Analytics fetch error:', err);
+    require('fs').writeFileSync('d:/Downloads/ShareIt/backend/analytics_error.log', err.stack || err.toString());
     res.status(500).json({ error: 'internal_error' });
   }
 });
