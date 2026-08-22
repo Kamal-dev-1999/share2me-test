@@ -24,6 +24,17 @@ const RateLimiter = require('./lib/RateLimiter');
 const app    = express();
 const server = http.createServer(app);
 
+const DEV_ORIGINS = [
+  'http://localhost:3000', 
+  'http://localhost:3001', 
+  'https://share2me-test.vercel.app', 
+  'https://share2me.vercel.app', 
+  'https://share2me.in', 
+  'https://www.share2me.in',
+  'https://share2.me'
+];
+const CORS_ORIGINS = process.env.ALLOWED_ORIGINS ? [...new Set([...process.env.ALLOWED_ORIGINS.split(','), ...DEV_ORIGINS])] : DEV_ORIGINS;
+
 // Graceful shutdown — triggered by PM2 reload or systemd stop
 process.on('SIGTERM', () => {
   console.log('[INFO] SIGTERM — draining connections...');
@@ -34,7 +45,7 @@ process.on('SIGTERM', () => {
 // ─── Socket.io ────────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin:  process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001', 'https://share2me-test.vercel.app', 'https://share2me.vercel.app', 'https://share2me.in', 'https://www.share2me.in'],
+    origin: CORS_ORIGINS,
     methods: ['GET', 'POST'],
   },
   perMessageDeflate: {
@@ -122,17 +133,7 @@ app.use((req, res, next) => {
       return res.status(403).json({ error: 'Direct API access forbidden. This API can only be accessed by the Share2Me frontend.' });
     }
 
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-      'http://localhost:3000', 
-      'http://localhost:3001', 
-      'https://share2me-test.vercel.app', 
-      'https://share2me.vercel.app',
-      'https://share2.me',
-      'https://share2me.in',
-      'https://www.share2me.in'
-    ];
-
-    if (!allowedOrigins.includes(source)) {
+    if (!CORS_ORIGINS.includes(source)) {
       return res.status(403).json({ error: 'Origin not allowed' });
     }
   }
