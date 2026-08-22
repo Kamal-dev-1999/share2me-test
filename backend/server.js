@@ -34,7 +34,7 @@ process.on('SIGTERM', () => {
 // ─── Socket.io ────────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin:  process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001', 'https://share2me-test.vercel.app', 'https://share2me.vercel.app'],
+    origin:  process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001', 'https://share2me-test.vercel.app', 'https://share2me.vercel.app', 'https://share2me.in', 'https://www.share2me.in'],
     methods: ['GET', 'POST'],
   },
   perMessageDeflate: {
@@ -127,7 +127,9 @@ app.use((req, res, next) => {
       'http://localhost:3001', 
       'https://share2me-test.vercel.app', 
       'https://share2me.vercel.app',
-      'https://share2.me'
+      'https://share2.me',
+      'https://share2me.in',
+      'https://www.share2me.in'
     ];
 
     if (!allowedOrigins.includes(source)) {

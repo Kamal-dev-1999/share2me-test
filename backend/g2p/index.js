@@ -4,7 +4,7 @@ const cors = require('cors');
 const g2pRouter = express.Router();
 
 // Allow cross-origin requests from the Next.js frontend
-const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3001', 'https://share2me-test.vercel.app', 'https://share2me.vercel.app'];
+const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3001', 'https://share2me-test.vercel.app', 'https://share2me.vercel.app', 'https://share2me.in', 'https://www.share2me.in'];
 g2pRouter.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || DEV_ORIGINS,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
