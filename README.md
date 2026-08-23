@@ -69,39 +69,39 @@ Share2Me is a **browser-native, serverless transfer tool** that operates in two 
 
 ```mermaid
 graph TD
-    subgraph Client A (Sender)
-        UI_A[Next.js UI]
-        Worker_A[Web Worker: AES-GCM & ECDH]
-        UI_A <-->|Raw Data| Worker_A
+    subgraph client_a ["Client A (Sender)"]
+        UI_A["Next.js UI"]
+        Worker_A["Web Worker: AES-GCM & ECDH"]
+        UI_A <-->|"Raw Data"| Worker_A
     end
 
-    subgraph Client B (Receiver / G2P Portal)
-        UI_B[Next.js UI]
-        Worker_B[Web Worker: AES-GCM Decrypt]
-        UI_B <-->|Raw Data| Worker_B
+    subgraph client_b ["Client B (Receiver / G2P Portal)"]
+        UI_B["Next.js UI"]
+        Worker_B["Web Worker: AES-GCM Decrypt"]
+        UI_B <-->|"Raw Data"| Worker_B
     end
 
-    subgraph Server (Express + Socket.io)
-        Sig[Signaling Server]
-        Postgres[(PostgreSQL + PostGIS)]
-        Stripe[Stripe API]
+    subgraph server_node ["Server (Express + Socket.io)"]
+        Sig["Signaling Server"]
+        Postgres[("PostgreSQL + PostGIS")]
+        Stripe["Stripe API"]
     end
 
-    subgraph Edge
-        R2[(Cloudflare R2)]
+    subgraph edge_node ["Edge"]
+        R2[("Cloudflare R2")]
     end
 
     %% WebRTC P2P
-    Worker_A <==>|WebRTC DataChannel\n(Encrypted Chunks)| Worker_B
+    Worker_A <==>|"WebRTC DataChannel\n(Encrypted Chunks)"| Worker_B
 
     %% Signaling
-    UI_A -.->|Socket.io\n(SDP / Wrapped Keys)| Sig
-    UI_B -.->|Socket.io\n(SDP / Wrapped Keys)| Sig
+    UI_A -.->|"Socket.io\n(SDP / Wrapped Keys)"| Sig
+    UI_B -.->|"Socket.io\n(SDP / Wrapped Keys)"| Sig
     
     %% Backend Integrations
     Sig <--> Postgres
     Sig <--> Stripe
-    UI_B -->|Presigned URLs| R2
+    UI_B -->|"Presigned URLs"| R2
 ```
 
 ---
