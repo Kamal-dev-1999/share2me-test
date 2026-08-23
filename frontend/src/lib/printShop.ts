@@ -215,6 +215,7 @@ export interface ShopkeeperSettings {
   razorpay_account_id?: string | null;
   charges_enabled?: boolean;
   upiId?: string;
+  upiName?: string;
   qrImageUrl?: string | null;  // Razorpay QR image URL (permanent)
   qrId?: string | null;        // Razorpay QR Code ID
   retentionHours?: number;
@@ -607,4 +608,6 @@ export const DEFAULT_SETTINGS: ShopkeeperSettings = {
   locationName: "",
   qrUrl: null,
   isAccepting: true,
+  upiId: '',
+  upiName: ''
 };

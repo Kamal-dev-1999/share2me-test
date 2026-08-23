@@ -453,22 +453,34 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
       <AnimatePresence mode="wait">
         {step === 1 && (
           <motion.div key="s1" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files); }}
-              onClick={() => inputRef.current?.click()}
-              className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
-                dragging ? "border-emerald-500 bg-emerald-500/10" : "border-[#111827]/20 bg-white/40 hover:bg-white/60"
-              }`}
-            >
-              <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => e.target.files && handleFiles(e.target.files)} />
-              <Upload className="w-8 h-8 mx-auto text-[#111827]/50 mb-3" strokeWidth={1.75} />
-              <p className="text-[14px] font-semibold text-[#111827]">Drop documents here or tap to browse</p>
-              <p className="text-[12px] text-[#111827]/50 mt-1">Select up to 10 files. Pages counted automatically.</p>
-            </div>
+            {effectiveSettings.isAccepting === false ? (
+              <div className="rounded-2xl border-2 border-red-500/20 bg-red-500/5 p-8 text-center">
+                <span className="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center mx-auto mb-3 shadow-md">
+                  <span className="text-xl font-bold">&times;</span>
+                </span>
+                <p className="text-[16px] font-extrabold text-[#111827]">Currently Not Accepting Orders</p>
+                <p className="text-[13px] text-[#111827]/60 mt-2 max-w-[300px] mx-auto">
+                  This shop is temporarily closed for new print orders. Please check back later.
+                </p>
+              </div>
+            ) : (
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files); }}
+                onClick={() => inputRef.current?.click()}
+                className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
+                  dragging ? "border-emerald-500 bg-emerald-500/10" : "border-[#111827]/20 bg-white/40 hover:bg-white/60"
+                }`}
+              >
+                <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => e.target.files && handleFiles(e.target.files)} />
+                <Upload className="w-8 h-8 mx-auto text-[#111827]/50 mb-3" strokeWidth={1.75} />
+                <p className="text-[14px] font-semibold text-[#111827]">Drop documents here or tap to browse</p>
+                <p className="text-[12px] text-[#111827]/50 mt-1">Select up to 10 files. Pages counted automatically.</p>
+              </div>
+            )}
 
-            {filesState.length > 0 && (
+            {effectiveSettings.isAccepting !== false && filesState.length > 0 && (
               <div className="mt-4 flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-2 scrollbar-thin">
                 {filesState.map(fs => (
                   <div key={fs.id} className="flex items-center gap-3 bg-white/60 border border-white/70 rounded-2xl p-3 shrink-0">
@@ -495,21 +507,25 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
               </div>
             )}
 
-            <input
-              type="text"
-              value={senderName}
-              onChange={(e) => setSenderName(e.target.value)}
-              placeholder="Your name"
-              className="mt-4 w-full bg-white/60 border border-white/70 rounded-full px-5 py-3 text-[14px] text-[#111827] focus:outline-none focus:border-[#111827]/40"
-            />
+            {effectiveSettings.isAccepting !== false && (
+              <input
+                type="text"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="Your name"
+                className="mt-4 w-full bg-white/60 border border-white/70 rounded-full px-5 py-3 text-[14px] text-[#111827] focus:outline-none focus:border-[#111827]/40"
+              />
+            )}
 
-            <button
-              disabled={filesState.length === 0 || isCounting || totalPages === 0 || !senderName.trim()}
-              onClick={() => setStep(2)}
-              className="mt-4 w-full h-12 rounded-full bg-[#111827] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-40"
-            >
-              Continue
-            </button>
+            {effectiveSettings.isAccepting !== false && (
+              <button
+                disabled={filesState.length === 0 || isCounting || totalPages === 0 || !senderName.trim()}
+                onClick={() => setStep(2)}
+                className="mt-4 w-full h-12 rounded-full bg-[#111827] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-40"
+              >
+                Continue
+              </button>
+            )}
           </motion.div>
         )}
 
