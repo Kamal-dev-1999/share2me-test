@@ -29,6 +29,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
   
   const [gpsStatus, setGpsStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
   const [gpsError, setGpsError] = useState<string>("");
+  const [gpsAddress, setGpsAddress] = useState<string>("");
 
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
@@ -43,8 +44,21 @@ export function PrintingSettings({ token }: { token: string | null }) {
           if (token) {
             const { saveShopLocation } = await import("@/lib/printShop");
             await saveShopLocation(position.coords.latitude, position.coords.longitude, token);
+            
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=18&addressdetails=1`);
+              const data = await res.json();
+              if (data && data.display_name) {
+                setGpsAddress(data.display_name);
+              } else {
+                setGpsAddress("Coordinates saved successfully");
+              }
+            } catch (e) {
+              setGpsAddress("Coordinates saved successfully");
+            }
+            
             setGpsStatus("success");
-            setTimeout(() => setGpsStatus("idle"), 3000);
+            setTimeout(() => setGpsStatus("idle"), 5000);
           }
         } catch (err) {
           setGpsError("Failed to save location to server");
@@ -310,6 +324,12 @@ export function PrintingSettings({ token }: { token: string | null }) {
                 <span className="block text-[11px] font-semibold text-[#111827]/60">GPS Discovery</span>
                 {gpsStatus === "success" && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">Updated just now</span>}
               </div>
+              {gpsAddress && (
+                <div className="mb-3 p-2 bg-white/50 rounded-lg border border-[#111827]/5 flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <p className="text-[11px] font-medium text-[#111827]/80 leading-snug">{gpsAddress}</p>
+                </div>
+              )}
               <button
                 onClick={handleDetectLocation}
                 disabled={gpsStatus === "locating"}
