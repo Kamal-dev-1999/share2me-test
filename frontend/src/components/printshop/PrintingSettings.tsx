@@ -33,16 +33,31 @@ export function PrintingSettings({ token }: { token: string | null }) {
   
   const [shopImages, setShopImages] = useState<{ r2Key: string; url: string }[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [galleryNotice, setGalleryNotice] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Free local blob previews when the settings screen unmounts.
+  useEffect(() => () => {
+    setShopImages((prev) => {
+      prev.forEach((img) => { if (img.url.startsWith("blob:")) URL.revokeObjectURL(img.url); });
+      return prev;
+    });
+  }, []);
+
+  const showGalleryNotice = (msg: string) => {
+    setGalleryNotice(msg);
+    setTimeout(() => setGalleryNotice(null), 4000);
+  };
 
   const handleUploadShopImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !token) return;
     if (shopImages.length >= 3) {
-      alert("Maximum 3 images allowed");
+      showGalleryNotice("Maximum 3 images allowed.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert("Image must be under 5MB");
+      showGalleryNotice("Image must be under 5MB.");
       return;
     }
     setUploadingImage(true);
@@ -67,7 +82,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
       setShopImages(prev => [...prev, { r2Key, url: previewUrl }]);
     } catch (err) {
       console.error(err);
-      alert("Failed to upload image. Please try again.");
+      showGalleryNotice("Upload failed. Please try again.");
     } finally {
       setUploadingImage(false);
       if (e.target) e.target.value = '';
@@ -83,7 +98,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
       } else {
         setGpsAddress("Coordinates saved successfully");
       }
-    } catch (e) {
+    } catch {
       setGpsAddress("Coordinates saved successfully");
     }
   };
@@ -106,7 +121,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
             setGpsStatus("success");
             setTimeout(() => setGpsStatus("idle"), 5000);
           }
-        } catch (err) {
+        } catch {
           setGpsError("Failed to save location to server");
           setGpsStatus("error");
         }
@@ -145,6 +160,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
   const save = async () => {
     if (!token) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await saveShopSettings({
         bwPrice: settings.bwPrice,
@@ -157,7 +173,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
       setSavedToast(true);
       setTimeout(() => setSavedToast(false), 2600);
     } catch {
-      alert("Save failed. Please try again.");
+      setSaveError("Save failed. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -237,40 +253,74 @@ export function PrintingSettings({ token }: { token: string | null }) {
   const isConnected = billing?.bank_verification_status === 'verified' && billing?.charges_enabled;
 
   return (
-    <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-[24px] p-5 sm:p-6 shadow-[0_8px_32px_rgba(0,0,0,0.08)] relative">
+    <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-4 sm:p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] relative">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-3">
           <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#fcd34d] to-[#f59e0b] flex items-center justify-center shadow-sm">
             <Printer className="w-5 h-5 text-white" strokeWidth={2} />
           </span>
           <div>
-            <h3 className="text-[16px] font-bold text-[#111827]">Printing & Payouts Settings</h3>
-            <p className="text-[12px] text-[#111827]/60">Configure pricing and your Razorpay automated payouts.</p>
+            <h3 className="text-[16px] font-bold text-[#111827]">Printing & Payments</h3>
+            <p className="text-[12px] text-[#111827]/60">Set your prices and receive payments directly to your UPI.</p>
           </div>
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${isConnected ? "bg-emerald-500/15 text-emerald-700" : "bg-orange-500/15 text-orange-700"}`}>
+            <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500" : "bg-orange-500"}`} />
+            {isConnected ? "Payments Active" : "Setup Required"}
+          </span>
         </div>
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${isConnected ? "bg-emerald-500/15 text-emerald-700" : "bg-orange-500/15 text-orange-700"}`}>
-          <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500" : "bg-orange-500"}`} />
-          {isConnected ? "Payouts Active" : "Payouts Setup Required"}
-        </span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="flex items-center gap-2 text-[12px] font-bold text-[#111827] cursor-pointer select-none">
+            Accepting orders
+            <button
+              onClick={() => setSettings(st => ({ ...st, isAccepting: !st.isAccepting }))}
+              aria-label="Toggle accepting orders"
+              className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${settings.isAccepting ? "bg-emerald-500" : "bg-black/20"}`}
+            >
+              <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${settings.isAccepting ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </label>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="relative px-5 py-2 rounded-xl bg-[#111827] text-white text-[13px] font-bold hover:bg-black transition-all active:scale-95 disabled:opacity-50 overflow-hidden"
+          >
+            <AnimatePresence mode="wait">
+              {saving ? (
+                <motion.div key="saving" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Saving
+                </motion.div>
+              ) : savedToast ? (
+                <motion.div key="saved" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center gap-2 text-emerald-400">
+                  <Check className="w-4 h-4" /> Saved
+                </motion.div>
+              ) : (
+                <motion.div key="default" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  Save Settings
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </button>
+        </div>
       </div>
+      {saveError && <p className="-mt-3 mb-4 text-[12px] font-medium text-red-500">{saveError}</p>}
 
-      <div className="grid md:grid-cols-2 gap-5">
+      <div className="grid md:grid-cols-2 gap-4 items-start">
         {/* ── Secure Payouts Section ── */}
-        <div className="bg-white/50 border border-white/70 rounded-2xl p-4 flex flex-col">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="bg-white/50 border border-white/70 rounded-2xl p-4 flex flex-col gap-4">
+          <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#111827]" strokeWidth={2} />
-            <span className="text-[13px] font-bold text-[#111827]">Direct P2P UPI Setup</span>
+            <span className="text-[13px] font-bold text-[#111827]">Payouts — Direct UPI</span>
           </div>
 
-          <div className="flex-1 flex flex-col bg-white/40 rounded-xl border border-[#111827]/10 overflow-hidden p-4 justify-center">
+          <div className="flex flex-col bg-white/40 rounded-xl border border-[#111827]/10 overflow-hidden p-4">
             {billing?.upi_id ? (
               <div className="flex flex-col items-center gap-4 text-center">
                 {billing.bank_verification_status === 'verified' ? (
                   <div className="flex flex-col items-center gap-1 text-emerald-600">
                     <CheckCircle2 className="w-8 h-8 mb-1" />
                     <span className="text-[14px] font-bold">Bank Account Verified</span>
-                    <span className="text-[12px] text-emerald-600/80">95% automated revenue split is active</span>
+                    <span className="text-[12px] text-emerald-600/80">Students pay your UPI directly — you receive 100% of every order</span>
                   </div>
                 ) : billing.bank_verification_status === 'failed' ? (
                   <div className="flex flex-col items-center gap-1 text-red-600">
@@ -281,8 +331,8 @@ export function PrintingSettings({ token }: { token: string | null }) {
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-amber-600">
                     <Clock className="w-8 h-8 mb-1" />
-                    <span className="text-[14px] font-bold">KYC Pending</span>
-                    <span className="text-[12px] text-amber-600/80">Razorpay is verifying your account...</span>
+                    <span className="text-[14px] font-bold">Verification Pending</span>
+                    <span className="text-[12px] text-amber-600/80">We’re confirming your UPI details…</span>
                   </div>
                 )}
                 
@@ -320,10 +370,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
               </div>
             )}
           </div>
-        </div>
 
-        {/* ── Prices + Location ── */}
-        <div className="flex flex-col gap-4">
           <div className="bg-white/50 border border-white/70 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <IndianRupee className="w-4 h-4 text-[#111827]" strokeWidth={2} />
@@ -358,11 +405,15 @@ export function PrintingSettings({ token }: { token: string | null }) {
               </label>
             </div>
           </div>
+        </div>
+
+        {/* ── Location & Shop ── */}
+        <div className="flex flex-col gap-4">
 
           <div className="bg-white/50 border border-white/70 rounded-2xl p-4 flex-1">
             <div className="flex items-center gap-2 mb-3">
               <MapPin className="w-4 h-4 text-[#111827]" strokeWidth={2} />
-              <span className="text-[13px] font-bold text-[#111827]">Shop Details</span>
+              <span className="text-[13px] font-bold text-[#111827]">Location &amp; Shop</span>
             </div>
             <label className="block mb-4">
               <span className="block text-[11px] font-semibold text-[#111827]/60 mb-1.5">Pickup Location</span>
@@ -374,7 +425,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
               />
             </label>
 
-            <div className="mb-5 bg-[#111827]/5 rounded-xl border border-[#111827]/10 p-3">
+            <div className="mb-4 bg-[#111827]/5 rounded-xl border border-[#111827]/10 p-3">
               <div className="flex items-center justify-between mb-3">
                 <span className="block text-[12px] font-bold text-[#111827]">Shop Discovery Map</span>
                 {gpsStatus === "success" && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Updated</span>}
@@ -418,7 +469,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
               )}
             </div>
 
-            <div className="mb-5 bg-[#111827]/5 rounded-xl border border-[#111827]/10 p-3">
+            <div className="bg-[#111827]/5 rounded-xl border border-[#111827]/10 p-3">
               <div className="flex items-center justify-between mb-3">
                 <span className="block text-[12px] font-bold text-[#111827]">Shop Gallery</span>
                 <span className="text-[10px] font-bold text-[#111827]/50">{shopImages.length}/3 Uploaded</span>
@@ -426,9 +477,9 @@ export function PrintingSettings({ token }: { token: string | null }) {
               <div className="flex gap-2.5 overflow-x-auto pb-2 snap-x hide-scrollbar">
                 {shopImages.map((img, idx) => (
                   <div key={idx} className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden border border-[#111827]/10 snap-center group bg-white shadow-sm">
-                    <img src={img.url} className="w-full h-full object-cover" />
+                    <img src={img.url} alt={`Shop photo ${idx + 1}`} className="w-full h-full object-cover" />
                     <button 
-                      onClick={() => setShopImages(prev => prev.filter((_, i) => i !== idx))}
+                      aria-label="Remove image" onClick={() => { if (img.url.startsWith("blob:")) URL.revokeObjectURL(img.url); setShopImages(prev => prev.filter((_, i) => i !== idx)); }}
                       className="absolute top-1 right-1 bg-black/60 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -443,44 +494,13 @@ export function PrintingSettings({ token }: { token: string | null }) {
                   </label>
                 )}
               </div>
-              <p className="mt-2 text-[10px] font-medium text-[#111827]/40 leading-tight">Add up to 3 photos of your shop to help students locate you easily. High quality images increase trust.</p>
+              {galleryNotice && <p className="mt-2 text-[11px] font-bold text-red-500">{galleryNotice}</p>}
+              <p className="mt-2 text-[10px] font-medium text-[#111827]/40 leading-tight">Add up to 3 photos of your shop, then press Save Settings to keep them. High quality images increase trust.</p>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold text-[#111827]">Accepting Orders</span>
-              <button
-                onClick={() => setSettings(s => ({ ...s, isAccepting: !s.isAccepting }))}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${settings.isAccepting ? "bg-emerald-500" : "bg-black/20"}`}
-              >
-                <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${settings.isAccepting ? "translate-x-7" : "translate-x-1"}`} />
-              </button>
-            </div>
+
           </div>
         </div>
-      </div>
-
-      <div className="mt-5 flex justify-end">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="relative px-6 py-2.5 rounded-xl bg-[#111827] text-white text-[13px] font-bold hover:bg-black transition-all active:scale-95 disabled:opacity-50 overflow-hidden"
-        >
-          <AnimatePresence mode="wait">
-            {saving ? (
-              <motion.div key="saving" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> Saving
-              </motion.div>
-            ) : savedToast ? (
-              <motion.div key="saved" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center gap-2 text-emerald-400">
-                <Check className="w-4 h-4" /> Saved
-              </motion.div>
-            ) : (
-              <motion.div key="default" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                Save Settings
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </button>
       </div>
 
       {/* OTP / Bank Details Modal */}

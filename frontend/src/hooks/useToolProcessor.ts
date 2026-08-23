@@ -407,7 +407,7 @@ async function handlePdfToJpgMainThread(
 
     // Point to the worker that Next.js serves from public/ (copy it there if needed)
     // Fallback: use CDN worker which is cross-origin safe
-    const workerSrc = `/pdf.worker.min.js`;
+    const workerSrc = `/pdf.worker.min.mjs`;
     pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(data.buffers[0]) }).promise;

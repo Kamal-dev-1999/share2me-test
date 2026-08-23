@@ -9,7 +9,6 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useSession } from "next-auth/react";
 import { Store, GraduationCap, Users, ArrowRight, Loader2 } from "lucide-react";
 import { setPersona, type UserPersona } from "@/lib/printShop";
 

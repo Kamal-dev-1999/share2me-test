@@ -4,6 +4,10 @@ import { use, useState } from "react";
 import { notFound } from "next/navigation";
 import { PdfToolShell } from "@/components/PdfToolShell";
 import { ScanToPdfUI } from "@/components/tools/ScanToPdfUI";
+import { SignPdfUI } from "@/components/tools/SignPdfUI";
+import { PdfFormsUI } from "@/components/tools/PdfFormsUI";
+import { RedactPdfUI } from "@/components/tools/RedactPdfUI";
+import { ComparePdfUI } from "@/components/tools/ComparePdfUI";
 import { getToolBySlug } from "@/lib/pdfTools";
 import * as Configs from "@/components/tools/configs";
 
@@ -72,6 +76,18 @@ export default function ToolPage({ params }: PageProps) {
 
   if (tool.slug === "scan-to-pdf") {
     return <ScanToPdfUI tool={tool} />;
+  }
+  if (tool.slug === "sign-pdf") {
+    return <SignPdfUI tool={tool} />;
+  }
+  if (tool.slug === "pdf-forms") {
+    return <PdfFormsUI tool={tool} />;
+  }
+  if (tool.slug === "redact-pdf") {
+    return <RedactPdfUI tool={tool} />;
+  }
+  if (tool.slug === "compare-pdf") {
+    return <ComparePdfUI tool={tool} />;
   }
 
   return (
