@@ -321,6 +321,7 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights />
         <GoogleAnalytics gaId="G-8XDS75JXYK" />
+        <GoogleAnalytics gaId="G-CCBEZ2KK0S" />
         <GoogleTagManager gtmId="GTM-KS4LVZSF" />
         <Script
           id="google-adsense"
