@@ -434,3 +434,16 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(17, 24, 39, 0.4);
 }
+
+/* ─── Leaflet Custom Popup Overrides ─── */
+.custom-popup .leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 1rem !important;
+  overflow: hidden !important;
+}
+
+.custom-popup .leaflet-popup-content {
+  margin: 0 !important;
+  width: 240px !important;
+  line-height: normal !important;
+}

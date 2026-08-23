@@ -221,6 +221,7 @@ export interface ShopkeeperSettings {
   retentionHours?: number;
   latitude?: number | null;
   longitude?: number | null;
+  shopImages?: { r2Key: string; url: string }[];
 }
 
 export async function getShopSettings(token: string): Promise<ShopkeeperSettings> {
@@ -228,7 +229,7 @@ export async function getShopSettings(token: string): Promise<ShopkeeperSettings
 }
 
 export async function saveShopSettings(
-  settings: { bwPrice: number; colorPrice: number; locationName: string; isAccepting?: boolean; razorpay_account_id?: string | null; charges_enabled?: boolean; retentionHours?: number },
+  settings: { bwPrice: number; colorPrice: number; locationName: string; isAccepting?: boolean; razorpay_account_id?: string | null; charges_enabled?: boolean; retentionHours?: number; shopImages?: string[] },
   token: string
 ): Promise<void> {
   await apiPut('/settings', settings, token);

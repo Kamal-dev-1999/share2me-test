@@ -30,6 +30,49 @@ export function PrintingSettings({ token }: { token: string | null }) {
   const [gpsStatus, setGpsStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
   const [gpsError, setGpsError] = useState<string>("");
   const [gpsAddress, setGpsAddress] = useState<string>("");
+  
+  const [shopImages, setShopImages] = useState<{ r2Key: string; url: string }[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleUploadShopImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token) return;
+    if (shopImages.length >= 3) {
+      alert("Maximum 3 images allowed");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image must be under 5MB");
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_EXPRESS_URL || "https://share2me-version-2-0.onrender.com"}/g2p/printshop`;
+      const presignRes = await fetch(`${API_BASE}/settings/images/presign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ fileName: file.name, mimeType: file.type, sizeBytes: file.size })
+      });
+      if (!presignRes.ok) throw new Error("Failed to get presigned URL");
+      const { url, r2Key } = await presignRes.json();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!uploadRes.ok) throw new Error("Failed to upload image");
+
+      const previewUrl = URL.createObjectURL(file);
+      setShopImages(prev => [...prev, { r2Key, url: previewUrl }]);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setUploadingImage(false);
+      if (e.target) e.target.value = '';
+    }
+  };
 
   const fetchAddressFromCoords = async (lat: number, lng: number) => {
     try {
@@ -92,6 +135,9 @@ export function PrintingSettings({ token }: { token: string | null }) {
       if (data.latitude && data.longitude) {
         fetchAddressFromCoords(data.latitude, data.longitude);
       }
+      if (data.shopImages) {
+        setShopImages(data.shopImages);
+      }
     }).catch(() => {});
     getBillingStatus(token).then(data => setBilling(data)).catch(() => {});
   }, [token]);
@@ -106,6 +152,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
         locationName: settings.locationName,
         isAccepting: settings.isAccepting,
         retentionHours: settings.retentionHours || 24,
+        shopImages: shopImages.map(img => img.r2Key),
       }, token);
       setSavedToast(true);
       setTimeout(() => setSavedToast(false), 2600);
@@ -366,9 +413,37 @@ export function PrintingSettings({ token }: { token: string | null }) {
               </button>
               {gpsStatus === "error" && (
                 <p className="mt-2 text-[11px] font-medium text-red-500 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" /> {gpsError}
+                  <AlertCircle className="w-3 h-3" /> {gpsError}
                 </p>
               )}
+            </div>
+
+            <div className="mb-5 bg-[#111827]/5 rounded-xl border border-[#111827]/10 p-3">
+              <div className="flex items-center justify-between mb-3">
+                <span className="block text-[12px] font-bold text-[#111827]">Shop Gallery</span>
+                <span className="text-[10px] font-bold text-[#111827]/50">{shopImages.length}/3 Uploaded</span>
+              </div>
+              <div className="flex gap-2.5 overflow-x-auto pb-2 snap-x hide-scrollbar">
+                {shopImages.map((img, idx) => (
+                  <div key={idx} className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden border border-[#111827]/10 snap-center group bg-white shadow-sm">
+                    <img src={img.url} className="w-full h-full object-cover" />
+                    <button 
+                      onClick={() => setShopImages(prev => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-1 right-1 bg-black/60 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {shopImages.length < 3 && (
+                  <label className="w-24 h-24 shrink-0 rounded-xl border-2 border-dashed border-[#111827]/20 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-[#111827]/5 hover:border-[#111827]/30 transition-colors snap-center bg-white/50">
+                    {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : <Palette className="w-5 h-5 text-gray-400" />}
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{uploadingImage ? 'Uploading' : 'Add Image'}</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleUploadShopImage} disabled={uploadingImage} />
+                  </label>
+                )}
+              </div>
+              <p className="mt-2 text-[10px] font-medium text-[#111827]/40 leading-tight">Add up to 3 photos of your shop to help students locate you easily. High quality images increase trust.</p>
             </div>
 
             <div className="flex items-center justify-between">

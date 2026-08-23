@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import G2pDashboard from "@/components/G2pDashboard";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, UserCheck, Send, HardDrive } from "lucide-react";
+import { ArrowLeft, ArrowRight, UserCheck, Send, HardDrive, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn, signOut, useSession, SessionProvider } from "next-auth/react";
 import { RoleSelectModal } from "@/components/printshop/RoleSelectModal";
@@ -118,7 +118,7 @@ function G2PContent() {
 
         <div className="w-full">
           <AnimatePresence mode="wait">
-            <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-stretch w-full">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch w-full">
               {/* Login Card */}
               <motion.div
                 key="auth"
@@ -192,6 +192,35 @@ function G2PContent() {
                     <ArrowRight className="w-4 h-4" strokeWidth={2} />
                   </button>
                 </form>
+              </motion.div>
+
+              {/* Find Print Shops Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ delay: 0.16 }}
+                className="card-brutalist bg-surface-muted p-8 flex flex-col border-none"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                    <MapPin className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
+                  </div>
+                  <span className="chip-outline bg-white border-hairline">Print Shop</span>
+                </div>
+                <h3 className="text-[20px] md:text-[22px] font-semibold text-on-surface mb-1.5 leading-tight">
+                  Find a print shop
+                </h3>
+                <p className="text-[13px] text-on-surface-variant mb-6">
+                  Locate nearby print shops to send your files directly to their machines.
+                </p>
+                <Link
+                  href="/g2p/nearby"
+                  className="btn-brutalist mt-auto bg-white text-ink border border-hairline hover:bg-background shadow-sm"
+                >
+                  View Map
+                  <ArrowRight className="w-4 h-4" strokeWidth={2} />
+                </Link>
               </motion.div>
             </div>
           </AnimatePresence>

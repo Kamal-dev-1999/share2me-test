@@ -85,6 +85,7 @@ router.get('/nearby', async (req, res) => {
         COALESCE(ps.bw_price, 2.0) as bw_price, 
         COALESCE(ps.color_price, 5.0) as color_price,
         ps.location_name,
+        ps.shop_images,
         ST_Y(ps.location::geometry) as lat,
         ST_X(ps.location::geometry) as lng,
         ST_Distance(ps.location, ST_MakePoint($1, $2)::geography) AS distance_m
@@ -98,15 +99,31 @@ router.get('/nearby', async (req, res) => {
       LIMIT $4
     `, [lng, lat, radius, limit]);
     
-    const shops = result.rows.map(row => ({
-      shopCode: row.shop_code,
-      shopName: row.company && row.company.trim() ? row.company.trim() : row.shop_name,
-      locationName: row.location_name,
-      bwPrice: parseFloat(row.bw_price),
-      colorPrice: parseFloat(row.color_price),
-      distanceMeters: Math.round(row.distance_m),
-      latitude: parseFloat(row.lat),
-      longitude: parseFloat(row.lng)
+    const GetObjectCommand = require('@aws-sdk/client-s3').GetObjectCommand;
+    const shops = await Promise.all(result.rows.map(async row => {
+      let imageUrls = [];
+      if (Array.isArray(row.shop_images) && row.shop_images.length > 0) {
+        imageUrls = await Promise.all(row.shop_images.map(async (key) => {
+          try {
+            const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
+            return await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+          } catch (e) {
+            return null;
+          }
+        }));
+      }
+
+      return {
+        shopCode: row.shop_code,
+        shopName: row.company && row.company.trim() ? row.company.trim() : row.shop_name,
+        locationName: row.location_name,
+        bwPrice: parseFloat(row.bw_price),
+        colorPrice: parseFloat(row.color_price),
+        distanceMeters: Math.round(row.distance_m),
+        latitude: parseFloat(row.lat),
+        longitude: parseFloat(row.lng),
+        shopImages: imageUrls.filter(Boolean)
+      };
     }));
 
     res.json({ shops });
@@ -817,7 +834,7 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
   try {
     const result = await query(`
       SELECT ps.bw_price, ps.color_price, ps.location_name, ps.qr_r2_key, ps.is_accepting, ps.retention_hours,
-             ps.payment_qr_url, ps.payment_qr_id,
+             ps.payment_qr_url, ps.payment_qr_id, ps.shop_images,
              ST_Y(ps.location::geometry) as latitude, 
              ST_X(ps.location::geometry) as longitude,
              v.razorpay_account_id, v.charges_enabled, v.upi_id
@@ -840,6 +857,20 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
       } catch { /* non-fatal */ }
     }
 
+    let shopImagesData = [];
+    if (Array.isArray(row.shop_images) && row.shop_images.length > 0) {
+      const GetObjectCommand = require('@aws-sdk/client-s3').GetObjectCommand;
+      shopImagesData = await Promise.all(row.shop_images.map(async (key) => {
+        try {
+          const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
+          const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+          return { r2Key: key, url };
+        } catch (e) {
+          return null;
+        }
+      }));
+    }
+
     res.json({
       bwPrice: row.bw_price ? parseFloat(row.bw_price) : 2.0,
       colorPrice: row.color_price ? parseFloat(row.color_price) : 5.0,
@@ -854,6 +885,7 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
       longitude: row.longitude ? parseFloat(row.longitude) : null,
       qrImageUrl: row.payment_qr_url || null,
       qrId: row.payment_qr_id || null,
+      shopImages: shopImagesData.filter(Boolean),
     });
   } catch (err) {
     console.error('[PrintShop] GET /settings error:', err);
@@ -863,13 +895,18 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
 
 // ─── PROTECTED: PUT /printshop/settings ───────────────────────────────────────
 router.put('/settings', requireShopkeeper, async (req, res) => {
-  const { bwPrice, colorPrice, locationName, isAccepting, retentionHours } = req.body;
+  const { bwPrice, colorPrice, locationName, isAccepting, retentionHours, shopImages } = req.body;
 
   const cleanBwPrice      = toPositiveFloat(bwPrice);
   const cleanColorPrice   = toPositiveFloat(colorPrice);
   const cleanLocation     = sanitizeText(locationName, 120);
   const cleanIsAccepting  = isAccepting === false ? false : true;
   const cleanRetention    = Number.isInteger(Number(retentionHours)) ? Number(retentionHours) : 24;
+  
+  // Validate shopImages (must be array of strings, max 3)
+  const cleanShopImages = Array.isArray(shopImages) 
+    ? shopImages.filter(k => typeof k === 'string').slice(0, 3) 
+    : [];
 
   if (cleanBwPrice === null || cleanColorPrice === null) {
     return res.status(400).json({ error: 'invalid_price' });
@@ -880,20 +917,58 @@ router.put('/settings', requireShopkeeper, async (req, res) => {
 
   try {
     await query(`
-      INSERT INTO printshop_settings (vendor_id, bw_price, color_price, location_name, is_accepting, retention_hours, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      INSERT INTO printshop_settings (vendor_id, bw_price, color_price, location_name, is_accepting, retention_hours, shop_images, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
       ON CONFLICT (vendor_id) DO UPDATE
         SET bw_price = EXCLUDED.bw_price,
             color_price = EXCLUDED.color_price,
             location_name = EXCLUDED.location_name,
             is_accepting = EXCLUDED.is_accepting,
             retention_hours = EXCLUDED.retention_hours,
+            shop_images = EXCLUDED.shop_images,
             updated_at = NOW()
-    `, [req.vendorId, cleanBwPrice, cleanColorPrice, cleanLocation, cleanIsAccepting, cleanRetention]);
+    `, [req.vendorId, cleanBwPrice, cleanColorPrice, cleanLocation, cleanIsAccepting, cleanRetention, JSON.stringify(cleanShopImages)]);
 
     res.json({ success: true });
   } catch (err) {
     console.error('[PrintShop] PUT /settings error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ─── PROTECTED: POST /printshop/settings/images/presign ───────────────────────
+router.post('/settings/images/presign', requireShopkeeper, async (req, res) => {
+  try {
+    const { fileName, mimeType, sizeBytes } = req.body;
+    if (!fileName || !mimeType || !sizeBytes) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+    if (sizeBytes > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: 'file_too_large', message: 'Images must be under 5MB' });
+    }
+    if (!mimeType.startsWith('image/')) {
+      return res.status(400).json({ error: 'invalid_file_type', message: 'Must be an image' });
+    }
+
+    const { v4: uuidv4 } = require('uuid');
+    const ext = fileName.split('.').pop();
+    const r2Key = `shop-images/${req.vendorId}/${uuidv4()}.${ext}`;
+
+    const { PutObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const { s3, R2_BUCKET } = require('../lib/storage');
+
+    const cmd = new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: r2Key,
+      ContentType: mimeType,
+      ContentLength: sizeBytes,
+    });
+
+    const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+    res.json({ success: true, url, r2Key });
+  } catch (err) {
+    console.error('[PrintShop] POST /settings/images/presign error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });

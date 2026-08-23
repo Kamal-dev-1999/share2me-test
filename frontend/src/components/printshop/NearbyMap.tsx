@@ -64,6 +64,31 @@ const createShopIcon = (price: string) => {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+function AddressResolver({ initialName, lat, lng }: { initialName?: string, lat: number, lng: number }) {
+  const [address, setAddress] = useState(initialName || "Fetching location...");
+  
+  useEffect(() => {
+    if (initialName) return;
+    let isMounted = true;
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted && data && data.display_name) {
+          setAddress(data.display_name);
+        } else if (isMounted) {
+          setAddress("Coordinates available");
+        }
+      })
+      .catch(() => {
+        if (isMounted) setAddress("Coordinates available");
+      });
+      
+    return () => { isMounted = false; };
+  }, [initialName, lat, lng]);
+
+  return <p className="text-[11px] text-[#111827]/60 mb-3 line-clamp-2 leading-relaxed" title={address}>{address}</p>;
+}
+
 function MapViewController({ userLoc, shops }: { userLoc: { lat: number, lng: number } | null, shops: any[] }) {
   const map = useMap();
 
@@ -141,34 +166,52 @@ export default function NearbyMap({ userLoc, shops, onExpandRadius }: { userLoc:
           position={[shop.latitude, shop.longitude]}
           icon={createShopIcon(inr(shop.bwPrice))}
         >
-          <Popup className="custom-popup rounded-2xl overflow-hidden border-0 shadow-lg">
-            <div className="p-4 w-[240px] font-sans">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                  <Store className="w-4 h-4 text-indigo-600" />
+          <Popup className="custom-popup border-0 shadow-xl">
+            <div className="flex flex-col bg-white">
+              {/* Image Banner */}
+              {shop.shopImages && shop.shopImages.length > 0 ? (
+                <div className="w-full h-28 relative overflow-hidden bg-[#E9EDF1]">
+                  <img src={shop.shopImages[0]} className="w-full h-full object-cover" alt={shop.shopName} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
                 </div>
-                <h3 className="font-bold text-[#111827] text-[15px] leading-tight truncate">{shop.shopName}</h3>
+              ) : (
+                <div className="w-full h-20 bg-[#E9EDF1] relative border-b border-[#E1E3E5]">
+                  <div className="absolute inset-0 opacity-40 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
+                </div>
+              )}
+              
+              <div className="px-4 pb-4 pt-0 relative z-10">
+                {/* Shop Icon Overlapping Banner */}
+                <div className="w-12 h-12 rounded-full bg-white p-1 shadow-sm border border-[#E1E3E5] -mt-6 mb-2 relative z-20">
+                  <div className="w-full h-full rounded-full bg-[#F7F8F8] flex items-center justify-center">
+                    <Store className="w-5 h-5 text-[#111111]" />
+                  </div>
+                </div>
+                
+                <h3 className="font-bold text-[#111111] text-[16px] leading-tight truncate mb-1">{shop.shopName}</h3>
+                <AddressResolver initialName={shop.locationName} lat={shop.latitude} lng={shop.longitude} />
+
+                <div className="flex items-center justify-between border-t border-[#E1E3E5] pt-3 mb-4">
+                  <div className="flex gap-4 w-full">
+                    <div className="flex flex-col flex-1">
+                      <span className="text-[9px] font-bold text-[#8A8F93] uppercase tracking-wider mb-0.5">B&W</span>
+                      <span className="text-[13px] font-bold text-[#111111]">{inr(shop.bwPrice)}</span>
+                    </div>
+                    <div className="w-px h-6 bg-[#E1E3E5]"></div>
+                    <div className="flex flex-col flex-1">
+                      <span className="text-[9px] font-bold text-[#8A8F93] uppercase tracking-wider mb-0.5">Color</span>
+                      <span className="text-[13px] font-bold text-[#111111]">{inr(shop.colorPrice)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Link
+                  href={`/g2p/${shop.shopCode}`}
+                  className="w-full flex items-center justify-center gap-2 bg-[#090909] !text-white py-2.5 rounded-xl text-[13px] font-bold hover:bg-[#262626] transition-colors shadow-sm"
+                >
+                  Select Shop
+                </Link>
               </div>
-
-              <p className="text-xs text-gray-500 mb-3 line-clamp-2">{shop.locationName || "Location not provided"}</p>
-
-              <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2 mb-4">
-                <div className="text-center flex-1 border-r border-gray-200">
-                  <p className="text-[10px] text-gray-500 font-semibold uppercase">B&W</p>
-                  <p className="font-bold text-gray-900 text-[13px]">{inr(shop.bwPrice)}</p>
-                </div>
-                <div className="text-center flex-1">
-                  <p className="text-[10px] text-gray-500 font-semibold uppercase">Color</p>
-                  <p className="font-bold text-gray-900 text-[13px]">{inr(shop.colorPrice)}</p>
-                </div>
-              </div>
-
-              <Link
-                href={`/g2p/${shop.shopCode}`}
-                className="w-full flex items-center justify-center gap-2 bg-[#111827] text-white py-2 rounded-xl text-[13px] font-bold hover:bg-black transition-colors"
-              >
-                Select Shop
-              </Link>
             </div>
           </Popup>
         </Marker>
