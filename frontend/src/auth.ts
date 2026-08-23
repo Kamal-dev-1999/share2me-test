@@ -36,6 +36,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               },
               body: JSON.stringify({
                 name,
+                email: profile?.email || token.email,
                 providerId: `google-oauth2|${providerSub}`,
               }),
             });

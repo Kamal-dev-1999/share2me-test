@@ -15,7 +15,8 @@ export async function GET() {
   try {
     const token = await new SignJWT({ 
       id: (session.user as any).id,
-      shareCode: (session.user as any).shareCode 
+      shareCode: (session.user as any).shareCode,
+      email: session.user.email
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('12h') // 12-hour session for the dashboard

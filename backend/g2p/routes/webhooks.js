@@ -155,4 +155,46 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   }
 });
 
+// Razorpay Webhook Endpoint
+router.post('/razorpay', express.json(), async (req, res) => {
+  try {
+    const signature = req.headers['x-razorpay-signature'];
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+    if (!secret || !signature) {
+      return res.status(400).send('Missing signature or secret');
+    }
+
+    const crypto = require('crypto');
+    const expectedSignature = crypto.createHmac('sha256', secret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+
+    if (signature !== expectedSignature) {
+      return res.status(400).send('Invalid signature');
+    }
+
+    const { event, payload } = req.body;
+    const rzpAccountId = req.body.account_id; // For route linked accounts
+
+    if (event === 'fund_account.validation.completed' || event === 'account.instantly_activated') {
+      if (rzpAccountId) {
+        await query(`UPDATE printshop_settings SET bank_verification_status = 'verified', updated_at = NOW() WHERE vendor_id = (SELECT id FROM vendors WHERE razorpay_account_id = $1 LIMIT 1)`, [rzpAccountId]);
+        await query(`UPDATE vendors SET charges_enabled = true WHERE razorpay_account_id = $1`, [rzpAccountId]);
+        console.log(`[Webhook] Bank account for ${rzpAccountId} verified successfully.`);
+      }
+    } else if (event === 'fund_account.validation.failed') {
+      if (rzpAccountId) {
+        await query(`UPDATE printshop_settings SET bank_verification_status = 'failed', updated_at = NOW() WHERE vendor_id = (SELECT id FROM vendors WHERE razorpay_account_id = $1 LIMIT 1)`, [rzpAccountId]);
+        console.log(`[Webhook] Bank account for ${rzpAccountId} validation failed.`);
+      }
+    }
+
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error(`[Razorpay Webhook Error]:`, err);
+    res.status(500).send('Error processing webhook');
+  }
+});
+
 module.exports = router;

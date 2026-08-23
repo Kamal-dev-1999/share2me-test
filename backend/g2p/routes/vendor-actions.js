@@ -25,13 +25,17 @@ router.post('/upsert', async (req, res) => {
     return res.status(403).json({ error: 'forbidden' });
   }
 
-  const { name, providerId } = req.body;
+  const { name, providerId, email } = req.body;
   if (!name || !providerId) return res.status(400).json({ error: 'missing_fields' });
 
   try {
     // Check if exists first to avoid generating a new share2me_id if not needed
-    const existing = await query(`SELECT id, share2me_id FROM vendors WHERE auth_provider_id = $1`, [providerId]);
+    const existing = await query(`SELECT id, share2me_id, email FROM vendors WHERE auth_provider_id = $1`, [providerId]);
     if (existing.rowCount > 0) {
+      if (email && !existing.rows[0].email) {
+        // Backfill email if it was previously missing
+        await query(`UPDATE vendors SET email = $1 WHERE id = $2`, [email, existing.rows[0].id]);
+      }
       return res.json(existing.rows[0]);
     }
 
@@ -39,10 +43,10 @@ router.post('/upsert', async (req, res) => {
     const share2me_id = crypto.randomBytes(3).toString('hex').toUpperCase();
 
     const insertRes = await query(`
-      INSERT INTO vendors (name, auth_provider_id, share2me_id)
-      VALUES ($1, $2, $3)
+      INSERT INTO vendors (name, email, auth_provider_id, share2me_id)
+      VALUES ($1, $2, $3, $4)
       RETURNING id, share2me_id
-    `, [name, providerId, share2me_id]);
+    `, [name, email || null, providerId, share2me_id]);
     
     res.json(insertRes.rows[0]);
   } catch (err) {

@@ -75,6 +75,7 @@ router.get('/shop/:code', async (req, res) => {
       SELECT COALESCE(ps.bw_price, 2.0) as bw_price, 
              COALESCE(ps.color_price, 5.0) as color_price, 
              ps.location_name, ps.qr_r2_key, 
+             ps.upi_id, ps.upi_name,
              COALESCE(ps.is_accepting, true) as is_accepting,
              COALESCE(NULLIF(TRIM(v.company), ''), v.name) as shop_name, v.charges_enabled
       FROM vendors v
@@ -106,6 +107,8 @@ router.get('/shop/:code', async (req, res) => {
       qrUrl,
       charges_enabled: shop.charges_enabled,
       isPrintShop: true,
+      upiId: shop.upi_id || null,
+      upiName: shop.upi_name || null,
     });
   } catch (err) {
     console.error('[PrintShop] GET /shop/:code error:', err);
@@ -384,31 +387,7 @@ router.post('/jobs/bulk', async (req, res) => {
     totalBatchAmount = parseFloat(totalBatchAmount.toFixed(2));
     await client.query('COMMIT');
 
-    // Generate ONE Razorpay Order if online payment
-    let razorpayOrderId = null;
     let paymentAmountPaise = Math.round(totalBatchAmount * 100);
-    
-    if (cleanPayMethod === 'online') {
-      if (paymentAmountPaise < 100) paymentAmountPaise = 100;
-      
-      const orderOptions = {
-        amount: paymentAmountPaise,
-        currency: 'INR',
-        receipt: `batch_${insertedJobs[0].jobId.substring(0, 8)}`,
-      };
-      
-      if (shop.razorpay_account_id && shop.razorpay_account_id.startsWith('acc_') && shop.charges_enabled) {
-        const platformFee = Math.round(paymentAmountPaise * 0.05);
-        const vendorAmount = paymentAmountPaise - platformFee;
-        orderOptions.transfers = [{
-          account: shop.razorpay_account_id, amount: vendorAmount, currency: 'INR',
-          notes: { batch_receipt: orderOptions.receipt }, on_hold: false
-        }];
-      }
-      
-      const order = await getRazorpay().orders.create(orderOptions);
-      razorpayOrderId = order.id;
-    }
 
     // Notify the shopkeeper
     for (const job of insertedJobs) {
@@ -431,7 +410,6 @@ router.post('/jobs/bulk', async (req, res) => {
         createdAt: j.createdAt
       })),
       totalBatchAmount,
-      razorpayOrderId,
       amountPaise: paymentAmountPaise,
     });
   } catch (err) {

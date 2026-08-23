@@ -19,6 +19,7 @@ import {
   Upload, FileText, Printer, Palette, CheckCircle2, Loader2, Clock,
   Download, IndianRupee, MapPin, ChevronLeft, QrCode, Banknote, Check,
 } from "lucide-react";
+import QRCode from "react-qr-code";
 import {
   getPublicShopSettings, submitPrintJob, inr, formatBytes, DEFAULT_SETTINGS,
   type PrintType, type PrintJob, type PublicShopInfo, type PaymentMethod, type PrintConfig,
@@ -35,6 +36,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [hasPaidOnline, setHasPaidOnline] = useState(false);
 
   const submittingRef = useRef(false);
 
@@ -173,73 +175,6 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         });
       }));
 
-      if (method === 'online' && result.razorpayOrderId) {
-        const loaded = await new Promise((resolve) => {
-          const script = document.createElement("script");
-          script.src = "https://checkout.razorpay.com/v1/checkout.js";
-          script.onload = () => resolve(true);
-          script.onerror = () => resolve(false);
-          document.body.appendChild(script);
-        });
-
-        if (!loaded) {
-          setSubmitError("Failed to load Razorpay SDK. Please check your connection.");
-          setSubmitting(false);
-          submittingRef.current = false;
-          return;
-        }
-
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          amount: result.amountPaise,
-          currency: "INR",
-          name: shopName,
-          description: "Bulk Print Job Payment",
-          order_id: result.razorpayOrderId,
-          handler: async function (response: any) {
-            try {
-              const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/printshop/verify-payment-bulk`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_signature: response.razorpay_signature,
-                  jobIds: result.jobs.map(j => j.jobId)
-                })
-              });
-              if (!verifyRes.ok) throw new Error("Payment verification failed");
-              
-              const createdJobs: PrintJob[] = result.jobs.map((j, idx) => ({
-                id: j.jobId, documentName: filesState[idx].file.name, fileSizeBytes: filesState[idx].file.size,
-                fileType: filesState[idx].file.type || "application/octet-stream", pages: payloadFiles[idx].pages,
-                senderName: senderName.trim() || "Anonymous", printType: payloadFiles[idx].printConfig?.printType || printType,
-                pricePerPage: j.pricePerPage, totalAmount: j.totalAmount,
-                paymentMethod: method, paymentStatus: "paid",
-                paymentId: response.razorpay_payment_id, paidAt: new Date().toISOString(),
-                createdAt: j.createdAt, printConfig: payloadFiles[idx].printConfig || printConfig,
-              }));
-              setJobs(createdJobs);
-              setStep(5);
-            } catch (err) {
-              setSubmitError("Payment verification failed. If money was deducted, please contact the shopkeeper.");
-            }
-          },
-          prefill: {
-            name: senderName.trim() || "Anonymous"
-          },
-          theme: { color: "#111827" }
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', function (response: any) {
-          setSubmitError(response.error.description || "Payment failed");
-        });
-        rzp.open();
-        setSubmitting(false);
-        submittingRef.current = false;
-        return;
-      }
 
       const createdJobs: PrintJob[] = result.jobs.map((j, idx) => ({
         id: j.jobId, documentName: filesState[idx].file.name, fileSizeBytes: filesState[idx].file.size,
@@ -780,22 +715,12 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
 
             {payMethod === "online" && effectiveSettings.charges_enabled && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center bg-white/60 border border-white/70 rounded-2xl p-6">
+                className="flex flex-col items-center bg-white/60 border border-white/70 rounded-2xl p-6 text-center">
                 <span className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#34d399] to-[#059669] text-white flex items-center justify-center mb-3 shadow-md">
                   <QrCode className="w-7 h-7" />
                 </span>
-                {effectiveSettings.qrUrl ? (
-                  <>
-                    <p className="text-[14px] font-bold text-[#111827] mb-2">Scan to pay {inr(total)}</p>
-                    <img src={effectiveSettings.qrUrl} alt="Payment QR" className="w-40 h-40 rounded-xl border-2 border-[#111827]/10 shadow-sm object-contain bg-white p-1 mb-2" />
-                    <p className="text-[11px] text-[#111827]/50">Or tap button below to pay via Razorpay checkout</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[16px] font-extrabold text-[#111827]">Pay {inr(total)} via Razorpay</p>
-                    <p className="mt-2 text-[12px] text-[#111827]/60 max-w-[300px] text-center">You will be redirected to Razorpay to complete your payment via UPI or Card.</p>
-                  </>
-                )}
+                <p className="text-[16px] font-extrabold text-[#111827]">Pay {inr(total)} via UPI</p>
+                <p className="mt-2 text-[12px] text-[#111827]/60 max-w-[300px]">You will be prompted to scan a QR code or use a UPI app after submitting your order.</p>
               </motion.div>
             )}
 
@@ -823,7 +748,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
                 onClick={() => payMethod && submitJob(payMethod)}
                 className="flex-1 h-12 rounded-full bg-[#111827] text-white text-[14px] font-semibold hover:bg-black transition-colors disabled:opacity-40 inline-flex items-center justify-center gap-2"
               >
-                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : (payMethod === "cash" ? `Submit — Pay ${inr(total)} cash at counter` : `Pay ${inr(total)} via Razorpay`)}
+                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : (payMethod === "cash" ? `Submit — Pay ${inr(total)} cash at counter` : `Submit & Pay ${inr(total)} via UPI`)}
               </button>
             </div>
           </motion.div>
@@ -916,20 +841,44 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
           }
 
           // !isPaid && !isPrinted (Pending both)
+          const isOnline = jobs[0].paymentMethod === "online";
+          const upiUri = isOnline && effectiveSettings.upiId ? 
+            `upi://pay?pa=${effectiveSettings.upiId}&pn=${encodeURIComponent(effectiveSettings.upiName || shopName)}&am=${batchTotal}&cu=INR` : null;
+
           return (
             <motion.div key="s5-pending" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center text-center bg-white/60 border border-white/70 rounded-2xl p-8">
-              <span className="w-16 h-16 rounded-full bg-orange-500/15 text-orange-600 flex items-center justify-center mb-4">
-                <Clock className="w-8 h-8" />
-              </span>
-              <h3 className="text-[20px] font-extrabold text-[#111827]">Document submitted</h3>
-              <p className="text-[13px] text-[#111827]/60 mt-2 max-w-[320px]">
-                <b>{docName}</b> is with the shop.{" "}
-                {jobs[0].paymentMethod === "cash" ? (
-                  <>Pay <b>{inr(batchTotal)}</b> in <span className="text-amber-600 font-semibold">cash at the counter</span> when you collect your prints.</>
-                ) : (
-                  <>Payment of <b>{inr(batchTotal)}</b> is <span className="text-orange-600 font-semibold">pending verification</span> by the shopkeeper.</>
-                )}
-              </p>
+              {isOnline && upiUri && !hasPaidOnline ? (
+                <>
+                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-[#111827]/10 mb-4 inline-block">
+                    <QRCode value={upiUri} size={160} />
+                  </div>
+                  <h3 className="text-[20px] font-extrabold text-[#111827]">Scan to pay {inr(batchTotal)}</h3>
+                  <a href={upiUri} className="mt-3 inline-flex items-center gap-2 h-10 px-5 rounded-full bg-emerald-600 text-white text-[13px] font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+                    Open UPI App
+                  </a>
+                  <button 
+                    onClick={() => setHasPaidOnline(true)}
+                    className="mt-4 text-[#111827] text-[13px] font-bold underline decoration-[#111827]/30 underline-offset-4 hover:decoration-[#111827] transition-all"
+                  >
+                    I have paid
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="w-16 h-16 rounded-full bg-orange-500/15 text-orange-600 flex items-center justify-center mb-4">
+                    <Clock className="w-8 h-8" />
+                  </span>
+                  <h3 className="text-[20px] font-extrabold text-[#111827]">Document submitted</h3>
+                  <p className="text-[13px] text-[#111827]/60 mt-2 max-w-[320px]">
+                    <b>{docName}</b> is with the shop.{" "}
+                    {jobs[0].paymentMethod === "cash" ? (
+                      <>Pay <b>{inr(batchTotal)}</b> in <span className="text-amber-600 font-semibold">cash at the counter</span> when you collect your prints.</>
+                    ) : (
+                      <>Payment of <b>{inr(batchTotal)}</b> is <span className="text-orange-600 font-semibold">pending verification</span> by the shopkeeper.</>
+                    )}
+                  </p>
+                </>
+              )}
               <span className="mt-5 inline-flex items-center gap-2 text-[12px] text-[#111827]/50">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> This page updates automatically once confirmed
               </span>

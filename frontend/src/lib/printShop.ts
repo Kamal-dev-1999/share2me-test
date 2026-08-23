@@ -194,6 +194,8 @@ export interface PublicShopInfo {
   qrUrl: string | null;         // Razorpay auto-QR image URL
   charges_enabled?: boolean;    // true when vendor has connected UPI/Razorpay
   isPrintShop?: boolean;        // true when vendor persona === 'PRINT_SHOP'
+  upiId?: string | null;
+  upiName?: string | null;
 }
 
 export async function getPublicShopSettings(shopCode: string): Promise<PublicShopInfo> {
@@ -246,21 +248,70 @@ export async function uploadQrImage(file: File, token: string): Promise<{ qrUrl:
   return res.json();
 }
 
-export async function connectRazorpayAccount(
-  upiId: string,
-  token: string
-): Promise<{ success: boolean; qrImageUrl: string | null; qrId: string | null; upiId: string; charges_enabled: boolean }> {
-  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/connect`, {
+export interface BillingStatus {
+  charges_enabled: boolean;
+  razorpay_account_id: string | null;
+  bank_last4: string | null;
+  bank_verification_status: 'pending' | 'verified' | 'failed';
+  upi_id?: string | null;
+  upi_name?: string | null;
+}
+
+export async function getBillingStatus(token: string): Promise<BillingStatus> {
+  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/status`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` },
+    cache: 'no-store'
+  });
+  if (!res.ok) throw new Error('Failed to fetch billing status');
+  return res.json();
+}
+
+export async function requestBankOtp(token: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/bank/request-edit`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Failed to request OTP' }));
+    throw new Error(err.message || 'OTP request failed');
+  }
+  return res.json();
+}
+
+export async function verifyBankOtp(otp: string, token: string): Promise<{ success: boolean; editToken: string }> {
+  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/bank/verify-otp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({ upiId })
+    body: JSON.stringify({ otp })
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Connect failed' }));
-    throw new Error(err.message || 'Razorpay connect failed');
+    const err = await res.json().catch(() => ({ message: 'Failed to verify OTP' }));
+    throw new Error(err.message || 'OTP verification failed');
+  }
+  return res.json();
+}
+
+export async function updateUpiDetails(
+  editToken: string,
+  upiId: string,
+  upiName: string,
+  token: string
+): Promise<{ success: boolean; upi_id: string; status: string }> {
+  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/upi/update`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ editToken, upiId, upiName })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Failed to update UPI details' }));
+    throw new Error(err.message || 'UPI update failed');
   }
   return res.json();
 }
