@@ -31,6 +31,20 @@ export function PrintingSettings({ token }: { token: string | null }) {
   const [gpsError, setGpsError] = useState<string>("");
   const [gpsAddress, setGpsAddress] = useState<string>("");
 
+  const fetchAddressFromCoords = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const data = await res.json();
+      if (data && data.display_name) {
+        setGpsAddress(data.display_name);
+      } else {
+        setGpsAddress("Coordinates saved successfully");
+      }
+    } catch (e) {
+      setGpsAddress("Coordinates saved successfully");
+    }
+  };
+
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
       setGpsError("Geolocation is not supported by your browser");
@@ -44,18 +58,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
           if (token) {
             const { saveShopLocation } = await import("@/lib/printShop");
             await saveShopLocation(position.coords.latitude, position.coords.longitude, token);
-            
-            try {
-              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=18&addressdetails=1`);
-              const data = await res.json();
-              if (data && data.display_name) {
-                setGpsAddress(data.display_name);
-              } else {
-                setGpsAddress("Coordinates saved successfully");
-              }
-            } catch (e) {
-              setGpsAddress("Coordinates saved successfully");
-            }
+            await fetchAddressFromCoords(position.coords.latitude, position.coords.longitude);
             
             setGpsStatus("success");
             setTimeout(() => setGpsStatus("idle"), 5000);
@@ -84,7 +87,12 @@ export function PrintingSettings({ token }: { token: string | null }) {
   // Load settings from backend on mount
   useEffect(() => {
     if (!token) return;
-    getShopSettings(token).then(data => setSettings(data)).catch(() => {});
+    getShopSettings(token).then(data => {
+      setSettings(data);
+      if (data.latitude && data.longitude) {
+        fetchAddressFromCoords(data.latitude, data.longitude);
+      }
+    }).catch(() => {});
     getBillingStatus(token).then(data => setBilling(data)).catch(() => {});
   }, [token]);
 
@@ -320,23 +328,41 @@ export function PrintingSettings({ token }: { token: string | null }) {
             </label>
 
             <div className="mb-5 bg-[#111827]/5 rounded-xl border border-[#111827]/10 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="block text-[11px] font-semibold text-[#111827]/60">GPS Discovery</span>
-                {gpsStatus === "success" && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">Updated just now</span>}
+              <div className="flex items-center justify-between mb-3">
+                <span className="block text-[12px] font-bold text-[#111827]">Shop Discovery Map</span>
+                {gpsStatus === "success" && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Updated</span>}
               </div>
-              {gpsAddress && (
-                <div className="mb-3 p-2 bg-white/50 rounded-lg border border-[#111827]/5 flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                  <p className="text-[11px] font-medium text-[#111827]/80 leading-snug">{gpsAddress}</p>
+              
+              {gpsAddress ? (
+                <div className="mb-4 relative overflow-hidden rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 p-3 flex gap-3 items-center">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                  <div className="w-10 h-10 shrink-0 bg-white rounded-full flex items-center justify-center shadow-sm border border-emerald-100 relative z-10">
+                    <MapPin className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div className="flex-1 relative z-10">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Live Location Pinned</p>
+                    <p className="text-[12px] font-medium text-gray-700 leading-tight line-clamp-2">{gpsAddress}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 p-3 bg-orange-50 rounded-xl border border-orange-200/50 flex gap-3 items-center">
+                  <div className="w-10 h-10 shrink-0 bg-white rounded-full flex items-center justify-center shadow-sm border border-orange-100">
+                    <MapPin className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider mb-0.5">Action Required</p>
+                    <p className="text-[12px] font-medium text-gray-700 leading-tight">Students cannot find you on the map. Please detect your location.</p>
+                  </div>
                 </div>
               )}
+
               <button
                 onClick={handleDetectLocation}
                 disabled={gpsStatus === "locating"}
-                className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-white border border-[#111827]/10 hover:border-[#111827]/30 text-[#111827] text-[12px] font-bold transition-all disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-white border border-[#111827]/10 hover:border-[#111827]/30 text-[#111827] text-[13px] font-bold transition-all disabled:opacity-50 shadow-sm"
               >
-                {gpsStatus === "locating" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
-                {gpsStatus === "locating" ? "Locating..." : "Detect Live Location"}
+                {gpsStatus === "locating" ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                {gpsStatus === "locating" ? "Locating..." : (gpsAddress ? "Update Location (Re-detect)" : "Detect Live Location")}
               </button>
               {gpsStatus === "error" && (
                 <p className="mt-2 text-[11px] font-medium text-red-500 flex items-center gap-1">

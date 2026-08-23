@@ -219,6 +219,8 @@ export interface ShopkeeperSettings {
   qrImageUrl?: string | null;  // Razorpay QR image URL (permanent)
   qrId?: string | null;        // Razorpay QR Code ID
   retentionHours?: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export async function getShopSettings(token: string): Promise<ShopkeeperSettings> {

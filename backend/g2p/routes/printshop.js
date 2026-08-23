@@ -817,7 +817,7 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
   try {
     const result = await query(`
       SELECT ps.bw_price, ps.color_price, ps.location_name, ps.qr_r2_key, ps.is_accepting, ps.retention_hours,
-             ps.payment_qr_url, ps.payment_qr_id,
+             ps.payment_qr_url, ps.payment_qr_id, ps.latitude, ps.longitude,
              v.razorpay_account_id, v.charges_enabled, v.upi_id
       FROM vendors v
       LEFT JOIN printshop_settings ps ON ps.vendor_id = v.id
@@ -848,6 +848,8 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
       razorpay_account_id: row.razorpay_account_id || null,
       charges_enabled: row.charges_enabled || false,
       upiId: row.upi_id || '',
+      latitude: row.latitude ? parseFloat(row.latitude) : null,
+      longitude: row.longitude ? parseFloat(row.longitude) : null,
       qrImageUrl: row.payment_qr_url || null,
       qrId: row.payment_qr_id || null,
     });
