@@ -86,14 +86,14 @@ export const PDF_TOOLS: PdfTool[] = [
   // ---- EDIT ----
   { slug: "edit-pdf",      title: "Edit PDF",      description: "Add text, images, shapes, and freehand annotations to a PDF.",    icon: PenLine,  category: "edit", phase: "soon",  processingTier: "client" },
   { slug: "watermark-pdf", title: "Watermark PDF", description: "Stamp text or an image watermark on every page of a PDF.",        icon: Droplet,  category: "edit", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
-  { slug: "pdf-forms",     title: "PDF Forms",     description: "Detect and fill text fields, checkboxes, and radios inside PDFs.", icon: FormInput,category: "edit", phase: "soon",  processingTier: "hybrid" },
-  { slug: "redact-pdf",    title: "Redact PDF",    description: "Permanently remove text or graphics from a PDF for privacy.",     icon: Eraser,   category: "edit", phase: "soon",  processingTier: "client" },
-  { slug: "compare-pdf",   title: "Compare PDF",   description: "Side-by-side visual diff between two PDF versions.",               icon: GitCompare,category: "edit", phase: "soon", processingTier: "client" },
+  { slug: "pdf-forms",     title: "PDF Forms",     description: "Detect and fill text fields, checkboxes, and radios inside PDFs.", icon: FormInput,category: "edit", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
+  { slug: "redact-pdf",    title: "Redact PDF",    description: "Permanently remove text or graphics from a PDF for privacy.",     icon: Eraser,   category: "edit", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
+  { slug: "compare-pdf",   title: "Compare PDF",   description: "Side-by-side visual diff between two PDF versions.",               icon: GitCompare,category: "edit", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
 
   // ---- SECURITY ----
   { slug: "protect-pdf", title: "Protect PDF", description: "Encrypt a PDF with a password so only holders can open it.",         icon: Lock,     category: "security", phase: "ready", processingTier: "server", accept: ["application/pdf"] },
   { slug: "unlock-pdf",  title: "Unlock PDF",  description: "Remove password protection from a PDF you have permission to use.",  icon: Unlock,   category: "security", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
-  { slug: "sign-pdf",    title: "Sign PDF",    description: "Sign a PDF yourself or send it to others for signature.",            icon: FileText, category: "security", phase: "soon",  processingTier: "server" },
+  { slug: "sign-pdf",    title: "Sign PDF",    description: "Sign a PDF yourself or send it to others for signature.",            icon: FileText, category: "security", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
 
   // ---- OPTIMIZE ----
   { slug: "compress-pdf", title: "Compress PDF", description: "Reduce PDF file size while preserving maximum readable quality.", icon: Minimize2, category: "optimize", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
