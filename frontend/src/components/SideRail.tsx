@@ -7,15 +7,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-const ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
-  { href: "/",             icon: Home,        label: "Home" },
-  { href: "/p2p",          icon: Network,     label: "P2P Transfer" },
-  { href: "/g2p",          icon: Inbox,       label: "Admin Portal" },
-  { href: "/tools",        icon: Wrench,      label: "PDF Tools" },
-  { href: "/how-it-works", icon: Compass,     label: "How It Works" },
-  { href: "/blog",         icon: Coffee,      label: "Blog" },
-  { href: "/about",        icon: Fingerprint, label: "About" },
-  { href: "/pricing",      icon: Tag,         label: "Pricing" },
+const ITEMS: { href: string; icon: LucideIcon; label: string; grad: string; stops: [string, string]; deep: string }[] = [
+  { href: "/",             icon: Home,        label: "Home",         grad: "grad-home",   stops: ["#60a5fa", "#2563eb"], deep: "#1e40af" },
+  { href: "/p2p",          icon: Network,     label: "P2P Transfer", grad: "grad-p2p",    stops: ["#fcd34d", "#f59e0b"], deep: "#b45309" },
+  { href: "/g2p",          icon: Inbox,       label: "Admin Portal", grad: "grad-portal", stops: ["#4ade80", "#059669"], deep: "#047857" },
+  { href: "/tools",        icon: Wrench,      label: "PDF Tools",    grad: "grad-tools",  stops: ["#e879f9", "#c026d3"], deep: "#86198f" },
+  { href: "/how-it-works", icon: Compass,     label: "How It Works", grad: "grad-how",    stops: ["#38bdf8", "#0284c7"], deep: "#075985" },
+  { href: "/blog",         icon: Coffee,      label: "Blog",         grad: "grad-blog",   stops: ["#fb923c", "#ea580c"], deep: "#9a3412" },
+  { href: "/about",        icon: Fingerprint, label: "About",        grad: "grad-about",  stops: ["#f472b6", "#db2777"], deep: "#9d174d" },
+  { href: "/pricing",      icon: Tag,         label: "Pricing",      grad: "grad-price",  stops: ["#a78bfa", "#7c3aed"], deep: "#5b21b6" },
 ];
 
 /**
@@ -30,7 +30,7 @@ function RailItems({ layoutId, horizontal = false }: { layoutId: string; horizon
 
   return (
     <>
-      {ITEMS.map(({ href, icon: Icon, label }) => {
+      {ITEMS.map(({ href, icon: Icon, label, grad, deep }) => {
         const active = isActive(href);
         return (
           <Link
@@ -56,19 +56,19 @@ function RailItems({ layoutId, horizontal = false }: { layoutId: string; horizon
               <span className="absolute inset-0 rounded-[14px] bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             )}
 
-            {/* Icon — monochrome 3D: graphite gradient face + hard dark
-                extrusion (the "side face") + soft ground shadow */}
+            {/* Icon — 3D: gradient face + hard colored extrusion (the "side
+                face", like the beveled brand logo) + soft ground shadow */}
             <Icon
               className={`relative z-10 w-5 h-5 transition-all duration-300 ease-out group-hover:scale-125 group-hover:-translate-y-0.5 group-hover:opacity-100 ${
                 active ? "opacity-100" : "opacity-60"
               }`}
               style={{
-                stroke: "url(#rail-ink-3d)",
+                stroke: `url(#${grad})`,
                 filter: active
-                  ? "drop-shadow(0 1.5px 0 #05060a) drop-shadow(0 5px 6px rgba(0,0,0,0.30))"
-                  : "drop-shadow(0 1px 0 #05060a) drop-shadow(0 2.5px 3px rgba(0,0,0,0.18))",
+                  ? `drop-shadow(0 1.5px 0 ${deep}) drop-shadow(0 5px 6px rgba(0,0,0,0.30))`
+                  : `drop-shadow(0 1px 0 ${deep}) drop-shadow(0 2.5px 3px rgba(0,0,0,0.18))`,
               }}
-              strokeWidth={active ? 2.4 : 2.1}
+              strokeWidth={active ? 2.5 : 2.25}
             />
 
             {/* Flyout name label */}
@@ -101,15 +101,15 @@ function RailItems({ layoutId, horizontal = false }: { layoutId: string; horizon
 export function SideRail({ embedded = false }: { embedded?: boolean }) {
   const pathname = usePathname();
 
-  // Shared graphite 3D gradient — lit steel top-left fading to near-black.
   const defs = (
     <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
       <defs>
-        <linearGradient id="rail-ink-3d" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop stopColor="#6b7280" offset="0%" />
-          <stop stopColor="#111827" offset="55%" />
-          <stop stopColor="#05060a" offset="100%" />
-        </linearGradient>
+        {ITEMS.map((item) => (
+          <linearGradient key={item.grad} id={item.grad} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor={item.stops[0]} offset="0%" />
+            <stop stopColor={item.stops[1]} offset="100%" />
+          </linearGradient>
+        ))}
       </defs>
     </svg>
   );
