@@ -10,7 +10,7 @@ import { signIn, useSession, SessionProvider } from "next-auth/react";
 import {
   FileText, ImageIcon, FileImage, Film, PenTool,
   FileSpreadsheet, FileType2, AlignLeft, Table,
-  Zap, ArrowRight,
+  Zap, ArrowRight, MapPin,
   type LucideIcon,
 } from "lucide-react";
 
@@ -222,6 +222,13 @@ function HomeContent() {
                   >
                     <Zap className="w-3.5 h-3.5" strokeWidth={2.5} />
                     P2P transfer
+                  </Link>
+                  <Link
+                    href="/g2p/nearby"
+                    className="h-11 px-6 rounded-full bg-white/55 border border-white/80 text-[#171226] text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-white/80 transition-colors flex items-center gap-2"
+                  >
+                    <MapPin className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    Find Nearby Shops
                   </Link>
                 </div>
               </form>

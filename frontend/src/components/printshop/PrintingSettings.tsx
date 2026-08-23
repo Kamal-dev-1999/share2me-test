@@ -27,6 +27,42 @@ export function PrintingSettings({ token }: { token: string | null }) {
   const [otpError, setOtpError] = useState("");
   const [processingOtp, setProcessingOtp] = useState(false);
   
+  const [gpsStatus, setGpsStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
+  const [gpsError, setGpsError] = useState<string>("");
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError("Geolocation is not supported by your browser");
+      setGpsStatus("error");
+      return;
+    }
+    setGpsStatus("locating");
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          if (token) {
+            const { saveShopLocation } = await import("@/lib/printShop");
+            await saveShopLocation(position.coords.latitude, position.coords.longitude, token);
+            setGpsStatus("success");
+            setTimeout(() => setGpsStatus("idle"), 3000);
+          }
+        } catch (err) {
+          setGpsError("Failed to save location to server");
+          setGpsStatus("error");
+        }
+      },
+      (error) => {
+        let msg = "Failed to detect location";
+        if (error.code === error.PERMISSION_DENIED) msg = "Location permission denied";
+        if (error.code === error.POSITION_UNAVAILABLE) msg = "Location unavailable";
+        if (error.code === error.TIMEOUT) msg = "Location request timed out";
+        setGpsError(msg);
+        setGpsStatus("error");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+  
   const [editToken, setEditToken] = useState<string | null>(null);
   const [upiForm, setUpiForm] = useState({ upiId: "", upiName: "" });
   const [updatingBank, setUpdatingBank] = useState(false);
@@ -268,6 +304,27 @@ export function PrintingSettings({ token }: { token: string | null }) {
                 className="w-full bg-white border border-white/80 rounded-xl px-3 py-2.5 text-[13px] font-medium text-[#111827] focus:outline-none focus:border-indigo-500/30 transition-colors"
               />
             </label>
+
+            <div className="mb-5 bg-[#111827]/5 rounded-xl border border-[#111827]/10 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="block text-[11px] font-semibold text-[#111827]/60">GPS Discovery</span>
+                {gpsStatus === "success" && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">Updated just now</span>}
+              </div>
+              <button
+                onClick={handleDetectLocation}
+                disabled={gpsStatus === "locating"}
+                className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-white border border-[#111827]/10 hover:border-[#111827]/30 text-[#111827] text-[12px] font-bold transition-all disabled:opacity-50"
+              >
+                {gpsStatus === "locating" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+                {gpsStatus === "locating" ? "Locating..." : "Detect Live Location"}
+              </button>
+              {gpsStatus === "error" && (
+                <p className="mt-2 text-[11px] font-medium text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" /> {gpsError}
+                </p>
+              )}
+            </div>
+
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-bold text-[#111827]">Accepting Orders</span>
               <button

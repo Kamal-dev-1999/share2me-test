@@ -232,6 +232,10 @@ export async function saveShopSettings(
   await apiPut('/settings', settings, token);
 }
 
+export async function saveShopLocation(lat: number, lng: number, token: string): Promise<{ success: boolean; location_updated_at: string }> {
+  return apiPut('/settings/location', { lat, lng }, token);
+}
+
 export async function uploadQrImage(file: File, token: string): Promise<{ qrUrl: string }> {
   const arrayBuffer = await file.arrayBuffer();
   const res = await fetch(`${API_BASE}/settings/qr`, {

@@ -62,6 +62,61 @@ const toPositiveFloat = (n) => {
   return isFinite(v) && v >= 0 ? v : null;
 };
 
+// ─── PUBLIC: GET /printshop/nearby ────────────────────────────────────────
+// Returns nearby shops using PostGIS Haversine formula
+router.get('/nearby', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  let radius = parseFloat(req.query.radius) || 10000; // default 10km
+  if (radius > 50000) radius = 50000; // max 50km
+  const limit = parseInt(req.query.limit) || 20;
+
+  if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return res.status(400).json({ error: 'invalid_coordinates' });
+  }
+
+  try {
+    const result = await query(`
+      SELECT 
+        v.name as shop_name,
+        v.company as company,
+        v.share2me_id as shop_code,
+        COALESCE(ps.bw_price, 2.0) as bw_price, 
+        COALESCE(ps.color_price, 5.0) as color_price,
+        ps.location_name,
+        ST_Y(ps.location::geometry) as lat,
+        ST_X(ps.location::geometry) as lng,
+        ST_Distance(ps.location, ST_MakePoint($1, $2)::geography) AS distance_m
+      FROM vendors v
+      INNER JOIN printshop_settings ps ON v.id = ps.vendor_id
+      WHERE v.persona = 'PRINT_SHOP'
+        AND ps.is_accepting = true
+        AND ps.location IS NOT NULL
+        AND ST_DWithin(ps.location, ST_MakePoint($1, $2)::geography, $3)
+      ORDER BY ps.location <-> ST_MakePoint($1, $2)::geography
+      LIMIT $4
+    `, [lng, lat, radius, limit]);
+    
+    const shops = result.rows.map(row => ({
+      shopCode: row.shop_code,
+      shopName: row.company && row.company.trim() ? row.company.trim() : row.shop_name,
+      locationName: row.location_name,
+      bwPrice: parseFloat(row.bw_price),
+      colorPrice: parseFloat(row.color_price),
+      distanceMeters: Math.round(row.distance_m),
+      latitude: parseFloat(row.lat),
+      longitude: parseFloat(row.lng)
+    }));
+
+    res.json({ shops });
+  } catch (err) {
+    console.error('[PrintShop] GET /nearby error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+
 // ─── PUBLIC: GET /printshop/shop/:code ────────────────────────────────────────
 // Returns pricing and QR URL for the student print flow.
 // NEVER returns vendor_id — only the public-facing fields.
@@ -835,6 +890,32 @@ router.put('/settings', requireShopkeeper, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[PrintShop] PUT /settings error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ─── PROTECTED: PUT /printshop/settings/location ──────────────────────────────
+router.put('/settings/location', requireShopkeeper, async (req, res) => {
+  const { lat, lng } = req.body;
+  const latitude = parseFloat(lat);
+  const longitude = parseFloat(lng);
+
+  if (isNaN(latitude) || isNaN(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    return res.status(400).json({ error: 'invalid_coordinates' });
+  }
+
+  try {
+    await query(`
+      UPDATE printshop_settings 
+      SET location = ST_MakePoint($2, $3)::geography,
+          location_updated_at = NOW(),
+          updated_at = NOW()
+      WHERE vendor_id = $1
+    `, [req.vendorId, longitude, latitude]);
+
+    res.json({ success: true, location_updated_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('[PrintShop] PUT /settings/location error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });
