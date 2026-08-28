@@ -156,13 +156,24 @@ export default async function BlogPostPage({ params }: PageProps) {
               {(() => {
                 const imgMatch = article.intro.match(/!\[(.*?)\]\((.*?)\)/);
                 const textOnly = article.intro.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+                
+                let safeUrl = "";
+                if (imgMatch) {
+                  try {
+                    safeUrl = encodeURI(decodeURI(imgMatch[2]));
+                  } catch (e) {
+                    safeUrl = imgMatch[2].replace(/ /g, '%20');
+                  }
+                }
+
                 return (
                   <>
                     {imgMatch && (
                       <img 
-                        src={imgMatch[2]} 
+                        src={safeUrl} 
                         alt={imgMatch[1]} 
                         className="w-full rounded-[24px] border border-border/40 shadow-xl object-cover mb-8 aspect-[2/1]" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
                     )}
                     <p className="text-text-primary text-[18px] leading-relaxed font-medium border-l-2 border-primary pl-6 py-1">
@@ -184,13 +195,23 @@ export default async function BlogPostPage({ params }: PageProps) {
                     const textOnly = section.content.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
                     const parts = textOnly.split(/(\*\*.*?\*\*)/g);
                     
+                    let safeUrl = "";
+                    if (imgMatch) {
+                      try {
+                        safeUrl = encodeURI(decodeURI(imgMatch[2]));
+                      } catch (e) {
+                        safeUrl = imgMatch[2].replace(/ /g, '%20');
+                      }
+                    }
+
                     return (
                       <>
                         {imgMatch && (
                           <img 
-                            src={imgMatch[2]} 
+                            src={safeUrl} 
                             alt={imgMatch[1]} 
-                            className="w-full rounded-[16px] border border-border/40 shadow-lg object-cover mb-6 mt-4" 
+                            className="w-full rounded-[16px] border border-border/40 shadow-lg object-cover mb-6 mt-4"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
                         )}
                         <p>
