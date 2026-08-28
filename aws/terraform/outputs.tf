@@ -16,6 +16,16 @@ output "backend_ecr_url" {
 }
 
 # ─── ECS ──────────────────────────────────────────────────────────────────────
+output "ssm_vpc_id" {
+  description = "Command to fetch the VPC ID from SSM"
+  value       = "aws ssm get-parameter --name /share2me/${var.environment}/vpc_id --query Parameter.Value --output text"
+}
+
+output "auto_blogs_bucket_name" {
+  description = "The name of the auto-generated blogs S3 bucket"
+  value       = aws_s3_bucket.auto_blogs.bucket
+}
+
 output "ecs_cluster_name" {
   description = "Name of the ECS cluster."
   value       = aws_ecs_cluster.main.name
