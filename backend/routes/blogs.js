@@ -97,6 +97,13 @@ router.get('/', async (req, res) => {
     res.json(blogListCache);
   } catch (error) {
     console.error('[Blogs] Fetch index error:', error);
+    
+    // If credentials are not configured on the deployment platform, return empty list gracefully 
+    // instead of a 500 error which would break Next.js static generation.
+    if (error.name === 'CredentialsProviderError') {
+      return res.json([]);
+    }
+    
     res.status(500).json({ error: 'Failed to fetch blogs' });
   }
 });
