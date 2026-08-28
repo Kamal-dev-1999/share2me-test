@@ -3,11 +3,6 @@ import { ArrowLeft, Calendar, BookOpen, Share2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
-import { DATABASE } from "../db";
-
-export async function generateStaticParams() {
-  return Object.keys(DATABASE).map((slug) => ({ slug }));
-}
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -15,7 +10,18 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = DATABASE[slug];
+  const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || 'http://localhost:3000';
+  let article = null;
+  try {
+    const res = await fetch(`${backendUrl}/api/blogs/${slug}`, {
+      next: { revalidate: 60 }
+    });
+    if (res.ok) {
+      article = await res.json();
+    }
+  } catch (err) {
+    console.error('Error fetching blog:', err);
+  }
 
   if (!article) {
     return {
@@ -23,7 +29,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const cleanDescription = article.intro.substring(0, 155) + "...";
+  // Strip markdown images for SEO description
+  const textOnlyIntro = article.intro.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+  const cleanDescription = textOnlyIntro.substring(0, 155) + "...";
 
   return {
     title: `${article.title} — Blog`,
@@ -50,18 +58,32 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params;
-  const article = DATABASE[slug];
+  
+  const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || 'http://localhost:3000';
+  let article = null;
+  try {
+    const res = await fetch(`${backendUrl}/api/blogs/${slug}`, {
+      next: { revalidate: 60 }
+    });
+    if (res.ok) {
+      article = await res.json();
+    }
+  } catch (err) {
+    console.error('Error fetching blog:', err);
+  }
 
   if (!article) {
     notFound();
   }
+
+  const textOnlyIntro = (article.intro || "").replace(/!\[.*?\]\((.*?)\)/g, '').trim();
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     "@id": `https://share2.me/blog/${slug}#post`,
     "headline": article.title,
-    "description": article.intro.substring(0, 155) + "...",
+    "description": textOnlyIntro.substring(0, 155) + "...",
     "datePublished": new Date(article.date).toISOString(),
     "dateModified": new Date(article.date).toISOString(),
     "author": {
@@ -87,7 +109,7 @@ export default async function BlogPostPage({ params }: PageProps) {
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden text-text-primary">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
       {/* Background glow elements */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
@@ -129,18 +151,66 @@ export default async function BlogPostPage({ params }: PageProps) {
 
           {/* Article Content */}
           <section className="space-y-10 text-[16px] md:text-[17px] text-text-secondary leading-relaxed font-sans">
-            <p className="text-text-primary text-[18px] leading-relaxed font-medium border-l-2 border-primary pl-6 py-1">
-              {article.intro}
-            </p>
+            {/* Intro Rendering */}
+            <div className="space-y-6">
+              {(() => {
+                const imgMatch = article.intro.match(/!\[(.*?)\]\((.*?)\)/);
+                const textOnly = article.intro.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+                return (
+                  <>
+                    {imgMatch && (
+                      <img 
+                        src={imgMatch[2]} 
+                        alt={imgMatch[1]} 
+                        className="w-full rounded-[24px] border border-border/40 shadow-xl object-cover mb-8 aspect-[2/1]" 
+                      />
+                    )}
+                    <p className="text-text-primary text-[18px] leading-relaxed font-medium border-l-2 border-primary pl-6 py-1">
+                      {textOnly}
+                    </p>
+                  </>
+                );
+              })()}
+            </div>
 
-            {article.sections.map((section, idx) => (
-              <div key={idx} className="space-y-4 mt-12">
+            {article.sections.map((section: any, idx: number) => (
+              <div key={idx} className="space-y-6 mt-12">
                 <h2 className="text-2xl font-bold text-text-primary pt-4">{section.heading}</h2>
-                <p>{section.content}</p>
-                {section.bullets && (
+                
+                {/* Section Content Rendering */}
+                <div>
+                  {(() => {
+                    const imgMatch = section.content.match(/!\[(.*?)\]\((.*?)\)/);
+                    const textOnly = section.content.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+                    const parts = textOnly.split(/(\*\*.*?\*\*)/g);
+                    
+                    return (
+                      <>
+                        {imgMatch && (
+                          <img 
+                            src={imgMatch[2]} 
+                            alt={imgMatch[1]} 
+                            className="w-full rounded-[16px] border border-border/40 shadow-lg object-cover mb-6 mt-4" 
+                          />
+                        )}
+                        <p>
+                          {parts.map((part: string, i: number) => {
+                            if (part.startsWith('**') && part.endsWith('**')) {
+                              return <strong key={i} className="text-text-primary font-bold">{part.slice(2, -2)}</strong>;
+                            }
+                            return <span key={i}>{part}</span>;
+                          })}
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {section.bullets && section.bullets.length > 0 && (
                   <ul className="list-disc pl-6 space-y-3 mt-4 text-text-secondary">
-                    {section.bullets.map((bullet, bidx) => {
-                      const [boldText, normalText] = bullet.split(":");
+                    {section.bullets.map((bullet: string, bidx: number) => {
+                      const [boldText, ...rest] = bullet.split(":");
+                      const normalText = rest.join(":");
                       return (
                         <li key={bidx}>
                           {normalText ? (

@@ -15,6 +15,23 @@ export const metadata: Metadata = {
   }
 };
 
-export default function BlogPage() {
-  return <BlogIndexClient />;
+export default async function BlogPage() {
+  const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || 'http://localhost:3000';
+  let articlesList = [];
+
+  try {
+    const res = await fetch(`${backendUrl}/api/blogs`, {
+      next: { revalidate: 60 } // Revalidate every 60 seconds
+    });
+    
+    if (res.ok) {
+      articlesList = await res.json();
+    } else {
+      console.error('Failed to fetch blogs from backend:', res.status);
+    }
+  } catch (err) {
+    console.error('Error fetching blogs:', err);
+  }
+
+  return <BlogIndexClient initialArticles={articlesList} />;
 }

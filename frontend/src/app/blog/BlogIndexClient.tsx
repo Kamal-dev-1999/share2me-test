@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { Shield, Zap, Lock, BookOpen, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { DATABASE } from "./db";
 
-export default function BlogIndexClient() {
+
+export default function BlogIndexClient({ initialArticles = [] }: { initialArticles: any[] }) {
   const getCategoryIcon = (category: string) => {
     const cat = category.toLowerCase();
     if (cat.includes("webrtc") || cat.includes("tech")) return Zap;
@@ -20,16 +20,19 @@ export default function BlogIndexClient() {
     return "shadow-[0_0_15px_rgba(45,212,191,0.15)]";
   };
 
-  const articlesList = Object.entries(DATABASE).map(([slug, article]) => ({
-    slug,
-    title: article.title,
-    excerpt: article.intro.substring(0, 150) + "...",
-    category: article.category,
-    readTime: article.readTime,
-    date: article.date,
-    icon: getCategoryIcon(article.category),
-    glowColor: getCategoryGlow(article.category)
-  }));
+  const articlesList = initialArticles.map((article) => {
+    const cleanIntro = (article.intro || "").replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+    return {
+      slug: article.slug,
+      title: article.title,
+      excerpt: cleanIntro.substring(0, 150) + "...",
+      category: article.category,
+      readTime: article.readTime,
+      date: article.date,
+      icon: getCategoryIcon(article.category),
+      glowColor: getCategoryGlow(article.category)
+    };
+  });
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden text-text-primary">

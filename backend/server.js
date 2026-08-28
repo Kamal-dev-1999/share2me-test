@@ -112,6 +112,9 @@ app.use((req, res, next) => {
   // Allow UptimeRobot to hit /health
   if (req.path === '/health' && (req.headers['user-agent'] || '').includes('UptimeRobot')) return next();
 
+  // Allow internal server-to-server calls for public blogs
+  if (req.path.startsWith('/api/blogs')) return next();
+
   // Protect our backend API routes
   if (req.path.startsWith('/health') || req.path.startsWith('/api') || req.path.startsWith('/g2p')) {
     const origin = req.headers.origin;
@@ -145,6 +148,9 @@ app.use((req, res, next) => {
 
 // Mount G2P module (Decoupled Phase 2)
 app.use('/g2p', require('./g2p/index').g2pRouter);
+
+// Mount Blogs module (Dynamic S3 fetching)
+app.use('/api/blogs', require('./routes/blogs'));
 
 app.get('/api/ice-servers', async (_req, res) => {
   const iceServers = [
