@@ -475,10 +475,6 @@ export const LANDING_PAGES: Record<string, PageData> = {
       {
         "label": "Online Clipboard",
         "url": "/online-clipboard"
-      },
-      {
-        "label": "How it Works",
-        "url": "/how-it-works"
       }
     ]
   },

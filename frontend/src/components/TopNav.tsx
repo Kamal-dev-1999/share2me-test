@@ -72,7 +72,6 @@ export function TopNav() {
           </Link>
           <Link href="/g2p" className={linkClass(!!isActive("/g2p"))}>Portal</Link>
           <Link href="/tools" className={linkClass(!!isActive("/tools"))}>Tools</Link>
-          <Link href="/how-it-works" className={linkClass(!!isActive("/how-it-works"))}>How</Link>
           <Link href="/about" className={linkClass(!!isActive("/about"))}>About</Link>
           <Link href="/pricing" className={linkClass(!!isActive("/pricing"))}>Pricing</Link>
         </div>
@@ -125,7 +124,6 @@ export function TopNav() {
               ))}
               <div className="h-px w-full bg-hairline my-1" />
               {[
-                { href: "/how-it-works", label: "How it works" },
                 { href: "/about", label: "About" },
                 { href: "/blog", label: "Blog" },
                 { href: "/pricing", label: "Pricing" },

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Home, Network, Inbox, Wrench, Compass, Coffee, Fingerprint, Tag,
+  Home, Network, Inbox, Wrench, Coffee, Fingerprint, Tag,
   type LucideIcon,
 } from "lucide-react";
 
@@ -12,7 +12,6 @@ const ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
   { href: "/p2p",          icon: Network,     label: "P2P Transfer" },
   { href: "/g2p",          icon: Inbox,       label: "Admin Portal" },
   { href: "/tools",        icon: Wrench,      label: "PDF Tools" },
-  { href: "/how-it-works", icon: Compass,     label: "How It Works" },
   { href: "/blog",         icon: Coffee,      label: "Blog" },
   { href: "/about",        icon: Fingerprint, label: "About" },
   { href: "/pricing",      icon: Tag,         label: "Pricing" },

@@ -161,9 +161,8 @@ ShareIt/
 │   │   │   ├── layout.tsx       #   Root layout + SEO metadata
 │   │   │   ├── page.tsx         #   Main page — transfer workspace
 │   │   │   ├── send/            #   /send → redirects to home (send tab)
-│   │   │   └── how-it-works/   #   /how-it-works — visual explainer page
 │   │   ├── components/
-│   │   │   ├── TopNav.tsx       #   Sticky nav — Send/Receive scroll, How it Works link
+│   │   │   ├── TopNav.tsx       #   Sticky nav — Send/Receive scroll
 │   │   │   ├── HeroSection.tsx  #   Headline + stat callouts + trust badges
 │   │   │   ├── ModeSelector.tsx #   Send ↔ Receive pill toggle
 │   │   │   ├── SendFlow.tsx     #   File tab (drag-drop) + Text tab (textarea) + QR
@@ -306,7 +305,6 @@ Sender                          Signaling Server            Receiver
 | Route | Description |
 |---|---|
 | `/` | Main page — hero + transfer workspace (Send/Receive + File/Text) |
-| `/how-it-works` | Visual explainer — architecture diagram, 6-step flow, crypto spec, FAQ |
 | `/send` | Redirects to `/?mode=send#transfer` |
 
 ---

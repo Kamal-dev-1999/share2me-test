@@ -7,7 +7,7 @@ This document outlines the current Search Engine Optimization (SEO) strategies a
     *   **Implementation:** Raw Google tags are hardcoded in `frontend/src/app/layout.tsx` using Next.js `<Script>` components.
     *   **Reason:** We avoided `@next/third-parties/google` and environment variables (`NEXT_PUBLIC_GA_ID`) because Next.js standalone static builds sometimes strip out environment variables inside Docker, causing the GA script to disappear. Hardcoding inside the `<head>` using Next.js `Script` prevents React hydration mismatch errors while guaranteeing tracking.
 *   **Sitemap (`frontend/src/app/sitemap.ts`):**
-    *   Dynamically generates a sitemap.xml that explicitly tells Google to crawl: `https://share2.me`, `/how-it-works`, `/about`, `/privacy`, and `/terms`.
+    *   Dynamically generates a sitemap.xml that explicitly tells Google to crawl: `https://share2.me`, `/about`, `/privacy`, and `/terms`.
 *   **Robots.txt (`frontend/src/app/robots.ts`):**
     *   Instructs all user agents (`*`) to index the site and points them directly to the `sitemap.xml`.
 

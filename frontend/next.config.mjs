@@ -25,6 +25,20 @@ const nextConfig = {
     // data: URLs are generated locally by qrcode package — safe to allow
     unoptimized: true,
   },
+
+  async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
+    return [
+      {
+        source: "/api/admin/:path*",
+        destination: `${backendUrl}/api/admin/:path*`,
+      },
+      {
+        source: "/g2p/:path*",
+        destination: `${backendUrl}/g2p/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
