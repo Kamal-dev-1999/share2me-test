@@ -48,7 +48,7 @@ async function generateAndUploadBlog() {
   try {
     console.log("Generating blog content using Gemini...");
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: getPrompt(),
     });
     
@@ -73,7 +73,7 @@ async function generateAndUploadBlog() {
       Body: JSON.stringify(blogData, null, 2),
       ContentType: 'application/json',
       Metadata: {
-        'generated-by': 'gemini-2.5-flash',
+        'generated-by': 'gemini-3.6-flash',
         'date': new Date().toISOString()
       }
     });
