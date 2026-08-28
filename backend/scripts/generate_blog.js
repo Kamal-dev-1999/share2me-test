@@ -15,7 +15,8 @@ const s3 = new S3Client({
   },
 });
 
-const BUCKET_NAME = (process.env.S3_BLOGS_BUCKET || 'share2me-auto-blogs-prod').trim();
+const BUCKET_NAME = (process.env.S3_BLOGS_BUCKET || 'share2me-auto-blogs-prod')
+  .replace(/[^a-z0-9-]/g, '');
 
 /**
  * Generate a dynamic prompt for the LLM
