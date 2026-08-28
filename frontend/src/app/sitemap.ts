@@ -1,8 +1,7 @@
 import { MetadataRoute } from 'next';
-import { DATABASE } from './blog/db';
 import { LANDING_PAGES } from './[...slug]/data';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://share2.me';
 
   const baseRoutes: MetadataRoute.Sitemap = [
@@ -65,12 +64,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   // Dynamic Blog Posts
-  const blogRoutes: MetadataRoute.Sitemap = Object.keys(DATABASE).map((slug) => ({
-    url: `${baseUrl}/blog/${slug}`,
-    lastModified: new Date(),
-    changeFrequency: 'monthly',
-    priority: 0.7,
-  }));
+  const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || 'http://localhost:3000';
+  let blogRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const res = await fetch(`${backendUrl}/api/blogs`, { next: { revalidate: 3600 } });
+    if (res.ok) {
+      const blogs = await res.json();
+      blogRoutes = blogs.map((b: any) => ({
+        url: `${baseUrl}/blog/${b.slug}`,
+        lastModified: new Date(b.date || Date.now()),
+        changeFrequency: 'monthly',
+        priority: 0.7,
+      }));
+    }
+  } catch (err) {
+    console.error('Sitemap failed to fetch blogs:', err);
+  }
 
   return [...baseRoutes, ...landingRoutes, ...blogRoutes];
 }
