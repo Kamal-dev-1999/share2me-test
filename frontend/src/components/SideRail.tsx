@@ -9,10 +9,9 @@ import {
 
 const ITEMS: { href: string; icon: LucideIcon; label: string; grad: string; stops: [string, string]; deep: string }[] = [
   { href: "/",             icon: Home,        label: "Home",         grad: "grad-home",   stops: ["#60a5fa", "#2563eb"], deep: "#1e40af" },
-  { href: "/p2p",          icon: Network,     label: "P2P Transfer", grad: "grad-p2p",    stops: ["#fcd34d", "#f59e0b"], deep: "#b45309" },
-  { href: "/g2p",          icon: Inbox,       label: "Admin Portal", grad: "grad-portal", stops: ["#4ade80", "#059669"], deep: "#047857" },
+  { href: "/p2p",          icon: Network,     label: "Direct Transfer", grad: "grad-p2p",    stops: ["#fcd34d", "#f59e0b"], deep: "#b45309" },
+  { href: "/g2p",          icon: Inbox,       label: "Share with Code", grad: "grad-portal", stops: ["#4ade80", "#059669"], deep: "#047857" },
   { href: "/tools",        icon: Wrench,      label: "PDF Tools",    grad: "grad-tools",  stops: ["#e879f9", "#c026d3"], deep: "#86198f" },
-  { href: "/how-it-works", icon: Compass,     label: "How It Works", grad: "grad-how",    stops: ["#38bdf8", "#0284c7"], deep: "#075985" },
   { href: "/blog",         icon: Coffee,      label: "Blog",         grad: "grad-blog",   stops: ["#fb923c", "#ea580c"], deep: "#9a3412" },
   { href: "/about",        icon: Fingerprint, label: "About",        grad: "grad-about",  stops: ["#f472b6", "#db2777"], deep: "#9d174d" },
   { href: "/pricing",      icon: Tag,         label: "Pricing",      grad: "grad-price",  stops: ["#a78bfa", "#7c3aed"], deep: "#5b21b6" },

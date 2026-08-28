@@ -11,7 +11,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-
+  outputFileTracingRoot: process.cwd(),
   images: {
     // Allow data: URIs (used for QR code base64 images)
     dangerouslyAllowSVG: true,
@@ -24,6 +24,23 @@ const nextConfig = {
     ],
     // data: URLs are generated locally by qrcode package — safe to allow
     unoptimized: true,
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+      };
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "string_decoder/": false,
+        "string_decoder": false,
+        "https-proxy-agent": false,
+      };
+    }
+    return config;
   },
 };
 

@@ -68,11 +68,10 @@ export function TopNav() {
         <div className="hidden md:flex items-center gap-1 ml-4 lg:ml-8">
           <Link href="/" className={linkClass(!!isActive("/"))}>Home</Link>
           <Link href="/p2p?mode=send" onClick={goToTransfer("send")} className={linkClass(!!isActive("/p2p"))}>
-            P2P
+            Direct Transfer
           </Link>
-          <Link href="/g2p" className={linkClass(!!isActive("/g2p"))}>Portal</Link>
+          <Link href="/g2p" className={linkClass(!!isActive("/g2p"))}>Share with Code</Link>
           <Link href="/tools" className={linkClass(!!isActive("/tools"))}>Tools</Link>
-          <Link href="/how-it-works" className={linkClass(!!isActive("/how-it-works"))}>How</Link>
           <Link href="/about" className={linkClass(!!isActive("/about"))}>About</Link>
           <Link href="/pricing" className={linkClass(!!isActive("/pricing"))}>Pricing</Link>
         </div>
@@ -111,7 +110,7 @@ export function TopNav() {
                 { href: "/", label: "Home" },
                 { href: "/p2p?mode=send", label: "Send a file", onClick: goToTransfer("send") },
                 { href: "/p2p?mode=receive", label: "Receive a file", onClick: goToTransfer("receive") },
-                { href: "/g2p", label: "Portal" },
+                { href: "/g2p", label: "Share with Code" },
                 { href: "/tools", label: "PDF tools" },
               ].map((item) => (
                 <Link
@@ -125,7 +124,6 @@ export function TopNav() {
               ))}
               <div className="h-px w-full bg-hairline my-1" />
               {[
-                { href: "/how-it-works", label: "How it works" },
                 { href: "/about", label: "About" },
                 { href: "/blog", label: "Blog" },
                 { href: "/pricing", label: "Pricing" },

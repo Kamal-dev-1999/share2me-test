@@ -53,7 +53,7 @@ export default function AboutPageClient() {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-background-elevated to-background-card border border-border flex items-center justify-center shadow-soft">
               <Rocket className="w-6 h-6 text-primary" />
             </div>
-            <h2 className="text-3xl font-display font-bold text-text-primary">The 2.7 Evolution</h2>
+            <h2 className="text-3xl font-display font-bold text-text-primary">Why Share2Me?</h2>
           </motion.div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -66,11 +66,11 @@ export default function AboutPageClient() {
               className="bg-background-card/50 backdrop-blur-xl rounded-[32px] border border-border p-8 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 group shadow-lg"
             >
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-[0_0_15px_rgba(255,204,0,0.15)]">
-                <Shield className="w-7 h-7 text-primary" />
+                <Rocket className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="text-xl font-bold text-text-primary mb-3">Enterprise-Grade TURN</h3>
+              <h3 className="text-xl font-bold text-text-primary mb-3">Lightning Fast Speeds</h3>
               <p className="text-[15px] text-text-secondary leading-relaxed">
-                Version 2.7 introduces Metered TURN credentials passing through port 443 with TLS, effortlessly bypassing corporate firewalls and deep-packet inspection.
+                By bypassing traditional servers, files stream directly between your devices at maximum network speeds. No waiting in queues, no artificial throttling.
               </p>
             </motion.div>
             
@@ -83,11 +83,11 @@ export default function AboutPageClient() {
               className="bg-background-card/50 backdrop-blur-xl rounded-[32px] border border-border p-8 hover:border-[#B967FF]/50 hover:bg-[#B967FF]/5 transition-all duration-300 group shadow-lg relative overflow-hidden"
             >
               <div className="w-14 h-14 rounded-2xl bg-[#B967FF]/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300 shadow-[0_0_15px_rgba(185,103,255,0.15)]">
-                <Cpu className="w-7 h-7 text-[#B967FF]" />
+                <Shield className="w-7 h-7 text-[#B967FF]" />
               </div>
-              <h3 className="text-xl font-bold text-text-primary mb-3">Next.js 15 Migration</h3>
+              <h3 className="text-xl font-bold text-text-primary mb-3">Unbreakable Security</h3>
               <p className="text-[15px] text-text-secondary leading-relaxed">
-                Completely refactored to utilize the latest Next.js 15 runtime, dramatically improving edge-caching and patching critical upstream CVE vulnerabilities.
+                Every file and message is mathematically encrypted inside your browser before it ever leaves your device. No one, not even us, can see your data.
               </p>
             </motion.div>
             
@@ -100,11 +100,11 @@ export default function AboutPageClient() {
               className="bg-background-card/50 backdrop-blur-xl rounded-[32px] border border-border p-8 hover:border-status-success/50 hover:bg-status-success/5 transition-all duration-300 group shadow-lg"
             >
               <div className="w-14 h-14 rounded-2xl bg-status-success/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                <Code2 className="w-7 h-7 text-status-success" />
+                <Star className="w-7 h-7 text-status-success" />
               </div>
-              <h3 className="text-xl font-bold text-text-primary mb-3">Smart Error Handling</h3>
+              <h3 className="text-xl font-bold text-text-primary mb-3">No Limits</h3>
               <p className="text-[15px] text-text-secondary leading-relaxed">
-                New responsive error toasts and human-readable feedback. Disconnects, invalid pins, and WebRTC failures are now beautifully presented without the technical jargon.
+                Send massive 4K videos, heavy project folders, or thousands of photos instantly. We don't impose file size limits because we don't store your files.
               </p>
             </motion.div>
           </div>
@@ -121,7 +121,7 @@ export default function AboutPageClient() {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-background-elevated to-background-card border border-border flex items-center justify-center shadow-soft">
               <Shield className="w-6 h-6 text-text-primary" />
             </div>
-            <h2 className="text-3xl font-display font-bold text-text-primary">System Architecture</h2>
+            <h2 className="text-3xl font-display font-bold text-text-primary">How We Keep You Safe</h2>
           </motion.div>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
