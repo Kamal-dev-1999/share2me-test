@@ -30,22 +30,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   // Strip markdown images for SEO description
-  const textOnlyIntro = article.intro.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+  const textOnlyIntro = (article.intro || "").replace(/!\[.*?\]\((.*?)\)/g, '').trim();
   const cleanDescription = textOnlyIntro.substring(0, 155) + "...";
 
+  let publishedTime = new Date().toISOString();
+  try {
+    if (article.date) {
+      publishedTime = new Date(article.date).toISOString();
+    }
+  } catch (e) {
+    // Ignore invalid dates
+  }
+
   return {
-    title: `${article.title} — Blog`,
+    title: `${article.title || 'Blog Post'} — Blog`,
     description: cleanDescription,
     alternates: {
       canonical: `/blog/${slug}`,
     },
     openGraph: {
-      title: `${article.title} | Share2Me Blog`,
+      title: `${article.title || 'Blog Post'} | Share2Me Blog`,
       description: cleanDescription,
       url: `https://share2.me/blog/${slug}`,
       siteName: "Share2Me",
       type: "article",
-      publishedTime: new Date(article.date).toISOString(),
+      publishedTime: publishedTime,
       authors: ["Share2Me Team"],
     },
     twitter: {
@@ -76,16 +85,25 @@ export default async function BlogPostPage({ params }: PageProps) {
     notFound();
   }
 
+  let publishedTime = new Date().toISOString();
+  try {
+    if (article.date) {
+      publishedTime = new Date(article.date).toISOString();
+    }
+  } catch (e) {
+    // Ignore invalid dates
+  }
+
   const textOnlyIntro = (article.intro || "").replace(/!\[.*?\]\((.*?)\)/g, '').trim();
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     "@id": `https://share2.me/blog/${slug}#post`,
-    "headline": article.title,
+    "headline": article.title || 'Blog Post',
     "description": textOnlyIntro.substring(0, 155) + "...",
-    "datePublished": new Date(article.date).toISOString(),
-    "dateModified": new Date(article.date).toISOString(),
+    "datePublished": publishedTime,
+    "dateModified": publishedTime,
     "author": {
       "@type": "Organization",
       "name": "Share2Me",
@@ -184,15 +202,16 @@ export default async function BlogPostPage({ params }: PageProps) {
               })()}
             </div>
 
-            {article.sections.map((section: any, idx: number) => (
+            {(article.sections || []).map((section: any, idx: number) => (
               <div key={idx} className="space-y-6 mt-12">
-                <h2 className="text-2xl font-bold text-text-primary pt-4">{section.heading}</h2>
+                <h2 className="text-2xl font-bold text-text-primary pt-4">{section.heading || ''}</h2>
                 
                 {/* Section Content Rendering */}
                 <div>
                   {(() => {
-                    const imgMatch = section.content.match(/!\[(.*?)\]\((.*?)\)/);
-                    const textOnly = section.content.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+                    const contentStr = section.content || "";
+                    const imgMatch = contentStr.match(/!\[(.*?)\]\((.*?)\)/);
+                    const textOnly = contentStr.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
                     const parts = textOnly.split(/(\*\*.*?\*\*)/g);
                     
                     let safeUrl = "";
