@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Calendar, BookOpen, Share2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import ClientImage from "./ClientImage";
 
 
 interface PageProps {
@@ -187,11 +188,10 @@ export default async function BlogPostPage({ params }: PageProps) {
                 return (
                   <>
                     {imgMatch && (
-                      <img 
+                      <ClientImage 
                         src={safeUrl} 
                         alt={imgMatch[1]} 
                         className="w-full rounded-[24px] border border-border/40 shadow-xl object-cover mb-8 aspect-[2/1]" 
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
                     )}
                     <p className="text-text-primary text-[18px] leading-relaxed font-medium border-l-2 border-primary pl-6 py-1">
@@ -226,11 +226,10 @@ export default async function BlogPostPage({ params }: PageProps) {
                     return (
                       <>
                         {imgMatch && (
-                          <img 
+                          <ClientImage 
                             src={safeUrl} 
                             alt={imgMatch[1]} 
                             className="w-full rounded-[16px] border border-border/40 shadow-lg object-cover mb-6 mt-4"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
                         )}
                         <p>
