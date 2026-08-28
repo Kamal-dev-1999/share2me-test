@@ -51,7 +51,7 @@ async function generateAndUploadBlog() {
       model: 'gemini-3.6-flash',
       contents: getPrompt(),
     });
-    
+
     let content = response.text;
     if (!content) throw new Error("Generated content is empty.");
 
@@ -60,7 +60,7 @@ async function generateAndUploadBlog() {
 
     // Parse to ensure it's valid JSON
     const blogData = JSON.parse(content);
-    
+
     const titleSlug = blogData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const dateStr = new Date().toISOString().split('T')[0];
     const uniqueId = crypto.randomBytes(4).toString('hex');
@@ -73,14 +73,14 @@ async function generateAndUploadBlog() {
       Body: JSON.stringify(blogData, null, 2),
       ContentType: 'application/json',
       Metadata: {
-        'generated-by': 'gemini-3.6-flash',
+        'generated-by': 'gemini-3-flash-preview',
         'date': new Date().toISOString()
       }
     });
 
     await s3.send(putCommand);
     console.log(`Successfully uploaded blog to s3://${BUCKET_NAME}/blogs/${fileName}`);
-    
+
   } catch (error) {
     console.error("Error generating or uploading blog:", error);
     process.exit(1);
