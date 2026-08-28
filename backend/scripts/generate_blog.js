@@ -7,23 +7,53 @@ const crypto = require('crypto');
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Initialize AWS S3 Client
-const s3 = new S3Client({
+const s3Config = {
   region: process.env.AWS_REGION || 'ap-south-1',
-  credentials: {
+};
+
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  s3Config.credentials = {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+  };
+}
+
+const s3 = new S3Client(s3Config);
 
 const BUCKET_NAME = (process.env.S3_BLOGS_BUCKET || 'share2me-auto-blogs-prod')
   .replace(/[^a-z0-9-]/g, '');
 
 /**
+ * Fetch top headlines from Hacker News to determine current trending tech topics
+ */
+async function getTrendingTopics() {
+  console.log("Fetching trending tech topics from Hacker News...");
+  try {
+    const res = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
+    const ids = await res.json();
+    const topIds = ids.slice(0, 15);
+    const topics = [];
+    for (const id of topIds) {
+      const itemRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+      const item = await itemRes.json();
+      if (item && item.title) topics.push(item.title);
+    }
+    return topics.join('; ');
+  } catch (err) {
+    console.error("Failed to fetch trending topics, using fallback.", err);
+    return "AI advancements, WebRTC, End-to-End Encryption, WebAssembly, edge computing";
+  }
+}
+
+/**
  * Generate a dynamic prompt for the LLM
  */
-const getPrompt = () => `
+const getPrompt = (topics) => `
 You are a highly acclaimed technical journalist writing for a premier technology blog. 
-Write a comprehensive, engaging, and in-depth blog article about a trending technology topic (e.g., AI advancements, WebRTC, End-to-End Encryption, WebAssembly, edge computing, etc.).
+Review the following current trending headlines from the tech world:
+"${topics}"
+
+Select ONE of the most interesting core technology topics from these headlines and write a comprehensive, engaging, and in-depth blog article about it.
 
 You MUST output ONLY valid JSON matching this exact structure, with no markdown code blocks around it:
 {
@@ -47,10 +77,12 @@ Ensure the output is raw, valid JSON.
 
 async function generateAndUploadBlog() {
   try {
+    const trendingTopics = await getTrendingTopics();
+    
     console.log("Generating blog content using Gemini...");
     const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
-      contents: getPrompt(),
+      contents: getPrompt(trendingTopics),
     });
 
     let content = response.text;
