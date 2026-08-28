@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar, BookOpen, Share2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import ClientImage from "./ClientImage";
+import ShareButton from "./ShareButton";
 
 
 interface PageProps {
@@ -156,16 +157,17 @@ export default async function BlogPostPage({ params }: PageProps) {
               {article.title}
             </h1>
             
-            <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-text-tertiary" />
-                <span>{article.date}</span>
+              <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary w-full">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-text-tertiary" />
+                  <span>{article.date}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-text-tertiary" />
+                  <span>{article.readTime}</span>
+                </div>
+                <ShareButton url={`https://share2.me/blog/${slug}`} title={article.title} />
               </div>
-              <div className="flex items-center gap-2 ml-auto cursor-pointer hover:text-primary transition-colors">
-                <Share2 className="w-4 h-4 text-text-tertiary" />
-                <span className="font-bold">Share</span>
-              </div>
-            </div>
           </header>
 
           {/* Article Content */}
