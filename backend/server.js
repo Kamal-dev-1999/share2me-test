@@ -152,6 +152,9 @@ app.use('/g2p', require('./g2p/index').g2pRouter);
 // Mount Admin Portal Router
 app.use('/api/admin', require('./routes/adminRoutes'));
 
+// Mount Tool Routes (AI BG Remover, etc.)
+app.use('/api/tools', require('./routes/toolRoutes'));
+
 app.get('/api/ice-servers', async (_req, res) => {
   const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },

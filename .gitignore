@@ -9,3 +9,7 @@ aws/
 SecurityChecks/
 .venv/
 Ads policies/
+*.onnx
+backend/ml/models/
+backend/ml/test_*.py
+__pycache__/

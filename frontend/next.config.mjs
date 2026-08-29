@@ -34,6 +34,10 @@ const nextConfig = {
         destination: `${backendUrl}/api/admin/:path*`,
       },
       {
+        source: "/api/tools/:path*",
+        destination: `${backendUrl}/api/tools/:path*`,
+      },
+      {
         source: "/g2p/:path*",
         destination: `${backendUrl}/g2p/:path*`,
       },
@@ -42,4 +46,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-
