@@ -18,13 +18,16 @@ export default function BlogIndexClient({ initialArticles = [] }: { initialArtic
         }
       }
       const cleanIntro = (article.intro || "").replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+      const slugDateMatch = article.slug.match(/^(\d{4}-\d{2}-\d{2})/);
+      const reliableDate = slugDateMatch ? slugDateMatch[1] : article.date;
+      
       return {
         slug: article.slug,
         title: article.title,
         excerpt: cleanIntro.substring(0, 150) + "...",
         category: article.category || "Uncategorized",
         readTime: article.readTime,
-        date: article.date,
+        date: reliableDate,
         imageUrl: safeUrl,
         author: article.author,
       };

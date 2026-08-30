@@ -36,13 +36,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const cleanDescription = textOnlyIntro.substring(0, 155) + "...";
 
   let publishedTime = new Date().toISOString();
+  const slugDateMatch = slug.match(/^(\d{4}-\d{2}-\d{2})/);
+  const displayDate = slugDateMatch ? slugDateMatch[1] : article.date;
   try {
-    if (article.date) {
-      publishedTime = new Date(article.date).toISOString();
+    if (displayDate) {
+      publishedTime = new Date(displayDate).toISOString();
     }
   } catch (e) {
     // Ignore invalid dates
   }
+  
+  // Overwrite article.date with displayDate so the UI uses it below
+  article.date = displayDate;
 
   return {
     title: `${article.title || 'Blog Post'} — Blog`,
