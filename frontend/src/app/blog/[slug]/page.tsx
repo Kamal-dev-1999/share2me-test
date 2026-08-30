@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title: `${article.title || 'Blog Post'} | Share2Me Blog`,
       description: cleanDescription,
-      url: `https://share2.me/blog/${slug}`,
+      url: `https://www.share2me.in/blog/${slug}`,
       siteName: "Share2Me",
       type: "article",
       publishedTime: publishedTime,
@@ -101,7 +101,7 @@ export default async function BlogPostPage({ params }: PageProps) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
-    "@id": `https://share2.me/blog/${slug}#post`,
+    "@id": `https://www.share2me.in/blog/${slug}#post`,
     "headline": article.title || 'Blog Post',
     "description": textOnlyIntro.substring(0, 155) + "...",
     "datePublished": publishedTime,
@@ -109,19 +109,19 @@ export default async function BlogPostPage({ params }: PageProps) {
     "author": {
       "@type": "Organization",
       "name": "Share2Me",
-      "url": "https://share2.me"
+      "url": "https://www.share2me.in"
     },
     "publisher": {
       "@type": "Organization",
       "name": "Share2Me",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://share2.me/logo.png"
+        "url": "https://www.share2me.in/logo.png"
       }
     },
     "mainEntityOfPage": {
       "@type": "WebPage",
-      "@id": `https://share2.me/blog/${slug}`
+      "@id": `https://www.share2me.in/blog/${slug}`
     }
   };
 
@@ -166,7 +166,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                   <BookOpen className="w-4 h-4 text-text-tertiary" />
                   <span>{article.readTime}</span>
                 </div>
-                <ShareButton url={`https://share2.me/blog/${slug}`} title={article.title} />
+                <ShareButton url={`https://www.share2me.in/blog/${slug}`} title={article.title} />
               </div>
           </header>
 

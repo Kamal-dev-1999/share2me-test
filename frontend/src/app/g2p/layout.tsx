@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Receive Portal & Permanent Inbox | Share2Me",
     description: "Claim your permanent Share Code and receive secure file uploads from anyone directly into your personal inbox.",
-    url: "https://share2.me/g2p",
+    url: "https://www.share2me.in/g2p",
   },
 };
 

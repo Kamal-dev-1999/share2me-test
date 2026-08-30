@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { LANDING_PAGES } from './[...slug]/data';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://share2.me';
+  const baseUrl = 'https://www.share2me.in';
 
   const baseRoutes: MetadataRoute.Sitemap = [
     {

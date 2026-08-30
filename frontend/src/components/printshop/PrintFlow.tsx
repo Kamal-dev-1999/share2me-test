@@ -377,7 +377,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         height: 50,
         color: colors.lightGray,
       });
-      page.drawText("Generated securely by Share2Me | share2.me", {
+      page.drawText("Generated securely by Share2Me | www.share2me.in", {
         x: width / 2 - 110,
         y: 20,
         size: 10,

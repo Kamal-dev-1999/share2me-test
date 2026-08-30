@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Direct P2P File & Text Transfer Workspace | Share2Me",
     description: "Transfer files and clipboard text directly between any two devices using browser-to-browser WebRTC encryption (AES-GCM-256). Zero size limits and no cloud storage.",
-    url: "https://share2.me/p2p",
+    url: "https://www.share2me.in/p2p",
   },
 };
 

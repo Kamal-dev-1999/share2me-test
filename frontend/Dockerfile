@@ -19,7 +19,7 @@ COPY . .
 
 # NEXT_PUBLIC_* vars are baked into the static bundle at build time.
 # Pass via --build-arg in the deploy script or docker-compose.
-ARG NEXT_PUBLIC_SIGNAL_URL=https://api.share2.me
+ARG NEXT_PUBLIC_SIGNAL_URL=https://api.www.share2me.in
 ENV NEXT_PUBLIC_SIGNAL_URL=${NEXT_PUBLIC_SIGNAL_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 # Activates output: 'standalone' in next.config.mjs

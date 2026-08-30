@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title: page.title,
       description: page.metaDesc,
-      url: `https://share2.me/${slugPath}`,
+      url: `https://www.share2me.in/${slugPath}`,
       siteName: "Share2Me",
       type: "website",
     },
@@ -63,38 +63,38 @@ export default async function NicheLandingPage({ params }: PageProps) {
     "@graph": [
       {
         "@type": "WebPage",
-        "@id": `https://share2.me/${slugPath}#webpage`,
-        "url": `https://share2.me/${slugPath}`,
+        "@id": `https://www.share2me.in/${slugPath}#webpage`,
+        "url": `https://www.share2me.in/${slugPath}`,
         "name": page.title,
         "description": page.metaDesc,
         "breadcrumb": {
-          "@id": `https://share2.me/${slugPath}#breadcrumb`
+          "@id": `https://www.share2me.in/${slugPath}#breadcrumb`
         }
       },
       {
         "@type": "BreadcrumbList",
-        "@id": `https://share2.me/${slugPath}#breadcrumb`,
+        "@id": `https://www.share2me.in/${slugPath}#breadcrumb`,
         "itemListElement": [
           {
             "@type": "ListItem",
             "position": 1,
             "name": "Home",
-            "item": "https://share2.me"
+            "item": "https://www.share2me.in"
           },
           {
             "@type": "ListItem",
             "position": 2,
             "name": page.keyword,
-            "item": `https://share2.me/${slugPath}`
+            "item": `https://www.share2me.in/${slugPath}`
           }
         ]
       },
       {
         "@type": "WebApplication",
-        "@id": `https://share2.me/${slugPath}#webapp`,
+        "@id": `https://www.share2me.in/${slugPath}#webapp`,
         "name": "Share2Me",
         "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe"],
-        "url": "https://share2.me",
+        "url": "https://www.share2me.in",
         "description": "Secure, unlimited P2P file sharing and text clipboard sharing directly in your browser.",
         "applicationCategory": "UtilitiesApplication",
         "operatingSystem": "All",
@@ -106,7 +106,7 @@ export default async function NicheLandingPage({ params }: PageProps) {
       },
       {
         "@type": "HowTo",
-        "@id": `https://share2.me/${slugPath}#howto`,
+        "@id": `https://www.share2me.in/${slugPath}#howto`,
         "name": page.howto.title,
         "description": `Step-by-step guide on how to perform ${page.keyword} transfers using Share2Me.`,
         "step": page.howto.steps.map((step, idx) => ({
@@ -118,7 +118,7 @@ export default async function NicheLandingPage({ params }: PageProps) {
       },
       {
         "@type": "FAQPage",
-        "@id": `https://share2.me/${slugPath}#faq`,
+        "@id": `https://www.share2me.in/${slugPath}#faq`,
         "mainEntity": page.faqs.map((faq) => ({
           "@type": "Question",
           "name": faq.q,
