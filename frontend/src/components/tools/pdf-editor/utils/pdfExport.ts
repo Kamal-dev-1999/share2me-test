@@ -49,17 +49,34 @@ export async function exportEditedPdf(
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(originalPdfBuffer.slice(0));
 
-  // 1. Embed Standard Fonts
+  // 1. Embed Standard Fonts with full variants
   const fontHelvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontHelveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const fontHelveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
   const fontHelveticaBoldOblique = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
   const fontTimes = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const fontTimesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+  const fontTimesItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+  const fontTimesBoldItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
   const fontCourier = await pdfDoc.embedFont(StandardFonts.Courier);
+  const fontCourierBold = await pdfDoc.embedFont(StandardFonts.CourierBold);
+  const fontCourierOblique = await pdfDoc.embedFont(StandardFonts.CourierOblique);
+  const fontCourierBoldOblique = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
 
   const getFont = (family: string, bold: boolean, italic: boolean) => {
-    if (family.includes("Times")) return fontTimes;
-    if (family.includes("Courier")) return fontCourier;
+    const f = (family || "").toLowerCase();
+    if (f.includes("times") || f.includes("serif") || f.includes("georgia") || f.includes("garamond")) {
+      if (bold && italic) return fontTimesBoldItalic;
+      if (bold) return fontTimesBold;
+      if (italic) return fontTimesItalic;
+      return fontTimes;
+    }
+    if (f.includes("courier") || f.includes("mono") || f.includes("code")) {
+      if (bold && italic) return fontCourierBoldOblique;
+      if (bold) return fontCourierBold;
+      if (italic) return fontCourierOblique;
+      return fontCourier;
+    }
     if (bold && italic) return fontHelveticaBoldOblique;
     if (bold) return fontHelveticaBold;
     if (italic) return fontHelveticaOblique;
@@ -130,25 +147,73 @@ export async function exportEditedPdf(
         });
       } else if (obj.type === "text") {
         const textObj = obj as TextPdfObject;
-        const font = getFont(textObj.fontFamily, textObj.bold, textObj.italic);
-        const textRgb = hexToPdfRgb(textObj.color, rgb(0, 0, 0))!;
-        
-        // Handle multiline text
-        const lines = textObj.text.split("\n");
-        const fontSize = textObj.fontSize || 16;
-        const lineHeight = fontSize * 1.2;
 
-        lines.forEach((line, lineIdx) => {
-          targetPage.drawText(line, {
-            x: objX,
-            y: objY + objH - (lineIdx + 1) * fontSize,
-            size: fontSize,
-            font,
-            color: textRgb,
-            opacity: textObj.opacity ?? 1.0,
-            rotate: textObj.rotation ? degrees(textObj.rotation) : undefined,
+        // 1. If this is an existing PDF text item that has been modified, moved, styled, or deleted:
+        // Mask out the original text at its original PDF location with a clean white rectangle so old text never shows underneath
+        if (textObj.isExistingText) {
+          const oxFrac = textObj.origXFrac ?? textObj.xFrac;
+          const oyFrac = textObj.origYFrac ?? textObj.yFrac;
+          const owFrac = textObj.origWFrac ?? textObj.wFrac;
+          const ohFrac = textObj.origHFrac ?? textObj.hFrac;
+
+          const isModified = textObj.isDeleted ||
+            textObj.text !== textObj.originalText ||
+            textObj.xFrac !== oxFrac ||
+            textObj.yFrac !== oyFrac ||
+            textObj.wFrac !== owFrac ||
+            textObj.hFrac !== ohFrac;
+
+          if (isModified) {
+            const origX = oxFrac * pageW;
+            const origY = pageH - oyFrac * pageH - ohFrac * pageH;
+            const origW = owFrac * pageW;
+            const origH = ohFrac * pageH;
+
+            targetPage.drawRectangle({
+              x: Math.max(0, origX - 1),
+              y: Math.max(0, origY - 1),
+              width: origW + 2,
+              height: origH + 2,
+              color: rgb(1, 1, 1),
+              opacity: 1.0,
+            });
+          }
+        }
+
+        // 2. If object is not deleted, draw the replacement / updated text at PDF coordinates
+        if (!textObj.isDeleted && textObj.text && textObj.text.trim().length > 0) {
+          const font = getFont(textObj.fontFamily || "Helvetica", textObj.bold || false, textObj.italic || false);
+          const textRgb = hexToPdfRgb(textObj.color, rgb(0, 0, 0))!;
+
+          const lines = textObj.text.split("\n");
+          const fontSize = textObj.fontSize || 12;
+
+          lines.forEach((line, lineIdx) => {
+            let lineX = objX;
+            if (textObj.align === "center" || textObj.align === "right") {
+              try {
+                const textWidth = font.widthOfTextAtSize(line, fontSize);
+                if (textObj.align === "center") {
+                  lineX = objX + (objW - textWidth) / 2;
+                } else if (textObj.align === "right") {
+                  lineX = objX + (objW - textWidth);
+                }
+              } catch {
+                // Fallback to left alignment if font measurement fails
+              }
+            }
+
+            targetPage.drawText(line, {
+              x: lineX,
+              y: objY + Math.max(0, objH - (lineIdx + 1) * fontSize),
+              size: fontSize,
+              font,
+              color: textRgb,
+              opacity: textObj.opacity ?? 1.0,
+              rotate: textObj.rotation ? degrees(textObj.rotation) : undefined,
+            });
           });
-        });
+        }
       } else if (obj.type === "image" || obj.type === "signature") {
         const imgObj = obj as ImagePdfObject | SignaturePdfObject;
         try {

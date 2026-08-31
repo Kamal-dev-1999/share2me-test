@@ -6,7 +6,7 @@ import { ToolChrome, ToolDropZone } from "./ToolChrome";
 import { renderPdfToCanvases, fileToArrayBuffer, downloadBytes, type RenderedPage } from "@/lib/pdfRender";
 import { extractTextItemsFromPdf } from "./pdf-editor/utils/textExtractor";
 import { exportEditedPdf } from "./pdf-editor/utils/pdfExport";
-import type { PdfObject, ToolMode, PageState, ExtractedTextItem } from "./pdf-editor/types";
+import type { PdfObject, TextPdfObject, ToolMode, PageState, ExtractedTextItem } from "./pdf-editor/types";
 import { PdfEditorToolbar } from "./pdf-editor/PdfEditorToolbar";
 import { PdfEditorSidebar } from "./pdf-editor/PdfEditorSidebar";
 import { PdfEditorThumbnails } from "./pdf-editor/PdfEditorThumbnails";
@@ -20,19 +20,120 @@ export function PdfEditorUI({ tool }: { tool: PdfTool }) {
   const [pdfBuffer, setPdfBuffer] = useState<ArrayBuffer | null>(null);
   const [renderedPages, setRenderedPages] = useState<RenderedPage[]>([]);
   const [extractedTextItems, setExtractedTextItems] = useState<ExtractedTextItem[]>([]);
-  
+
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Editor State
+  // Editor Zoom & Viewport State
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [zoomScale, setZoomScale] = useState(1.0);
+  const [zoomMode, setZoomMode] = useState<"fit-page" | "fit-width" | "manual">("fit-page");
+  const [zoomScale, setZoomScale] = useState(0.85);
   const [activeMode, setActiveMode] = useState<ToolMode>("select");
   const [objects, setObjects] = useState<PdfObject[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [pagesState, setPagesState] = useState<PageState[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  const ZOOM_PRESETS = [0.25, 0.33, 0.40, 0.50, 0.60, 0.67, 0.75, 0.80, 0.90, 1.0, 1.10, 1.25, 1.50, 1.75, 2.0, 2.50, 3.0, 4.0];
+
+  // Dynamic Fit Zoom Calculation
+  const calculateFitZoom = (mode: "fit-page" | "fit-width") => {
+    if (!viewportRef.current) return;
+    const activePageState = pagesState[currentPageIndex];
+    const pageRender = renderedPages[activePageState?.pageIndex];
+    if (!pageRender) return;
+
+    // Viewport dimensions minus comfortable padding (64px)
+    const viewportW = Math.max(200, viewportRef.current.clientWidth - 64);
+    const viewportH = Math.max(200, viewportRef.current.clientHeight - 64);
+
+    const pageW = pageRender.canvas?.width || pageRender.widthPts * 1.5;
+    const pageH = pageRender.canvas?.height || pageRender.heightPts * 1.5;
+
+    if (!pageW || !pageH) return;
+
+    if (mode === "fit-page") {
+      const scaleX = viewportW / pageW;
+      const scaleY = viewportH / pageH;
+      const fitScale = Math.min(scaleX, scaleY) * 0.94; // Comfort safety margin
+      setZoomScale(Math.max(0.20, Math.min(4.0, fitScale)));
+    } else if (mode === "fit-width") {
+      const fitScale = (viewportW / pageW) * 0.95;
+      setZoomScale(Math.max(0.20, Math.min(4.0, fitScale)));
+    }
+  };
+
+  // Responsive ResizeObserver for Auto-Fit modes
+  useEffect(() => {
+    if (zoomMode === "manual" || !viewportRef.current) return;
+
+    const observer = new ResizeObserver(() => {
+      calculateFitZoom(zoomMode);
+    });
+
+    observer.observe(viewportRef.current);
+    calculateFitZoom(zoomMode);
+
+    return () => observer.disconnect();
+  }, [zoomMode, currentPageIndex, renderedPages, pagesState]);
+
+  // Handle Manual Zoom Change
+  const handleManualZoomChange = (newScale: number) => {
+    setZoomMode("manual");
+    setZoomScale(Math.max(0.20, Math.min(4.0, newScale)));
+  };
+
+  const handleFitPageClick = () => {
+    setZoomMode("fit-page");
+    calculateFitZoom("fit-page");
+  };
+
+  const handleFitWidthClick = () => {
+    setZoomMode("fit-width");
+    calculateFitZoom("fit-width");
+  };
+
+  // Keyboard Shortcuts (Ctrl++, Ctrl+-, Ctrl+0) and Wheel Zoom
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === "=" || e.key === "+") {
+        e.preventDefault();
+        const next = ZOOM_PRESETS.find((s) => s > zoomScale + 0.02) ?? ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
+        handleManualZoomChange(next);
+      } else if (e.key === "-") {
+        e.preventDefault();
+        const prev = [...ZOOM_PRESETS].reverse().find((s) => s < zoomScale - 0.02) ?? ZOOM_PRESETS[0];
+        handleManualZoomChange(prev);
+      } else if (e.key === "0") {
+        e.preventDefault();
+        handleFitPageClick();
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      handleManualZoomChange(zoomScale + delta);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    const viewportEl = viewportRef.current;
+    if (viewportEl) {
+      viewportEl.addEventListener("wheel", handleWheel, { passive: false });
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (viewportEl) {
+        viewportEl.removeEventListener("wheel", handleWheel);
+      }
+    };
+  }, [zoomScale]);
 
   // Modals & Hidden Pickers
   const [showSignatureModal, setShowSignatureModal] = useState(false);
@@ -97,7 +198,7 @@ export function PdfEditorUI({ tool }: { tool: PdfTool }) {
       }));
       setPagesState(initialPagesState);
 
-      // Extract existing text items from PDF.js
+      // Extract existing text items from PDF.js for text selection layer and search indexing
       try {
         const textItems = await extractTextItemsFromPdf(buffer, 100);
         setExtractedTextItems(textItems);
@@ -145,8 +246,8 @@ export function PdfEditorUI({ tool }: { tool: PdfTool }) {
         const copy: PdfObject = {
           ...orig,
           id: `obj-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          xFrac: Math.min(0.9, orig.xFrac + 0.03),
-          yFrac: Math.min(0.9, orig.yFrac + 0.03),
+          xFrac: Math.max(0, Math.min(Math.max(0, 1 - orig.wFrac), orig.xFrac + 0.03)),
+          yFrac: Math.max(0, Math.min(Math.max(0, 1 - orig.hFrac), orig.yFrac + 0.03)),
           zIndex: objects.length + 1,
         };
         pushHistory([...objects, copy]);
@@ -180,7 +281,17 @@ export function PdfEditorUI({ tool }: { tool: PdfTool }) {
   };
 
   const handleDeleteObject = (id: string) => {
-    const next = objects.filter((o) => o.id !== id);
+    const target = objects.find((o) => o.id === id);
+    if (!target) return;
+
+    let next: PdfObject[];
+    if ((target as TextPdfObject).isExistingText) {
+      // Mark existing PDF text as deleted so pdfExport.ts can whiteout/mask it cleanly on export
+      next = objects.map((o) => (o.id === id ? { ...(o as TextPdfObject), isDeleted: true } : o));
+    } else {
+      next = objects.filter((o) => o.id !== id);
+    }
+
     pushHistory(next);
     if (selectedObjectId === id) setSelectedObjectId(null);
   };
@@ -191,8 +302,8 @@ export function PdfEditorUI({ tool }: { tool: PdfTool }) {
     const copy: PdfObject = {
       ...orig,
       id: `obj-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      xFrac: Math.min(0.9, orig.xFrac + 0.03),
-      yFrac: Math.min(0.9, orig.yFrac + 0.03),
+      xFrac: Math.max(0, Math.min(Math.max(0, 1 - orig.wFrac), orig.xFrac + 0.03)),
+      yFrac: Math.max(0, Math.min(Math.max(0, 1 - orig.hFrac), orig.yFrac + 0.03)),
       zIndex: objects.length + 1,
     };
     pushHistory([...objects, copy]);
@@ -343,21 +454,23 @@ export function PdfEditorUI({ tool }: { tool: PdfTool }) {
         </div>
       ) : (
         /* FULL EDITOR WORKSPACE */
-        <div className="flex flex-col h-[85vh] -mx-4 -my-6 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+        <div className="flex flex-col h-[85vh] -mx-4 -my-6 bg-slate-100/90 backdrop-blur-2xl rounded-3xl border border-white/80 overflow-hidden shadow-2xl shadow-slate-900/10 relative">
+
           {/* Header Toolbar */}
           <PdfEditorToolbar
             currentPage={currentPageIndex + 1}
             totalPages={activePages.length}
             zoomScale={zoomScale}
+            zoomMode={zoomMode}
             canUndo={historyStep > 0}
             canRedo={historyStep < history.length - 1}
             isExporting={isExporting}
             searchQuery={searchQuery}
             onSetSearchQuery={setSearchQuery}
             onPageChange={(p) => setCurrentPageIndex(p - 1)}
-            onZoomChange={setZoomScale}
-            onFitWidth={() => setZoomScale(1.0)}
-            onFitPage={() => setZoomScale(0.8)}
+            onZoomChange={handleManualZoomChange}
+            onFitWidth={handleFitWidthClick}
+            onFitPage={handleFitPageClick}
             onUndo={handleUndo}
             onRedo={handleRedo}
             onExport={handleExport}
@@ -365,7 +478,7 @@ export function PdfEditorUI({ tool }: { tool: PdfTool }) {
           />
 
           {/* Main Workspace Grid */}
-          <div className="flex flex-1 overflow-hidden relative">
+          <div className="flex flex-1 relative z-10">
             {/* Left Tool Sidebar */}
             <PdfEditorSidebar activeMode={activeMode} onSelectMode={setActiveMode} />
 
@@ -383,7 +496,7 @@ export function PdfEditorUI({ tool }: { tool: PdfTool }) {
             />
 
             {/* Central Canvas Viewport */}
-            <div className="flex-1 bg-slate-950/80 overflow-auto relative">
+            <div ref={viewportRef} className="flex-1 bg-slate-200/50 backdrop-blur-sm overflow-auto relative flex items-center justify-center p-6">
               <PdfEditorCanvas
                 pageRender={renderedPages[activePageState?.pageIndex]}
                 pageIndex={currentPageIndex}

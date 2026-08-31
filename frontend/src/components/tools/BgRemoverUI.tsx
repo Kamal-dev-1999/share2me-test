@@ -22,6 +22,8 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
 
   // Before / After comparison slider state
   const [sliderPos, setSliderPos] = useState(50);
+  const [model, setModel] = useState<"auto" | "birefnet-general" | "birefnet-portrait" | "anime" | "u2net">("auto");
+  const [postProcessMask, setPostProcessMask] = useState(true);
   const [viewMode, setViewMode] = useState<"slider" | "side">("slider");
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingSlider = useRef(false);
@@ -113,16 +115,20 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
     }
   };
 
-  const processBackgroundRemoval = async () => {
+  const processBackgroundRemoval = async (overrideModel?: string) => {
     if (!file || processing) return;
     setProcessing(true);
     setError(null);
 
+    const targetModel = overrideModel || model;
+
     try {
       const formData = new FormData();
       formData.append("image", file);
+      formData.append("model", targetModel);
+      formData.append("post_process_mask", postProcessMask ? "true" : "false");
 
-      console.log(`[BG_REMOVER] Sending file '${file.name}' (${file.type}, ${file.size} bytes) to /api/tools/bg-remover...`);
+      console.log(`[BG_REMOVER] Sending file '${file.name}' (${file.type}, ${file.size} bytes) | model=${targetModel}...`);
 
       const res = await fetch("/api/tools/bg-remover", {
         method: "POST",
@@ -166,11 +172,44 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
       }
 
       const blob = await res.blob();
-      if (!blob.type.startsWith("image/") && blob.size === 0) {
-        throw new Error("Background remover returned an invalid or empty response.");
+      if (blob.size === 0) {
+        throw new Error("Background remover returned an empty response.");
+      }
+
+      // Perform real alpha channel validation to guarantee transparent pixels exist (minAlpha === 0)
+      try {
+        const imgBitmap = await createImageBitmap(blob);
+        const testCanvas = document.createElement("canvas");
+        testCanvas.width = imgBitmap.width;
+        testCanvas.height = imgBitmap.height;
+        const ctx = testCanvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(imgBitmap, 0, 0);
+          const imgData = ctx.getImageData(0, 0, testCanvas.width, testCanvas.height);
+          const data = imgData.data;
+          let minAlpha = 255;
+          let maxAlpha = 0;
+          let transparentPixelCount = 0;
+
+          for (let i = 3; i < data.length; i += 4) {
+            const a = data[i];
+            if (a < minAlpha) minAlpha = a;
+            if (a > maxAlpha) maxAlpha = a;
+            if (a === 0) transparentPixelCount++;
+          }
+
+          console.log(`[BG_REMOVER] Alpha Channel Audit: minAlpha=${minAlpha}, maxAlpha=${maxAlpha}, transparentPixels=${transparentPixelCount}/${imgBitmap.width * imgBitmap.height}`);
+
+          if (minAlpha === 255) {
+            console.warn("[BG_REMOVER] Warning: Output image has no alpha transparency!");
+          }
+        }
+      } catch (alphaErr) {
+        console.warn("[BG_REMOVER] Alpha validation note:", alphaErr);
       }
 
       console.log(`[BG_REMOVER] Processing completed! ${blob.size} bytes transparent PNG received.`);
+      if (processedUrl) URL.revokeObjectURL(processedUrl);
       const url = URL.createObjectURL(blob);
       setProcessedUrl(url);
     } catch (err: any) {
@@ -219,7 +258,7 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
             <span>{error}</span>
             {file && (
               <button
-                onClick={processBackgroundRemoval}
+                onClick={() => processBackgroundRemoval()}
                 className="px-3 py-1 bg-error text-white text-xs font-bold rounded hover:opacity-90 shrink-0"
               >
                 Try Again
@@ -261,6 +300,26 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
               <img src={originalUrl!} alt="Original upload preview" className="max-h-[420px] w-auto object-contain rounded-lg" />
             </div>
 
+            {/* AI Detection Mode Controls */}
+            <div className="w-full max-w-[600px] p-4 bg-surface-container rounded-xl border-2 border-ink flex flex-col gap-3 shadow-sm">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <label className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-indigo-600" /> AI Detection Mode:
+                </label>
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value as any)}
+                  className="px-3 py-1.5 bg-white text-ink text-xs font-bold rounded-lg border border-ink shadow-sm cursor-pointer"
+                >
+                  <option value="auto">✨ Smart AI Multi-Pass (Auto SOTA)</option>
+                  <option value="birefnet-general">📸 BiRefNet Universal SOTA (Photos, Mountains, Products)</option>
+                  <option value="birefnet-portrait">👤 BiRefNet Portrait (Fine Hair & Headshots)</option>
+                  <option value="anime">🎨 IS-Net Anime (Cartoons & 2D Illustrations)</option>
+                  <option value="u2net">⚡ Legacy Fast (U2-Net)</option>
+                </select>
+              </div>
+            </div>
+
             <div className="flex items-center gap-3 flex-wrap justify-center">
               <button
                 onClick={resetAll}
@@ -271,7 +330,7 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
               </button>
 
               <button
-                onClick={processBackgroundRemoval}
+                onClick={() => processBackgroundRemoval()}
                 disabled={processing}
                 className="inline-flex items-center gap-2 h-11 px-6 rounded-xl bg-ink text-white text-sm font-bold shadow-md hover:opacity-90 disabled:opacity-40"
               >
@@ -309,31 +368,52 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
         {/* 4. Background Removal Complete — Interactive Result View */}
         {processedUrl && file && (
           <div className="flex flex-col gap-6">
-            {/* View Mode Toolbar */}
+            {/* View Mode & AI Model Toolbar */}
             <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-hairline">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Comparison Mode:</span>
-                <div className="inline-flex p-1 bg-surface-container rounded-xl border border-hairline">
-                  <button
-                    onClick={() => setViewMode("slider")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      viewMode === "slider"
-                        ? "bg-white text-black shadow-sm"
-                        : "text-on-surface-variant hover:text-on-surface"
-                    }`}
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Comparison:</span>
+                  <div className="inline-flex p-1 bg-surface-container rounded-xl border border-hairline">
+                    <button
+                      onClick={() => setViewMode("slider")}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        viewMode === "slider" ? "bg-white text-black shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+                      }`}
+                    >
+                      <Sliders className="w-3.5 h-3.5" /> Split Slider
+                    </button>
+                    <button
+                      onClick={() => setViewMode("side")}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        viewMode === "side" ? "bg-white text-black shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+                      }`}
+                    >
+                      <Columns className="w-3.5 h-3.5" /> Side-by-Side
+                    </button>
+                  </div>
+                </div>
+
+                {/* AI Model Quick Switcher right in header toolbar */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> AI Model:
+                  </span>
+                  <select
+                    value={model}
+                    onChange={(e) => {
+                      const selectedModel = e.target.value as any;
+                      setModel(selectedModel);
+                      processBackgroundRemoval(selectedModel);
+                    }}
+                    disabled={processing}
+                    className="px-3 py-1.5 bg-white text-ink text-xs font-bold rounded-xl border-2 border-ink shadow-sm cursor-pointer hover:border-black transition-all disabled:opacity-50"
                   >
-                    <Sliders className="w-3.5 h-3.5" /> Split Slider
-                  </button>
-                  <button
-                    onClick={() => setViewMode("side")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      viewMode === "side"
-                        ? "bg-white text-black shadow-sm"
-                        : "text-on-surface-variant hover:text-on-surface"
-                    }`}
-                  >
-                    <Columns className="w-3.5 h-3.5" /> Side-by-Side
-                  </button>
+                    <option value="auto">✨ Smart AI Multi-Pass (Auto SOTA)</option>
+                    <option value="birefnet-general">📸 BiRefNet Universal SOTA (Photos, Mountains, Products)</option>
+                    <option value="birefnet-portrait">👤 BiRefNet Portrait (Fine Hair & Headshots)</option>
+                    <option value="anime">🎨 IS-Net Anime (Cartoons & 2D Illustrations)</option>
+                    <option value="u2net">⚡ Legacy Fast (U2-Net)</option>
+                  </select>
                 </div>
               </div>
 

@@ -51,32 +51,53 @@ export function PdfEditorCanvas({
     startObjectState: PdfObject;
   } | null>(null);
 
-  const baseW = pageRender ? pageRender.canvas.width : 595;
-  const baseH = pageRender ? pageRender.canvas.height : 841;
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+
+  // Transient object state during active drag/resize (committed to history only on mouseup)
+  const [localDragObj, setLocalDragObj] = useState<PdfObject | null>(null);
+  const localDragObjRef = useRef<PdfObject | null>(null);
+
+  const baseW = pageRender ? pageRender.widthPts : 595.28;
+  const baseH = pageRender ? pageRender.heightPts : 841.89;
 
   const displayW = baseW * zoomScale;
   const displayH = baseH * zoomScale;
 
-  // Filter objects belonging to current page
+  // Filter objects belonging to current page excluding deleted items
   const pageObjects = objects
-    .filter((o) => o.pageIndex === pageIndex)
+    .filter((o) => o.pageIndex === pageIndex && !(o as any).isDeleted)
     .sort((a, b) => a.zIndex - b.zIndex);
 
   const selectedObj = pageObjects.find((o) => o.id === selectedObjectId);
 
-  // Helper to compute fraction coordinates (0..1) from container click
+  // Helper to compute fraction coordinates (0..1) from container click accounting for page rotation
   const getFractionCoords = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (!containerRef.current) return { xFrac: 0, yFrac: 0 };
     const rect = containerRef.current.getBoundingClientRect();
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
-    const xPx = clientX - rect.left;
-    const yPx = clientY - rect.top;
+    let relX = (clientX - rect.left) / rect.width;
+    let relY = (clientY - rect.top) / rect.height;
+
+    // Account for CSS rotation transform on page container
+    const normRot = ((pageRotation % 360) + 360) % 360;
+    if (normRot === 90) {
+      const tmp = relX;
+      relX = relY;
+      relY = 1 - tmp;
+    } else if (normRot === 180) {
+      relX = 1 - relX;
+      relY = 1 - relY;
+    } else if (normRot === 270) {
+      const tmp = relX;
+      relX = 1 - relY;
+      relY = tmp;
+    }
 
     return {
-      xFrac: Math.max(0, Math.min(1, xPx / displayW)),
-      yFrac: Math.max(0, Math.min(1, yPx / displayH)),
+      xFrac: Math.max(0, Math.min(1, relX)),
+      yFrac: Math.max(0, Math.min(1, relY)),
     };
   };
 
@@ -272,6 +293,8 @@ export function PdfEditorCanvas({
       startPoint: { x: e.clientX, y: e.clientY },
       startObjectState: { ...selectedObj },
     };
+    setLocalDragObj({ ...selectedObj });
+    localDragObjRef.current = { ...selectedObj };
   };
 
   useEffect(() => {
@@ -282,12 +305,14 @@ export function PdfEditorCanvas({
       const dxFrac = (e.clientX - startPoint.x) / displayW;
       const dyFrac = (e.clientY - startPoint.y) / displayH;
 
+      let updatedObj: PdfObject = { ...selectedObj };
+
       if (mode === "move") {
-        onUpdateObject({
+        updatedObj = {
           ...selectedObj,
           xFrac: Math.max(0, Math.min(1 - startObjectState.wFrac, startObjectState.xFrac + dxFrac)),
           yFrac: Math.max(0, Math.min(1 - startObjectState.hFrac, startObjectState.yFrac + dyFrac)),
-        });
+        };
       } else if (mode === "resize") {
         let newW = startObjectState.wFrac;
         let newH = startObjectState.hFrac;
@@ -295,11 +320,11 @@ export function PdfEditorCanvas({
         if (handle?.includes("e")) newW = Math.max(0.02, startObjectState.wFrac + dxFrac);
         if (handle?.includes("s")) newH = Math.max(0.02, startObjectState.hFrac + dyFrac);
 
-        onUpdateObject({
+        updatedObj = {
           ...selectedObj,
           wFrac: newW,
           hFrac: newH,
-        });
+        };
       } else if (mode === "rotate") {
         const centerXPx = (startObjectState.xFrac + startObjectState.wFrac / 2) * displayW;
         const centerYPx = (startObjectState.yFrac + startObjectState.hFrac / 2) * displayH;
@@ -307,15 +332,23 @@ export function PdfEditorCanvas({
         let angleDeg = Math.round((angleRad * 180) / Math.PI);
         if (angleDeg < 0) angleDeg += 360;
 
-        onUpdateObject({
+        updatedObj = {
           ...selectedObj,
           rotation: angleDeg,
-        });
+        };
       }
+
+      setLocalDragObj(updatedObj);
+      localDragObjRef.current = updatedObj;
     };
 
     const handlePointerUp = () => {
+      if (dragRef.current && localDragObjRef.current) {
+        onUpdateObject(localDragObjRef.current);
+      }
       dragRef.current = null;
+      setLocalDragObj(null);
+      localDragObjRef.current = null;
     };
 
     window.addEventListener("mousemove", handlePointerMove);
@@ -324,7 +357,7 @@ export function PdfEditorCanvas({
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", handlePointerUp);
     };
-  }, [selectedObj, displayW, displayH]);
+  }, [selectedObj, displayW, displayH, pageRotation]);
 
   return (
     <div className="flex justify-center p-8 overflow-auto min-h-full">
@@ -358,47 +391,72 @@ export function PdfEditorCanvas({
           </div>
         )}
 
-        {/* EXTRACTED TEXT OVERLAY FOR EXISTING TEXT EDITING */}
-        {activeMode === "edit-text" &&
+        {/* TRANSPARENT PDF TEXT SELECTION LAYER (NO VISIBLE DUPLICATE TEXT) */}
+        {(activeMode === "select" || activeMode === "edit-text" || activeMode === "text") &&
           extractedTextItems
             .filter((t) => t.pageIndex === pageIndex)
-            .map((item) => (
-              <div
-                key={item.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddObject({
-                    id: `edit-${item.id}`,
-                    type: "text",
-                    pageIndex,
-                    xFrac: item.xFrac,
-                    yFrac: item.yFrac,
-                    wFrac: item.wFrac,
-                    hFrac: item.hFrac,
-                    rotation: 0,
-                    opacity: 1.0,
-                    zIndex: objects.length + 1,
-                    text: item.text,
-                    fontFamily: "Helvetica",
-                    fontSize: item.fontSize,
-                    color: item.color,
-                    bold: false,
-                    italic: false,
-                    underline: false,
-                    align: "left",
-                    isExistingText: true,
-                  });
-                }}
-                className="absolute border border-dashed border-emerald-400 bg-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors z-10"
-                style={{
-                  left: `${item.xFrac * 100}%`,
-                  top: `${item.yFrac * 100}%`,
-                  width: `${item.wFrac * 100}%`,
-                  height: `${item.hFrac * 100}%`,
-                }}
-                title="Click to edit this PDF text"
-              />
-            ))}
+            .map((item) => {
+              const targetObjId = `pdf-text-${item.id}`;
+              const objectExists = objects.some((o) => o.id === targetObjId);
+
+              // If this item has already been converted to an active/edited object, the Editor Layer handles it
+              if (objectExists) return null;
+
+              const isSelected = selectedObjectId === targetObjId;
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectObject(targetObjId);
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    const newObj: TextPdfObject = {
+                      id: targetObjId,
+                      type: "text",
+                      pageIndex,
+                      xFrac: item.xFrac,
+                      yFrac: item.yFrac,
+                      wFrac: item.wFrac,
+                      hFrac: item.hFrac,
+                      rotation: 0,
+                      opacity: 1.0,
+                      zIndex: objects.length + 1,
+                      text: item.text,
+                      fontFamily: item.fontName || "Helvetica",
+                      fontSize: item.fontSize || 12,
+                      color: item.color || "#000000",
+                      bold: item.bold || false,
+                      italic: item.italic || false,
+                      underline: false,
+                      align: "left",
+                      isExistingText: true,
+                      originalText: item.text,
+                      origXFrac: item.xFrac,
+                      origYFrac: item.yFrac,
+                      origWFrac: item.wFrac,
+                      origHFrac: item.hFrac,
+                    };
+                    onAddObject(newObj);
+                    setEditingTextId(newObj.id);
+                  }}
+                  className={`absolute cursor-pointer transition-all z-10 ${
+                    isSelected
+                      ? "ring-2 ring-emerald-500 bg-emerald-500/10 shadow-sm"
+                      : "hover:outline hover:outline-1 hover:outline-dashed hover:outline-emerald-400 hover:bg-emerald-500/10"
+                  }`}
+                  style={{
+                    left: `${item.xFrac * 100}%`,
+                    top: `${item.yFrac * 100}%`,
+                    width: `${item.wFrac * 100}%`,
+                    height: `${item.hFrac * 100}%`,
+                  }}
+                  title="Click to select · Double-click to edit text"
+                />
+              );
+            })}
 
         {/* FREEHAND PEN ACTIVE DRAWING STROKE PREVIEW */}
         {drawingPoints.length > 1 && (
@@ -415,7 +473,8 @@ export function PdfEditorCanvas({
         )}
 
         {/* PLACED EDITOR OBJECTS OVERLAY LAYER */}
-        {pageObjects.map((obj) => {
+        {pageObjects.map((itemObj) => {
+          const obj = (localDragObj && localDragObj.id === itemObj.id) ? localDragObj : itemObj;
           const isSelected = obj.id === selectedObjectId;
 
           return (
@@ -443,19 +502,65 @@ export function PdfEditorCanvas({
               {obj.type === "whiteout" && <div className="w-full h-full bg-white shadow-sm" />}
 
               {obj.type === "text" && (
-                <div
-                  className="w-full h-full font-sans break-words outline-none"
-                  style={{
-                    fontSize: `${(obj as TextPdfObject).fontSize * zoomScale}px`,
-                    color: (obj as TextPdfObject).color,
-                    fontWeight: (obj as TextPdfObject).bold ? "bold" : "normal",
-                    fontStyle: (obj as TextPdfObject).italic ? "italic" : "normal",
-                    textDecoration: (obj as TextPdfObject).underline ? "underline" : "none",
-                    textAlign: (obj as TextPdfObject).align,
-                  }}
-                >
-                  {(obj as TextPdfObject).text}
-                </div>
+                <>
+                  {/* If editing an existing text object, cover original PDF text region with solid white mask */}
+                  {(obj as TextPdfObject).isExistingText && (
+                    <div className="absolute inset-0 bg-white -z-10 shadow-sm" />
+                  )}
+
+                  {editingTextId === obj.id ? (
+                    <textarea
+                      key={`input-${obj.id}`}
+                      autoFocus
+                      value={(obj as TextPdfObject).text}
+                      onChange={(e) => onUpdateObject({ ...(obj as TextPdfObject), text: e.target.value })}
+                      onBlur={() => setEditingTextId(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          setEditingTextId(null);
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          setEditingTextId(null);
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className="w-full h-full bg-white border-2 border-emerald-500 rounded p-0 text-slate-950 focus:outline-none resize-none shadow-md overflow-hidden"
+                      style={{
+                        fontSize: `${(obj as TextPdfObject).fontSize * zoomScale}px`,
+                        fontFamily: (obj as TextPdfObject).fontFamily || "sans-serif",
+                        color: (obj as TextPdfObject).color || "#000000",
+                        fontWeight: (obj as TextPdfObject).bold ? "bold" : "normal",
+                        fontStyle: (obj as TextPdfObject).italic ? "italic" : "normal",
+                        textDecoration: (obj as TextPdfObject).underline ? "underline" : "none",
+                        textAlign: (obj as TextPdfObject).align || "left",
+                        lineHeight: "1.2",
+                      }}
+                    />
+                  ) : (
+                    <div
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onSelectObject(obj.id);
+                        setEditingTextId(obj.id);
+                      }}
+                      className="w-full h-full font-sans break-words outline-none select-none transition-all bg-white"
+                      style={{
+                        fontSize: `${(obj as TextPdfObject).fontSize * zoomScale}px`,
+                        color: (obj as TextPdfObject).color,
+                        fontWeight: (obj as TextPdfObject).bold ? "bold" : "normal",
+                        fontStyle: (obj as TextPdfObject).italic ? "italic" : "normal",
+                        textDecoration: (obj as TextPdfObject).underline ? "underline" : "none",
+                        textAlign: (obj as TextPdfObject).align,
+                        lineHeight: "1.2",
+                      }}
+                      title="Double-click to edit text"
+                    >
+                      {(obj as TextPdfObject).text}
+                    </div>
+                  )}
+                </>
               )}
 
               {(obj.type === "image" || obj.type === "signature") && (

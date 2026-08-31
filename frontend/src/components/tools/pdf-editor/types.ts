@@ -57,6 +57,13 @@ export interface TextPdfObject extends BasePdfObject {
   align: "left" | "center" | "right";
   isExistingText?: boolean;
   originalText?: string;
+  /** Original bounding box as fractions (0..1) of page before any user moves */
+  origXFrac?: number;
+  origYFrac?: number;
+  origWFrac?: number;
+  origHFrac?: number;
+  /** Flag for deleted existing text items that must be masked out on export */
+  isDeleted?: boolean;
 }
 
 export interface ImagePdfObject extends BasePdfObject {
@@ -151,4 +158,11 @@ export interface ExtractedTextItem {
   fontSize: number;
   fontName: string;
   color: string;
+  /** Exact PDF point coordinates (0,0 bottom-left) */
+  xPt?: number;
+  yPt?: number;
+  wPt?: number;
+  hPt?: number;
+  bold?: boolean;
+  italic?: boolean;
 }

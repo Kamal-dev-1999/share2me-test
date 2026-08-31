@@ -43,7 +43,7 @@ export function PdfEditorSidebar({
   onSelectMode: (mode: ToolMode) => void;
 }) {
   return (
-    <div className="w-16 border-r border-slate-800/80 bg-slate-900 flex flex-col items-center py-3 gap-1.5 z-20 shadow-md">
+    <div className="w-16 border-r border-white/60 bg-white/70 backdrop-blur-xl flex flex-col items-center py-4 gap-2 z-30 shadow-sm shadow-slate-900/5 relative">
       {TOOLS.map((t) => {
         const Icon = t.icon;
         const isActive = activeMode === t.mode;
@@ -51,16 +51,16 @@ export function PdfEditorSidebar({
           <button
             key={t.mode}
             onClick={() => onSelectMode(t.mode)}
-            title={t.label}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all relative group ${
+            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group z-10 ${
               isActive
-                ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-bold scale-105"
-                : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/70"
+                ? "bg-gradient-to-tr from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 font-bold scale-105 border border-emerald-400/40"
+                : "text-slate-600 hover:text-slate-950 hover:bg-slate-900/5 hover:border hover:border-slate-200/80"
             }`}
           >
             <Icon className="w-5 h-5" />
-            {/* Tooltip */}
-            <span className="absolute left-14 bg-slate-950 text-slate-100 text-[11px] px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 border border-slate-800">
+            {/* High-Contrast Floating Tooltip Popup (Popping out to the Right inside workspace area) */}
+            <span className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-2xl border border-slate-700 whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-all z-50 flex items-center gap-1">
+              <span className="w-2 h-2 bg-slate-900 rotate-45 absolute -left-1 top-1/2 -translate-y-1/2 border-l border-b border-slate-700" />
               {t.label}
             </span>
           </button>
