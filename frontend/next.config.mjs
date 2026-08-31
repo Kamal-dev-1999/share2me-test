@@ -54,10 +54,6 @@ const nextConfig = {
         source: "/api/tools/:path*",
         destination: `${backendUrl}/api/tools/:path*`,
       },
-      {
-        source: "/g2p/:path*",
-        destination: `${backendUrl}/g2p/:path*`,
-      },
     ];
   },
 };
