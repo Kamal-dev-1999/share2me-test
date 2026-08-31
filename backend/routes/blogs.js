@@ -82,6 +82,7 @@ router.get('/', async (req, res) => {
             readTime: blogData.readTime,
             date: blogData.date,
             intro: blogData.intro, // We need intro for the index card
+            status: blogData.status,
           };
         } catch (err) {
           console.error(`[Blogs] Error parsing blog ${file.Key}:`, err);
@@ -90,8 +91,8 @@ router.get('/', async (req, res) => {
       })
     );
 
-    // Filter out any that failed to parse
-    blogListCache = blogs.filter(Boolean);
+    // Filter out any that failed to parse AND filter out drafts
+    blogListCache = blogs.filter(blog => blog && blog.status !== 'draft');
     lastCacheTime = Date.now();
 
     res.json(blogListCache);
