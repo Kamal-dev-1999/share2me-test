@@ -5,21 +5,11 @@
  * Verifies that the requester is an authorized admin whose email is in AUTHORIZED_ADMIN_EMAILS.
  */
 
-const DEFAULT_ADMIN_EMAILS = [
-  'admin@share2.me',
-  'rishabh@share2.me',
-  'rishabhdev2026@gmail.com',
-  'rishabhyadav5281@gmail.com',
-  'kamaltripathi1431@gmail.com',
-  'ansh.vishwa2020@gmail.com',
-  'adivishwakarma.work@gmail.com',
-];
-
 function getAuthorizedAdminEmails() {
   const rawEnv = process.env.AUTHORIZED_ADMIN_EMAILS || '';
   if (!rawEnv.trim()) {
     // Default fallback for dev environment if env is missing
-    return DEFAULT_ADMIN_EMAILS;
+    return ['admin@share2.me', 'rishabh@share2.me', 'rishabhdev2026@gmail.com', 'rishabhyadav5281@gmail.com'];
   }
   return rawEnv.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
 }

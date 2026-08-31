@@ -11,22 +11,12 @@ if (!AUTH_SECRET) {
 }
 const _AUTH_SECRET = AUTH_SECRET || 'placeholder_jwt_secret_local_dev_only';
 
-const DEFAULT_ADMIN_EMAILS = [
-  "admin@share2.me",
-  "rishabh@share2.me",
-  "rishabhdev2026@gmail.com",
-  "rishabhyadav5281@gmail.com",
-  "kamaltripathi1431@gmail.com",
-  "ansh.vishwa2020@gmail.com",
-  "adivishwakarma.work@gmail.com",
-];
-
 function isEmailAdminAuthorized(email?: string | null): boolean {
   if (!email) return false;
   const rawEnv = process.env.AUTHORIZED_ADMIN_EMAILS || "";
   const allowed = rawEnv.trim()
     ? rawEnv.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
-    : DEFAULT_ADMIN_EMAILS;
+    : ["admin@share2.me", "rishabh@share2.me", "rishabhdev2026@gmail.com", "rishabhyadav5281@gmail.com"];
   return allowed.includes(email.trim().toLowerCase());
 }
 
@@ -40,12 +30,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: _AUTH_SECRET,
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, user, account, profile }) {
-      const email = user?.email || profile?.email || token.email;
-      if (email) {
-        token.email = email;
-      }
-      token.adminAuthorized = isEmailAdminAuthorized(token.email as string);
+    async jwt({ token, account, profile }) {
+      const email = profile?.email || token.email;
+      token.adminAuthorized = isEmailAdminAuthorized(email);
 
       if ((account && profile) || !token.shareCode || !token.id) {
         // Contact the Express backend to upsert or fetch the vendor
@@ -84,8 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id;
         session.user.shareCode = token.shareCode;
-        const email = session.user.email || token.email;
-        session.user.adminAuthorized = isEmailAdminAuthorized(email);
+        session.user.adminAuthorized = !!token.adminAuthorized;
       }
       return session;
     },
