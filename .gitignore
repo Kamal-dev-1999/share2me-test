@@ -10,6 +10,7 @@ SecurityChecks/
 .venv/
 Ads policies/
 /admin/
+/v3.0_plan_knowledge/
 *.onnx
 backend/ml/models/
 backend/ml/test_*.py
