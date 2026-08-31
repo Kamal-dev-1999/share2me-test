@@ -30,6 +30,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
+      url: baseUrl + '/pricing',
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
+      url: baseUrl + '/tools',
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    {
       url: baseUrl + '/about',
       lastModified: new Date(),
       changeFrequency: 'monthly',
@@ -54,6 +66,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }
   ];
+
+  // Dynamic Tools Pages
+  const { PDF_TOOLS } = await import('@/lib/pdfTools');
+  const toolRoutes: MetadataRoute.Sitemap = PDF_TOOLS.map((tool) => ({
+    url: `${baseUrl}/tools/${tool.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.8,
+  }));
 
   // Dynamic Landing Pages
   const landingRoutes: MetadataRoute.Sitemap = Object.keys(LANDING_PAGES).map((slug) => ({
@@ -81,5 +102,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Sitemap failed to fetch blogs:', err);
   }
 
-  return [...baseRoutes, ...landingRoutes, ...blogRoutes];
+  return [...baseRoutes, ...landingRoutes, ...toolRoutes, ...blogRoutes];
 }

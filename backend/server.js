@@ -1,5 +1,6 @@
 'use strict';
 
+require('dotenv').config({ path: __dirname + '/.env' });
 require('dotenv').config({ path: __dirname + '/g2p/.env' });
 
 // ─── Process stability (before any require) ───────────────────────────────────
@@ -144,13 +145,21 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── HTTP Endpoints ───────────────────────────────────────────────────────────
+// ─── Body Parsers ─────────────────────────────────────────────────────────────
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Mount G2P module (Decoupled Phase 2)
 app.use('/g2p', require('./g2p/index').g2pRouter);
 
 // Mount Blogs module (Dynamic S3 fetching)
 app.use('/api/blogs', require('./routes/blogs'));
+
+// Mount Admin Portal Router
+app.use('/api/admin', require('./routes/adminRoutes'));
+
+// Mount Tool Routes (AI BG Remover, etc.)
+app.use('/api/tools', require('./routes/toolRoutes'));
 
 app.get('/api/ice-servers', async (_req, res) => {
   const iceServers = [

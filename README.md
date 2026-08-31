@@ -123,7 +123,41 @@ graph TD
 
 ---
 
-## 🚀 Quick Start — Local Development
+## ✦ Repository Layout
+
+```
+ShareIt/
+├── backend/                     # Express + Socket.io signaling server
+│   ├── server.js                #   Entry point — signal relay + Next.js proxy
+│   └── package.json
+│
+├── frontend/                    # Next.js 14 application
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── layout.tsx       #   Root layout + SEO metadata
+│   │   │   ├── page.tsx         #   Main page — transfer workspace
+│   │   │   ├── send/            #   /send → redirects to home (send tab)
+│   │   ├── components/
+│   │   │   ├── TopNav.tsx       #   Sticky nav — Send/Receive scroll
+│   │   │   ├── HeroSection.tsx  #   Headline + stat callouts + trust badges
+│   │   │   ├── ModeSelector.tsx #   Send ↔ Receive pill toggle
+│   │   │   ├── SendFlow.tsx     #   File tab (drag-drop) + Text tab (textarea) + QR
+│   │   │   └── ReceiveFlow.tsx  #   OTC input, QR scanner, file/text result panel
+│   │   └── hooks/
+│   │       ├── useSocket.ts     #   Singleton socket.io-client hook
+│   │       └── useTransfer.ts   #   Full sender + receiver state machine
+│   ├── public/
+│   │   ├── worker.js            #   Crypto worker (AES-GCM + ECDH)
+│   │   └── storage.js           #   Chunk storage helper
+│   ├── tailwind.config.ts       #   Full design token palette + xs breakpoint
+│   └── .env.local               #   NEXT_PUBLIC_SIGNAL_URL
+│
+└── README.md
+```
+
+---
+
+## ✦ Quick Start — Local
 
 ### Prerequisites
 - **Node.js** 18+
@@ -149,7 +183,7 @@ STRIPE_SECRET_KEY=sk_test_...
 # Cloudflare R2
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
-R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_ENDPOINT=https://<account-id>.k.cloudflarestorage.com
 R2_BUCKET_NAME=share2me
 R2_PUBLIC_URL=https://pub-xxxx.r2.dev
 ```
@@ -162,23 +196,12 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
 ### 2. Install Dependencies
 ```bash
-cd backend && npm install
-cd ../frontend && npm install
+npm run install:all
 ```
 
-### 3. Start Both Servers
-For the best development experience, run these in two separate terminals.
-
-**Terminal 1 — Backend (Port 3000):**
+### 3. Start All Services
 ```bash
-cd backend
 npm run dev
-```
-
-**Terminal 2 — Frontend (Port 3001):**
-```bash
-cd frontend
-npm run dev -- --port 3001
 ```
 
 ### 4. Visit the Application
@@ -187,6 +210,90 @@ Open your browser and navigate to:
 http://localhost:3001
 ```
 
+### 5. Both devices open the ngrok URL
+
+| Device | Role |
+|---|---|
+| Device 1 | Open ngrok URL → **Send** mode (File or Text tab) |
+| Device 2 | Open ngrok URL → **Receive** mode |
+
+> **First visit:** ngrok shows a warning page — click **"Visit Site"** to proceed.
+
+---
+
+## ✦ Transfer Flow
+
+### File transfer
+```
+Sender                          Signaling Server            Receiver
+  │                                    │                        │
+  │── create_room ────────────────────▶│                        │
+  │◀─ { otc: "319536" } ──────────────│                        │
+  │                                    │                        │
+  │  [file → AES-GCM-256 chunks]       │                        │
+  │  [ECDH keypair generated]          │◀─── join_room ─────────│
+  │                                    │◀─── receiver_pub ──────│
+  │◀─ receiver_pub ───────────────────│                        │
+  │                                    │                        │
+  │  [wraps AES key via ECDH]          │                        │
+  │── wrapped_key ────────────────────▶│──── wrapped_key ──────▶│
+  │                                    │                        │  [unwraps AES key]
+  │◀══════════════ WebRTC offer/answer/ICE ════════════════════▶│
+  │                                    │                        │
+  │══════════════ DataChannel (AES-GCM encrypted chunks) ══════▶│
+  │── { done: true } ════════════════▶│                   [decrypts + assembles]
+  │                                    │                   [download triggered]
+```
+
+### Text transfer
+```
+Sender                          Signaling Server            Receiver
+  │                                    │                        │
+  │  [TextEncoder → UTF-8 bytes]       │                        │
+  │  [same AES-GCM-256 + ECDH pipeline as file transfer]        │
+  │                                    │                        │
+  │══════════════ DataChannel (encrypted text chunks) ══════════▶│
+  │                                    │                   [decrypts + reassembles]
+  │                                    │                   [TextDecoder → string]
+  │                                    │                   [shown in UI with Copy All]
+```
+
+---
+
+## ✦ Pages
+
+| Route | Description |
+|---|---|
+| `/` | Main page — hero + transfer workspace (Send/Receive + File/Text) |
+| `/send` | Redirects to `/?mode=send#transfer` |
+
+---
+
+## ✦ What's Implemented
+
+| Feature | Status |
+|---|---|
+| File transfer (any size) | ✅ Done |
+| Text transfer (any length, any language) | ✅ Done |
+| AES-GCM-256 encryption per chunk | ✅ Done |
+| ECDH P-256 key exchange | ✅ Done |
+| WebRTC DataChannel with backpressure | ✅ Done |
+| NACK chunk retry | ✅ Done |
+| Universal QR scanner (jsQR — all browsers) | ✅ Done |
+| QR code generation for metadata | ✅ Done |
+| Mobile-responsive UI | ✅ Done |
+| How it Works page with visual diagram | ✅ Done |
+| Reed-Solomon FEC | 🔜 Planned |
+| OPFS partial resume after reload | 🔜 Planned |
+| Docker + production build | 🔜 Planned |
+
+---
+
+## ✦ License
+
+MIT © 2026 ShareIt
+
+>>>>>>> admin
 ---
 
 <div align="center">

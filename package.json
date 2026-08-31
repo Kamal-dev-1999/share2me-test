@@ -4,9 +4,10 @@
   "private": true,
   "description": "Secure peer-to-peer file transfer — WebRTC + AES-GCM-256 + ECDH",
   "scripts": {
-    "dev": "start \"ShareIt Backend\" cmd /k \"cd backend && node --watch server.js\" && start \"ShareIt Frontend\" cmd /k \"cd frontend && npm run dev -- --port 3001\"",
+    "dev": "start \"ShareIt Backend\" cmd /k \"cd backend && node --watch server.js\" && start \"ShareIt Frontend\" cmd /k \"cd frontend && npm run dev -- --port 3001\" && start \"ShareIt ML Service\" cmd /k \"python backend/ml/bg_remover_service.py\"",
     "dev:backend": "cd backend && node --watch server.js",
     "dev:frontend": "cd frontend && npm run dev -- --port 3001",
+    "dev:ml": "python backend/ml/bg_remover_service.py",
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "start": "cd backend && node server.js"
   }

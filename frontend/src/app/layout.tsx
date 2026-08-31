@@ -6,6 +6,7 @@ import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 
 import { SideRail } from "@/components/SideRail";
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.share2me.in'),
@@ -317,7 +318,7 @@ export default function RootLayout({
           </defs>
         </svg>
         <SideRail />
-        {children}
+        <Providers>{children}</Providers>
         <Analytics />
         <SpeedInsights />
         <GoogleAnalytics gaId="G-8XDS75JXYK" />
