@@ -84,7 +84,7 @@ export const PDF_TOOLS: PdfTool[] = [
   { slug: "pdf-to-pdfa",       title: "PDF to PDF/A",      description: "Convert your PDF to the ISO archival PDF/A format.",                 icon: FileCheck2,      category: "convert-from-pdf", phase: "ready", processingTier: "server", tag: "PDF/A", accept: ["application/pdf"] },
 
   // ---- EDIT ----
-  { slug: "edit-pdf",      title: "Edit PDF",      description: "Add text, images, shapes, and freehand annotations to a PDF.",    icon: PenLine,  category: "edit", phase: "soon",  processingTier: "client" },
+  { slug: "edit-pdf",      title: "Edit PDF",      description: "Edit text, images, shapes, signatures, and annotations in your PDF.", icon: PenLine,  category: "edit", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
   { slug: "watermark-pdf", title: "Watermark PDF", description: "Stamp text or an image watermark on every page of a PDF.",        icon: Droplet,  category: "edit", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
   { slug: "pdf-forms",     title: "PDF Forms",     description: "Detect and fill text fields, checkboxes, and radios inside PDFs.", icon: FormInput,category: "edit", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
   { slug: "redact-pdf",    title: "Redact PDF",    description: "Permanently remove text or graphics from a PDF for privacy.",     icon: Eraser,   category: "edit", phase: "ready", processingTier: "client", accept: ["application/pdf"] },
@@ -100,6 +100,7 @@ export const PDF_TOOLS: PdfTool[] = [
   { slug: "repair-pdf",   title: "Repair PDF",   description: "Repair a corrupt PDF and recover recoverable pages.",              icon: Wrench,    category: "optimize", phase: "ready", processingTier: "server", accept: ["application/pdf"] },
 
   // ---- AI (all server-side — require API keys) ----
+  { slug: "bg-remover",    title: "BG Remover",    description: "Remove image background automatically using AI.",               icon: Eraser,   category: "ai", phase: "ready", processingTier: "server", tag: "AI", accept: ["image/jpeg", "image/png", "image/webp"] },
   { slug: "ai-summarizer", title: "AI Summarizer", description: "Get an instant AI-generated summary of any PDF document.",      icon: Sparkles, category: "ai", phase: "ready", processingTier: "server", tag: "AI", accept: ["application/pdf"] },
   { slug: "translate-pdf", title: "Translate PDF", description: "Translate a PDF into another language, preserving the layout.", icon: Languages,category: "ai", phase: "ready", processingTier: "server", tag: "AI", accept: ["application/pdf"] },
   { slug: "ocr-pdf",       title: "OCR PDF",       description: "Turn a scanned PDF into searchable, selectable text via OCR.",  icon: ScanText, category: "ai", phase: "ready", processingTier: "server", accept: ["image/png", "image/jpeg", "application/pdf"] },

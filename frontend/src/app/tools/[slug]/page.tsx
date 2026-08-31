@@ -8,6 +8,8 @@ import { SignPdfUI } from "@/components/tools/SignPdfUI";
 import { PdfFormsUI } from "@/components/tools/PdfFormsUI";
 import { RedactPdfUI } from "@/components/tools/RedactPdfUI";
 import { ComparePdfUI } from "@/components/tools/ComparePdfUI";
+import { BgRemoverUI } from "@/components/tools/BgRemoverUI";
+import { PdfEditorUI } from "@/components/tools/PdfEditorUI";
 import { getToolBySlug } from "@/lib/pdfTools";
 import * as Configs from "@/components/tools/configs";
 
@@ -74,6 +76,9 @@ export default function ToolPage({ params }: PageProps) {
 
   const ConfigComponent = ConfigMap[tool.slug];
 
+  if (tool.slug === "edit-pdf") {
+    return <PdfEditorUI tool={tool} />;
+  }
   if (tool.slug === "scan-to-pdf") {
     return <ScanToPdfUI tool={tool} />;
   }
@@ -88,6 +93,9 @@ export default function ToolPage({ params }: PageProps) {
   }
   if (tool.slug === "compare-pdf") {
     return <ComparePdfUI tool={tool} />;
+  }
+  if (tool.slug === "bg-remover") {
+    return <BgRemoverUI tool={tool} />;
   }
 
   return (

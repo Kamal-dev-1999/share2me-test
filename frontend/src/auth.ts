@@ -11,6 +11,15 @@ if (!AUTH_SECRET) {
 }
 const _AUTH_SECRET = AUTH_SECRET || 'placeholder_jwt_secret_local_dev_only';
 
+function isEmailAdminAuthorized(email?: string | null): boolean {
+  if (!email) return false;
+  const rawEnv = process.env.AUTHORIZED_ADMIN_EMAILS || "";
+  const allowed = rawEnv.trim()
+    ? rawEnv.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
+    : ["admin@share2.me", "rishabh@share2.me", "rishabhdev2026@gmail.com", "rishabhyadav5281@gmail.com"];
+  return allowed.includes(email.trim().toLowerCase());
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     GoogleProvider({
@@ -22,6 +31,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, account, profile }) {
+      const email = profile?.email || token.email;
+      token.adminAuthorized = isEmailAdminAuthorized(email);
+
       if ((account && profile) || !token.shareCode || !token.id) {
         // Contact the Express backend to upsert or fetch the vendor
         try {
@@ -59,6 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id;
         session.user.shareCode = token.shareCode;
+        session.user.adminAuthorized = !!token.adminAuthorized;
       }
       return session;
     },
