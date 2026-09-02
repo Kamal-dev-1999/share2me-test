@@ -103,7 +103,9 @@ Ensure the output is raw, valid JSON.
 `;
 
 const CANDIDATE_MODELS = [
-  'gemini-3-flash-preview'
+  'gemini-3-flash-preview',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ];
 
 async function generateContentWithRetry(prompt) {
