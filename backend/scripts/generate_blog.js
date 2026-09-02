@@ -103,10 +103,7 @@ Ensure the output is raw, valid JSON.
 `;
 
 const CANDIDATE_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-2.5-flash',
-  'gemini-1.5-pro',
+  'gemini-3-flash-preview'
 ];
 
 async function generateContentWithRetry(prompt) {
@@ -142,7 +139,7 @@ async function generateContentWithRetry(prompt) {
 async function generateAndUploadBlog() {
   try {
     const trendingTopics = await getTrendingTopics();
-    
+
     console.log("Generating blog content using Gemini...");
     const { text: contentText, modelName } = await generateContentWithRetry(getPrompt(trendingTopics));
 
