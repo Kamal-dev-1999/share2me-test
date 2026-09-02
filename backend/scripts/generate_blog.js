@@ -102,17 +102,51 @@ You MUST output ONLY valid JSON matching this exact structure, with no markdown 
 Ensure the output is raw, valid JSON.
 `;
 
+const CANDIDATE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-2.5-pro',
+];
+
+async function generateContentWithRetry(prompt) {
+  let lastError = null;
+
+  for (const model of CANDIDATE_MODELS) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        console.log(`Generating content using model: ${model} (attempt ${attempt})...`);
+        const response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+        });
+        if (response && response.text) {
+          console.log(`Successfully generated content using ${model}`);
+          return { text: response.text, modelName: model };
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`[Gemini] Model ${model} attempt ${attempt} failed: ${err.message}`);
+        if (err.status === 503 || err.status === 429 || (err.message && err.message.includes('high demand'))) {
+          await new Promise((r) => setTimeout(r, 2500 * attempt));
+        } else {
+          break; // Switch to next candidate model
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error("All candidate Gemini models failed to generate content.");
+}
+
 async function generateAndUploadBlog() {
   try {
     const trendingTopics = await getTrendingTopics();
     
     console.log("Generating blog content using Gemini...");
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: getPrompt(trendingTopics),
-    });
+    const { text: contentText, modelName } = await generateContentWithRetry(getPrompt(trendingTopics));
 
-    let content = response.text;
+    let content = contentText;
     if (!content) throw new Error("Generated content is empty.");
 
     // Strip markdown formatting if AI wraps it in ```json
@@ -148,7 +182,7 @@ async function generateAndUploadBlog() {
       Body: JSON.stringify(blogData, null, 2),
       ContentType: 'application/json',
       Metadata: {
-        'generated-by': 'gemini-3-flash-preview',
+        'generated-by': modelName,
         'image-engine': 'pollinations-flux',
         'date': new Date().toISOString()
       }
