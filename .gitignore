@@ -11,6 +11,7 @@ SecurityChecks/
 Ads policies/
 /admin/
 /v3.0_plan_knowledge/
+/scratch/
 *.onnx
 backend/ml/models/
 backend/ml/test_*.py

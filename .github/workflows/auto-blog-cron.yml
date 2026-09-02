@@ -5,6 +5,10 @@ on:
     # Run daily at 12:00 AM IST (18:30 UTC)
     - cron: '30 18 * * *'
   workflow_dispatch: # Allow manual triggers
+  push:
+    paths:
+      - 'backend/scripts/generate_blog.js'
+      - '.github/workflows/auto-blog-cron.yml'
 
 jobs:
   generate-blog:
@@ -13,6 +17,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
