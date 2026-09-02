@@ -46,26 +46,53 @@ async function getTrendingTopics() {
 }
 
 /**
- * Generate a dynamic prompt for the LLM
+ * Helper to build an editorial-grade, personalized image URL using Pollinations FLUX
+ */
+function buildFluxImageUrl(promptText, width = 1200, height = 630) {
+  // Sanitize and append high-end editorial photo tokens
+  const cleanPrompt = promptText
+    .replace(/['"]/g, '')
+    .replace(/\b(abstract|cyberpunk|glowing neon|futuristic glowing|hologram|neon laser|laser beams|matrix code)\b/gi, '')
+    .trim();
+  const styledPrompt = `${cleanPrompt}, editorial technology photography, natural soft studio lighting, sharp focus, 35mm lens, high-end tech publication aesthetic, clean professional composition`;
+  const seed = Math.floor(Math.random() * 9000000) + 1000000;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(styledPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}`;
+}
+
+/**
+ * Generate a dynamic prompt for the LLM with strict art direction
  */
 const getPrompt = (topics) => `
-You are a highly acclaimed technical journalist writing for a premier technology blog. 
+You are an award-winning technical journalist and creative director for a premier technology publication (like Wired, Ars Technica, or The Verge).
 Review the following current trending headlines from the tech world:
 "${topics}"
 
-Select ONE of the most interesting core technology topics from these headlines and write a comprehensive, engaging, and in-depth blog article about it.
+Select ONE of the most impactful core technology topics from these headlines and write a comprehensive, authoritative, and in-depth blog article about it.
 
-You MUST output ONLY valid JSON matching this exact structure, with no markdown code blocks around it:
+ART DIRECTION FOR IMAGES (CRITICAL REQUIREMENTS):
+1. You MUST generate a "coverImagePrompt" that describes a realistic, concrete, authentic physical scene directly portraying the subject of the article.
+   - Example (Chrome extensions/security): "Editorial photograph of a designer laptop open on a modern birch desk showing a web browser interface with extension plugins, soft window daylight, 35mm photography"
+   - Example (RISC-V/Python): "Macro close-up studio photograph of a modern silicon CPU microprocessor with copper traces mounted on a motherboard, clean industrial lighting, sharp depth of field"
+   - Example (AI/LLM training): "A modern software engineer working on an ultrawide curved monitor in a minimalist sunlit office studio with machine learning code and training loss charts, professional photography"
+   - Example (Apple/Mac): "Sleek aluminum laptop on a dark oak desk in a bright loft apartment with a terminal window executing code, warm ambient lamp light"
+2. STRICTLY FORBIDDEN IN ALL IMAGE PROMPTS:
+   - DO NOT use words like: 'abstract', 'cyberpunk', 'futuristic', 'glowing neon', 'hologram', 'laser beams', 'matrix code', 'digital eye', 'floating spheres', or 'sci-fi robot'.
+   - Every image must look like a high-end, genuine editorial photo taken by a professional photographer.
+3. In at least two sections, provide a relevant "imagePrompt" following the exact same photographic guidelines.
+
+You MUST output ONLY valid JSON matching this exact structure, with no markdown code fences:
 {
   "title": "A catchy, professional title",
-  "category": "Technology, WebRTC, AI, etc.",
+  "category": "Web Browsers & Security, Artificial Intelligence, Hardware & Systems, etc.",
   "readTime": "X min read",
   "date": "Month DD, YYYY",
-  "intro": "A compelling introduction. Include a markdown image tag at the top of the intro using the Pollinations AI format: ![Cover](https://image.pollinations.ai/prompt/{URL_ENCODED_DETAILED_PROMPT}?width=1200&height=600&nologo=true)",
+  "coverImagePrompt": "Detailed photographic description of the cover image matching the art direction rules above",
+  "intro": "A compelling introduction (text only, do NOT include markdown image tags here).",
   "sections": [
     {
       "heading": "Section Heading",
-      "content": "Deep dive content for this section. You MUST include another markdown image tag somewhere in at least two of the sections.",
+      "content": "Deep dive content for this section.",
+      "imagePrompt": "Optional photographic prompt for an illustrative image in this section",
       "bullets": ["Optional array of bullet points", "Keep them concise"]
     }
   ],
@@ -94,6 +121,21 @@ async function generateAndUploadBlog() {
     // Parse to ensure it's valid JSON
     const blogData = JSON.parse(content);
 
+    // Build personalized cover image using FLUX
+    const coverPrompt = blogData.coverImagePrompt || `${blogData.title} in a modern tech workspace setting`;
+    const coverUrl = buildFluxImageUrl(coverPrompt, 1200, 630);
+    blogData.intro = `![Cover](${coverUrl})\n\n${(blogData.intro || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
+
+    // Add section images if provided
+    if (Array.isArray(blogData.sections)) {
+      for (const section of blogData.sections) {
+        if (section.imagePrompt) {
+          const sectionUrl = buildFluxImageUrl(section.imagePrompt, 1000, 500);
+          section.content = `![${section.heading}](${sectionUrl})\n\n${(section.content || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
+        }
+      }
+    }
+
     const titleSlug = blogData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const dateStr = new Date().toISOString().split('T')[0];
     const uniqueId = crypto.randomBytes(4).toString('hex');
@@ -107,6 +149,7 @@ async function generateAndUploadBlog() {
       ContentType: 'application/json',
       Metadata: {
         'generated-by': 'gemini-3-flash-preview',
+        'image-engine': 'pollinations-flux',
         'date': new Date().toISOString()
       }
     });
