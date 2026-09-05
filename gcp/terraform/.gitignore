@@ -1,0 +1,19 @@
+# GCP Terraform state files
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+.terraform/
+.terraform.lock.hcl
+
+# Secrets — never commit
+terraform.tfvars
+*.auto.tfvars
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

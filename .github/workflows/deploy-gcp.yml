@@ -1,0 +1,179 @@
+# ─── Share2Me: Deploy to GCP Cloud Run ────────────────────────────────────────
+# Builds Docker images, pushes to Artifact Registry, deploys to Cloud Run.
+# Uses Workload Identity Federation (keyless auth — no service account keys).
+#
+# Triggers:
+#   - Push to main branch (frontend/ or backend/ changes)
+#   - Manual dispatch from GitHub Actions UI
+
+name: Deploy to GCP Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/deploy-gcp.yml'
+
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Which service to deploy'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - frontend
+          - backend
+          - both
+
+# ─── Environment Variables ────────────────────────────────────────────────────
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: asia-south1
+  AR_REPO: share2me-docker
+  FRONTEND_SERVICE: share2me-frontend
+  BACKEND_SERVICE: share2me-backend
+  FRONTEND_DOMAIN: share2.me
+  BACKEND_DOMAIN: api.share2.me
+
+# ─── Permissions for OIDC ─────────────────────────────────────────────────────
+permissions:
+  contents: read
+  id-token: write # Required for Workload Identity Federation
+
+jobs:
+  # ── Detect Changes ──────────────────────────────────────────────────────────
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend/**'
+
+  # ── Build & Deploy Frontend ─────────────────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: changes
+    if: >
+      needs.changes.outputs.frontend == 'true' ||
+      github.event.inputs.deploy_target == 'frontend' ||
+      github.event.inputs.deploy_target == 'both'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Authenticate to GCP using Workload Identity Federation (keyless)
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build Frontend Image
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/frontend"
+          docker build \
+            --build-arg NEXT_PUBLIC_SIGNAL_URL=https://${{ env.BACKEND_DOMAIN }} \
+            -t ${IMAGE}:${{ github.sha }} \
+            -t ${IMAGE}:latest \
+            ./frontend
+
+      - name: Push Frontend Image
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/frontend"
+          docker push ${IMAGE}:${{ github.sha }}
+          docker push ${IMAGE}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/frontend"
+          gcloud run deploy ${{ env.FRONTEND_SERVICE }} \
+            --image=${IMAGE}:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --quiet
+
+      - name: Verify Deployment
+        run: |
+          URL=$(gcloud run services describe ${{ env.FRONTEND_SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.url)')
+          echo "Frontend deployed to: ${URL}"
+          curl -sf --max-time 30 "${URL}/" > /dev/null
+          echo "✅ Frontend health check passed"
+
+  # ── Build & Deploy Backend ──────────────────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: changes
+    if: >
+      needs.changes.outputs.backend == 'true' ||
+      github.event.inputs.deploy_target == 'backend' ||
+      github.event.inputs.deploy_target == 'both'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build Backend Image
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/backend"
+          docker build \
+            -t ${IMAGE}:${{ github.sha }} \
+            -t ${IMAGE}:latest \
+            ./backend
+
+      - name: Push Backend Image
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/backend"
+          docker push ${IMAGE}:${{ github.sha }}
+          docker push ${IMAGE}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/backend"
+          gcloud run deploy ${{ env.BACKEND_SERVICE }} \
+            --image=${IMAGE}:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --quiet
+
+      - name: Verify Deployment
+        run: |
+          URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.url)')
+          echo "Backend deployed to: ${URL}"
+          curl -sf --max-time 30 "${URL}/health" > /dev/null
+          echo "✅ Backend health check passed"

@@ -1,0 +1,55 @@
+# ─── Share2Me GCP Terraform — Example Variables ──────────────────────────────
+# Copy this to terraform.tfvars and fill in your values.
+# ⚠️ NEVER commit terraform.tfvars with real secrets to git.
+
+# ─── Required: GCP Project ───────────────────────────────────────────────────
+gcp_project_id = "your-gcp-project-id"   # ← From: gcloud config get-value project
+gcp_region     = "asia-south1"            # Mumbai (closest to Indian users)
+environment    = "prod"
+project_name   = "share2me"
+
+# ─── Domains ─────────────────────────────────────────────────────────────────
+frontend_domain = "share2.me"
+backend_domain  = "api.share2.me"
+allowed_origins = "https://share2.me,https://www.share2.me"
+
+# ─── Cloud Run: Frontend ─────────────────────────────────────────────────────
+frontend_cpu           = "1"              # 1 vCPU
+frontend_memory        = "512Mi"          # 512 MB
+frontend_min_instances = 0                # Scale to zero (saves $)
+frontend_max_instances = 5
+frontend_concurrency   = 80               # HTTP requests per instance
+
+# ─── Cloud Run: Backend ─────────────────────────────────────────────────────
+backend_cpu           = "2"               # 2 vCPU (Puppeteer needs this)
+backend_memory        = "2Gi"             # 2 GB (LibreOffice, Tesseract)
+backend_min_instances = 1                 # Always warm (WebSocket)
+backend_max_instances = 3
+backend_concurrency   = 250               # WebSocket connections per instance
+
+# ─── Redis ───────────────────────────────────────────────────────────────────
+redis_enabled   = true                    # Set false to skip Memorystore (~$35/mo saved)
+redis_memory_gb = 1
+redis_version   = "REDIS_7_2"
+
+# ─── Secrets (pass via CLI: terraform apply -var="metered_api_key=xxx") ──────
+metered_api_key       = ""
+stripe_secret_key     = ""
+stripe_webhook_secret = ""
+database_url          = ""                # Supabase PostgreSQL URL
+gemini_api_key        = ""
+
+# ─── Google Analytics ────────────────────────────────────────────────────────
+google_analytics_id = ""
+
+# ─── GitHub Actions OIDC ─────────────────────────────────────────────────────
+github_owner = "Kamal-dev-1999"
+github_repo  = "share2me-test"
+
+# ─── Security ────────────────────────────────────────────────────────────────
+cloud_armor_enabled  = false              # Enable for WAF/DDoS (adds cost)
+rate_limit_threshold = 300
+
+# ─── Monitoring ──────────────────────────────────────────────────────────────
+alert_email = "your-email@example.com"
+acme_email  = "your-email@example.com"
