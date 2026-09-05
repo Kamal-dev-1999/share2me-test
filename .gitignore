@@ -8,6 +8,7 @@ package-lock.json
 aws/
 SecurityChecks/
 .venv/
+venv/
 Ads policies/
 /admin/
 /v3.0_plan_knowledge/

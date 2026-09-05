@@ -31,10 +31,13 @@ export interface PrintConfig {
   doubleSided: boolean;
   stapling: boolean;
   paperSize: 'A4' | 'A3';
+  allowDownload?: boolean;
+  printType?: PrintType;
 }
 
 export interface PrintJob {
   id: string;
+  vendorId?: string;
   documentName: string;
   fileSizeBytes: number;
   fileType: string;
@@ -55,6 +58,8 @@ export interface PrintJob {
   amountPaise?: number;
   fileUrl?: string | null;
   deletedAt?: string | null;
+  allowDownload?: boolean;
+  batchId?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -186,6 +191,7 @@ export async function getPersona(account?: string | null, token?: string): Promi
 // ─────────────────────────────────────────────────────────────
 
 export interface PublicShopInfo {
+  vendorId?: string;
   shopName: string;
   locationName: string | null;
   bwPrice: number;
@@ -338,10 +344,12 @@ export interface SubmitJobArgs {
   printType: PrintType;
   paymentMethod: PaymentMethod;
   printConfig?: PrintConfig;
+  allowDownload?: boolean;
 }
 
 export interface SubmitJobResult {
   jobId: string;
+  vendorId?: string;
   totalAmount: number;
   pricePerPage: number;
   createdAt: string;
@@ -349,6 +357,7 @@ export interface SubmitJobResult {
   razorpayOrderId?: string;
   amountPaise?: number;
   uploadUrl: string;
+  allowDownload?: boolean;
 }
 
 export async function submitPrintJob(args: SubmitJobArgs): Promise<SubmitJobResult> {
@@ -366,6 +375,7 @@ export interface SubmitBulkJobArgs {
     fileType: string;
     pages: number;
     printConfig?: PrintConfig;
+    allowDownload?: boolean;
   }[];
 }
 
@@ -376,7 +386,10 @@ export interface SubmitBulkJobResult {
     totalAmount: number;
     pricePerPage: number;
     createdAt: string;
+    allowDownload?: boolean;
   }[];
+  batchId?: string;
+  vendorId?: string;
   totalBatchAmount: number;
   razorpayOrderId?: string | null;
   amountPaise?: number;
@@ -384,6 +397,45 @@ export interface SubmitBulkJobResult {
 
 export async function submitBulkPrintJob(args: SubmitBulkJobArgs): Promise<SubmitBulkJobResult> {
   return apiPost<SubmitBulkJobResult>('/jobs/bulk', args);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Print Jobs — preferences update (pre-confirmation)
+// ─────────────────────────────────────────────────────────────
+
+export interface JobPreferenceUpdate {
+  jobId: string;
+  allowDownload?: boolean;
+  printType?: PrintType;
+  printConfig?: Partial<PrintConfig>;
+}
+
+export async function updateBulkJobPreferences(updates: JobPreferenceUpdate[]): Promise<{ success: boolean; updatedJobs: any[] }> {
+  const res = await fetch(`${API_BASE}/jobs/bulk-update-preferences`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ updates }),
+    cache: 'no-store'
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'update_failed' }));
+    throw new Error(err.message || err.error || 'update_failed');
+  }
+  return res.json();
+}
+
+export async function updateSingleJobPreferences(jobId: string, update: Omit<JobPreferenceUpdate, 'jobId'>): Promise<any> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/preferences`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+    cache: 'no-store'
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'update_failed' }));
+    throw new Error(err.message || err.error || 'update_failed');
+  }
+  return res.json();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -406,8 +458,10 @@ export async function getPrintJobs(
 }
 
 function normalizeJob(j: Record<string, unknown>): PrintJob {
+  const cfg = (typeof j.print_config === 'string' ? JSON.parse(j.print_config) : j.print_config) as PrintConfig | undefined;
   return {
     id: j.id as string,
+    vendorId: (j.vendor_id ?? j.vendorId) as string | undefined,
     documentName: (j.document_name ?? j.documentName) as string,
     fileSizeBytes: Number(j.file_size_bytes ?? j.fileSizeBytes),
     fileType: (j.file_type ?? j.fileType) as string,
@@ -422,9 +476,12 @@ function normalizeJob(j: Record<string, unknown>): PrintJob {
     paidAt: (j.paid_at ?? j.paidAt) as string | null,
     createdAt: (j.created_at ?? j.createdAt) as string,
     deletedAt: (j.deleted_at ?? j.deletedAt) as string | null,
-    printConfig: (typeof j.print_config === 'string' ? JSON.parse(j.print_config) : j.print_config) as PrintConfig | undefined,
+    printConfig: cfg,
     jobStatus: (j.job_status ?? j.jobStatus) as PrintJob['jobStatus'] ?? 'queued',
     printedAt: (j.printed_at ?? j.printedAt) as string | null ?? null,
+    allowDownload: j.allow_download !== undefined ? (j.allow_download !== false) : (cfg?.allowDownload !== false),
+    batchId: (j.batch_id ?? j.batchId) as string | null ?? null,
+    fileUrl: (j.file_url ?? j.fileUrl) as string | null ?? null,
   };
 }
 
