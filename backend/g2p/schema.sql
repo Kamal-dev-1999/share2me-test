@@ -1,11 +1,18 @@
 -- Phase 0: G2P Schema Definitions (PostgreSQL)
 
--- Enums
-CREATE TYPE request_status AS ENUM ('pending', 'processing', 'completed', 'expired');
-CREATE TYPE file_status AS ENUM ('pending_upload', 'received', 'downloaded', 'deleted');
+-- Enums (Safe creation)
+DO $$ BEGIN
+  CREATE TYPE request_status AS ENUM ('pending', 'processing', 'completed', 'expired');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE file_status AS ENUM ('pending_upload', 'received', 'downloaded', 'deleted');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 -- Vendors Table
-CREATE TABLE vendors (
+CREATE TABLE IF NOT EXISTS vendors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   share2me_id TEXT UNIQUE NOT NULL, -- The 6-char permanent ID (e.g. "X7Y2M9")
@@ -41,7 +48,7 @@ CREATE TABLE vendors (
 );
 
 -- Requests Table
-CREATE TABLE requests (
+CREATE TABLE IF NOT EXISTS requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
   status request_status DEFAULT 'pending',
@@ -53,7 +60,7 @@ CREATE TABLE requests (
 );
 
 -- Files Table
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_id UUID REFERENCES requests(id) ON DELETE CASCADE,
   original_name TEXT NOT NULL,
@@ -66,10 +73,10 @@ CREATE TABLE files (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_requests_vendor_status ON requests(vendor_id, status);
-CREATE INDEX idx_requests_status_token ON requests(status_token);
-CREATE INDEX idx_files_request ON files(request_id);
-CREATE INDEX idx_files_status_pending ON files(status) WHERE status = 'pending_upload';
+CREATE INDEX IF NOT EXISTS idx_requests_vendor_status ON requests(vendor_id, status);
+CREATE INDEX IF NOT EXISTS idx_requests_status_token ON requests(status_token);
+CREATE INDEX IF NOT EXISTS idx_files_request ON files(request_id);
+CREATE INDEX IF NOT EXISTS idx_files_status_pending ON files(status) WHERE status = 'pending_upload';
 
 -- ─────────────────────────────────────────────────────────────
 -- Migration for EXISTING databases (idempotent) — Stripe billing
@@ -82,6 +89,15 @@ ALTER TABLE vendors ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS subscription_status TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ;
+
+-- Profile & Persona fields
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS persona VARCHAR(20) DEFAULT 'PERSONAL';
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS persona_selected BOOLEAN DEFAULT false;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS plan_type VARCHAR(20) DEFAULT 'FREE';
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS company TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS bio TEXT;
 
 -- Stripe Connect (Print Shop Payments)
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
@@ -118,6 +134,12 @@ ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS r2_key TEXT;
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS printer_name TEXT;
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS print_error TEXT;
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS print_config JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS job_status TEXT DEFAULT 'queued';
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS printed_at TIMESTAMPTZ;
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS allow_download BOOLEAN DEFAULT true;
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS batch_id UUID;
+CREATE INDEX IF NOT EXISTS idx_printshop_jobs_batch ON printshop_jobs(batch_id);
 
 -- Print Agent Token
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS print_agent_token UUID UNIQUE DEFAULT gen_random_uuid();
@@ -143,5 +165,13 @@ ALTER TABLE vendors ADD COLUMN IF NOT EXISTS razorpay_account_id TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS bank_account_number TEXT;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS bank_ifsc TEXT;
 
--- Print Shop Data Retention
+-- Print Shop Data Retention & Settings extensions
 ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS retention_hours INTEGER DEFAULT 24;
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS upi_id TEXT;
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS upi_name TEXT;
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS payment_qr_url TEXT;
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS payment_qr_id TEXT;
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS shop_images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMPTZ;

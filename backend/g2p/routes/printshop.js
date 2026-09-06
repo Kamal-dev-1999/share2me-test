@@ -144,7 +144,8 @@ router.get('/shop/:code', async (req, res) => {
 
   try {
     const result = await query(`
-      SELECT COALESCE(ps.bw_price, 2.0) as bw_price, 
+      SELECT v.id as vendor_id,
+             COALESCE(ps.bw_price, 2.0) as bw_price, 
              COALESCE(ps.color_price, 5.0) as color_price, 
              ps.location_name, ps.qr_r2_key, 
              ps.upi_id, ps.upi_name,
@@ -171,6 +172,7 @@ router.get('/shop/:code', async (req, res) => {
     }
 
     res.json({
+      vendorId: shop.vendor_id,
       shopName: shop.shop_name,
       locationName: shop.location_name || null,
       bwPrice: parseFloat(shop.bw_price),
@@ -198,7 +200,7 @@ router.post('/jobs', async (req, res) => {
   }
 
   const {
-    shopCode, senderName, documentName, fileSizeBytes, fileType, pages, printType, paymentMethod, printConfig,
+    shopCode, senderName, documentName, fileSizeBytes, fileType, pages, printType, paymentMethod, printConfig, allowDownload,
   } = req.body;
 
   // ── Input Validation ──
@@ -210,6 +212,7 @@ router.post('/jobs', async (req, res) => {
   const cleanPayMethod    = ['online', 'cash'].includes(paymentMethod) ? paymentMethod : null;
   const cleanPages        = parseInt(pages, 10);
   const cleanSizeBytes    = parseInt(fileSizeBytes, 10);
+  const cleanAllowDownload = allowDownload !== false && printConfig?.allowDownload !== false;
 
   if (!cleanCode || !cleanDocumentName || !cleanPrintType || !cleanPayMethod) {
     return res.status(400).json({ error: 'missing_or_invalid_fields' });
@@ -257,20 +260,22 @@ router.post('/jobs', async (req, res) => {
     const totalAmount  = parseFloat((pricePerPage * cleanPages * copies).toFixed(2));
 
     const r2Key = `printshop/${shop.vendor_id}/${uuidv4()}-${cleanDocumentName}`;
+    const mergedConfig = { ...(printConfig || {}), allowDownload: cleanAllowDownload };
 
     const insertRes = await client.query(`
       INSERT INTO printshop_jobs (
         vendor_id, sender_name, document_name, file_size_bytes, file_type,
-        pages, print_type, price_per_page, total_amount, payment_method, print_config, r2_key
+        pages, print_type, price_per_page, total_amount, payment_method, print_config, r2_key, allow_download
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id, created_at
     `, [
       shop.vendor_id, cleanSenderName, cleanDocumentName, cleanSizeBytes,
       cleanFileType, cleanPages, cleanPrintType, pricePerPage, totalAmount,
       cleanPayMethod,
-      printConfig ? JSON.stringify(printConfig) : null,
+      JSON.stringify(mergedConfig),
       r2Key,
+      cleanAllowDownload
     ]);
 
     await client.query('COMMIT');
@@ -318,6 +323,23 @@ router.post('/jobs', async (req, res) => {
       pages: cleanPages,
       printType: cleanPrintType,
       totalAmount,
+      allowDownload: cleanAllowDownload,
+    });
+
+    emitToVendor(shop.vendor_id, 'printshop:new_batch', {
+      batchId: newJob.id,
+      senderName: cleanSenderName,
+      fileCount: 1,
+      totalAmount,
+      paymentMethod: cleanPayMethod,
+      jobs: [{
+        jobId: newJob.id,
+        documentName: cleanDocumentName,
+        pages: cleanPages,
+        printType: cleanPrintType,
+        totalAmount,
+        allowDownload: cleanAllowDownload
+      }]
     });
 
     console.log(`[PrintShop] New job ${newJob.id} for vendor ${shop.vendor_id} from IP ${ip}`);
@@ -331,11 +353,13 @@ router.post('/jobs', async (req, res) => {
 
     res.status(201).json({
       jobId: newJob.id,
+      vendorId: shop.vendor_id,
       totalAmount,
       pricePerPage,
       razorpayOrderId,
       amountPaise: paymentAmountPaise,
       uploadUrl,
+      allowDownload: cleanAllowDownload
     });
   } catch (err) {
     if (client) await client.query('ROLLBACK');
@@ -376,6 +400,7 @@ router.post('/jobs/bulk', async (req, res) => {
     const cleanFileType     = sanitizeText(f.fileType, 120);
     const cleanPages        = parseInt(f.pages, 10);
     const cleanSizeBytes    = parseInt(f.fileSizeBytes, 10);
+    const cleanAllowDownload = f.allowDownload !== false && f.printConfig?.allowDownload !== false;
     
     // Per-file optional config overriding the global config
     const filePrintType = f.printConfig?.printType ? (['bw', 'color'].includes(f.printConfig.printType) ? f.printConfig.printType : printType) : printType;
@@ -387,7 +412,8 @@ router.post('/jobs/bulk', async (req, res) => {
       return res.status(400).json({ error: 'invalid_file_data' });
     }
     totalPages += cleanPages;
-    processedFiles.push({ cleanDocumentName, cleanFileType, cleanPages, cleanSizeBytes, printConfig: f.printConfig || null, filePrintType });
+    const mergedConfig = { ...(f.printConfig || {}), printType: filePrintType, allowDownload: cleanAllowDownload };
+    processedFiles.push({ cleanDocumentName, cleanFileType, cleanPages, cleanSizeBytes, printConfig: mergedConfig, filePrintType, allowDownload: cleanAllowDownload });
   }
 
   if (totalPages > 5000) {
@@ -417,12 +443,15 @@ router.post('/jobs/bulk', async (req, res) => {
 
     let totalBatchAmount = 0;
     const insertedJobs = [];
+    const batchId = uuidv4();
 
     // Process each file
     for (const f of processedFiles) {
       const pricePerPage = parseFloat(f.filePrintType === 'color' ? shop.color_price : shop.bw_price);
       const copies = f.printConfig && parseInt(f.printConfig.copies, 10) > 0 ? parseInt(f.printConfig.copies, 10) : 1;
-      const fileTotalAmount = parseFloat((pricePerPage * f.cleanPages * copies).toFixed(2));
+      const dSided = !!f.printConfig?.doubleSided;
+      const effectivePages = dSided ? Math.ceil(f.cleanPages / 2) : f.cleanPages;
+      const fileTotalAmount = parseFloat((pricePerPage * effectivePages * copies).toFixed(2));
       totalBatchAmount += fileTotalAmount;
 
       const r2Key = `printshop/${shop.vendor_id}/${uuidv4()}-${f.cleanDocumentName}`;
@@ -430,14 +459,16 @@ router.post('/jobs/bulk', async (req, res) => {
       const insertRes = await client.query(`
         INSERT INTO printshop_jobs (
           vendor_id, sender_name, document_name, file_size_bytes, file_type,
-          pages, print_type, price_per_page, total_amount, payment_method, print_config, r2_key
+          pages, print_type, price_per_page, total_amount, payment_method, print_config, r2_key,
+          allow_download, batch_id
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id, created_at
       `, [
         shop.vendor_id, cleanSenderName, f.cleanDocumentName, f.cleanSizeBytes,
         f.cleanFileType, f.cleanPages, f.filePrintType, pricePerPage, fileTotalAmount,
-        cleanPayMethod, f.printConfig ? JSON.stringify(f.printConfig) : null, r2Key
+        cleanPayMethod, JSON.stringify(f.printConfig), r2Key,
+        f.allowDownload, batchId
       ]);
       
       const newJob = insertRes.rows[0];
@@ -452,6 +483,7 @@ router.post('/jobs/bulk', async (req, res) => {
         pricePerPage,
         createdAt: newJob.created_at,
         r2Key,
+        allowDownload: f.allowDownload,
         ...f
       });
     }
@@ -461,15 +493,36 @@ router.post('/jobs/bulk', async (req, res) => {
 
     let paymentAmountPaise = Math.round(totalBatchAmount * 100);
 
-    // Notify the shopkeeper
+    // Consolidated single notification for the multi-file batch
+    emitToVendor(shop.vendor_id, 'printshop:new_batch', {
+      batchId,
+      senderName: cleanSenderName,
+      fileCount: insertedJobs.length,
+      totalAmount: totalBatchAmount,
+      paymentMethod: cleanPayMethod,
+      jobs: insertedJobs.map(j => ({
+        jobId: j.jobId,
+        documentName: j.cleanDocumentName,
+        pages: j.cleanPages,
+        printType: j.filePrintType,
+        totalAmount: j.totalAmount,
+        allowDownload: j.allowDownload,
+        printConfig: j.printConfig
+      }))
+    });
+
+    // Also emit individual job updates for granular listeners
     for (const job of insertedJobs) {
       emitToVendor(shop.vendor_id, 'printshop:new_job', {
         jobId: job.jobId,
+        batchId,
         senderName: cleanSenderName,
         documentName: job.cleanDocumentName,
         pages: job.cleanPages,
         printType: job.filePrintType,
         totalAmount: job.totalAmount,
+        allowDownload: job.allowDownload,
+        printConfig: job.printConfig
       });
     }
 
@@ -479,8 +532,11 @@ router.post('/jobs/bulk', async (req, res) => {
         uploadUrl: j.uploadUrl,
         totalAmount: j.totalAmount,
         pricePerPage: j.pricePerPage,
-        createdAt: j.createdAt
+        createdAt: j.createdAt,
+        allowDownload: j.allowDownload
       })),
+      batchId,
+      vendorId: shop.vendor_id,
       totalBatchAmount,
       amountPaise: paymentAmountPaise,
     });
@@ -604,32 +660,256 @@ router.get('/jobs', requireShopkeeper, async (req, res) => {
 
     params.push(limit, offset);
     const result = await query(`
-      SELECT id, sender_name, document_name, file_size_bytes, file_type, pages,
+      SELECT id, vendor_id, sender_name, document_name, file_size_bytes, file_type, pages,
              print_type, price_per_page, total_amount, payment_method,
              payment_status, payment_id, paid_at, created_at,
-             print_config, job_status, printed_at, r2_key, deleted_at
+             print_config, job_status, printed_at, r2_key, deleted_at,
+             COALESCE(allow_download, true) as allow_download, batch_id
       FROM printshop_jobs
       WHERE ${conditions.join(' AND ')}
       ORDER BY created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
-    // Generate presigned GET URLs for all jobs that have an r2_key
+    // Generate presigned GET URLs only if allow_download is true
     const jobsWithUrls = await Promise.all(result.rows.map(async (job) => {
       let fileUrl = null;
-      if (job.r2_key) {
+      const isDownloadAllowed = job.allow_download !== false;
+      if (job.r2_key && isDownloadAllowed) {
         try {
           const cmd = new (require('@aws-sdk/client-s3').GetObjectCommand)({ Bucket: R2_BUCKET, Key: job.r2_key });
           fileUrl = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
         } catch { /* ignore */ }
       }
-      return { ...job, fileUrl };
+      return { ...job, fileUrl, allowDownload: isDownloadAllowed };
     }));
 
     res.json({ jobs: jobsWithUrls });
   } catch (err) {
     console.error('[PrintShop] GET /jobs error:', err);
     res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ─── PUBLIC / SENDER: PATCH /printshop/jobs/bulk-update-preferences ─────────
+// Student updates preferences (Allow Download, Color/B&W, copies, double-sided, etc.) before vendor confirmation
+router.patch('/jobs/bulk-update-preferences', async (req, res) => {
+  const { updates } = req.body;
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ error: 'invalid_updates_array' });
+  }
+
+  let client;
+  try {
+    client = await getTransactionClient();
+    await client.query('BEGIN');
+
+    const updatedJobs = [];
+    let targetVendorId = null;
+
+    for (const u of updates) {
+      const { jobId, allowDownload, printType, printConfig } = u;
+      if (!jobId) continue;
+
+      const jobRes = await client.query(`
+        SELECT pj.id, pj.vendor_id, pj.payment_status, pj.pages, pj.print_config,
+               COALESCE(ps.bw_price, 2.0) as bw_price,
+               COALESCE(ps.color_price, 5.0) as color_price
+        FROM printshop_jobs pj
+        JOIN vendors v ON pj.vendor_id = v.id
+        LEFT JOIN printshop_settings ps ON ps.vendor_id = v.id
+        WHERE pj.id = $1 AND pj.deleted_at IS NULL
+        FOR UPDATE OF pj
+      `, [jobId]);
+
+      if (jobRes.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'job_not_found', jobId });
+      }
+
+      const job = jobRes.rows[0];
+      targetVendorId = job.vendor_id;
+
+      // Lock check: only allow updating if still pending confirmation
+      if (job.payment_status !== 'pending') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'order_locked',
+          message: 'Preferences cannot be changed because the order has already been confirmed by the vendor.',
+          jobId
+        });
+      }
+
+      const currentConfig = (typeof job.print_config === 'string' ? JSON.parse(job.print_config) : job.print_config) || {};
+      const newConfig = printConfig ? { ...currentConfig, ...printConfig } : currentConfig;
+
+      const cleanPrintType = ['bw', 'color'].includes(printType) ? printType : (newConfig.printType || 'bw');
+      newConfig.printType = cleanPrintType;
+
+      const cleanAllowDownload = typeof allowDownload === 'boolean' ? allowDownload : (newConfig.allowDownload !== false);
+      newConfig.allowDownload = cleanAllowDownload;
+
+      const pricePerPage = parseFloat(cleanPrintType === 'color' ? job.color_price : job.bw_price);
+      const copies = newConfig.copies && parseInt(newConfig.copies, 10) > 0 ? parseInt(newConfig.copies, 10) : 1;
+      const dSided = !!newConfig.doubleSided;
+      const effectivePages = dSided ? Math.ceil(parseInt(job.pages, 10) / 2) : parseInt(job.pages, 10);
+      const newTotalAmount = parseFloat((pricePerPage * effectivePages * copies).toFixed(2));
+
+      await client.query(`
+        UPDATE printshop_jobs
+        SET print_type = $1, price_per_page = $2, total_amount = $3, print_config = $4, allow_download = $5
+        WHERE id = $6
+      `, [cleanPrintType, pricePerPage, newTotalAmount, JSON.stringify(newConfig), cleanAllowDownload, jobId]);
+
+      updatedJobs.push({
+        jobId,
+        printType: cleanPrintType,
+        pricePerPage,
+        totalAmount: newTotalAmount,
+        printConfig: newConfig,
+        allowDownload: cleanAllowDownload
+      });
+    }
+
+    await client.query('COMMIT');
+
+    // Real-time broadcast to vendor and student rooms
+    if (targetVendorId) {
+      for (const j of updatedJobs) {
+        emitToVendor(targetVendorId, 'printshop:job_updated', {
+          jobId: j.jobId,
+          printType: j.printType,
+          pricePerPage: j.pricePerPage,
+          totalAmount: j.totalAmount,
+          printConfig: j.printConfig,
+          allowDownload: j.allowDownload
+        });
+        emitToJob(j.jobId, 'printshop:job_updated', {
+          jobId: j.jobId,
+          printType: j.printType,
+          pricePerPage: j.pricePerPage,
+          totalAmount: j.totalAmount,
+          printConfig: j.printConfig,
+          allowDownload: j.allowDownload
+        });
+      }
+
+      // End editing state for vendor
+      emitToVendor(targetVendorId, 'printshop:sender_editing', {
+        jobIds: updatedJobs.map(j => j.jobId),
+        isEditing: false
+      });
+    }
+
+    res.json({ success: true, updatedJobs });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    console.error('[PrintShop] PATCH /jobs/bulk-update-preferences error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// ─── PUBLIC / SENDER: PATCH /printshop/jobs/:id/preferences ───────────────────
+router.patch('/jobs/:id/preferences', async (req, res) => {
+  const { id } = req.params;
+  const { allowDownload, printType, printConfig } = req.body;
+
+  let client;
+  try {
+    client = await getTransactionClient();
+    await client.query('BEGIN');
+
+    const jobRes = await client.query(`
+      SELECT pj.id, pj.vendor_id, pj.payment_status, pj.pages, pj.print_config,
+             COALESCE(ps.bw_price, 2.0) as bw_price,
+             COALESCE(ps.color_price, 5.0) as color_price
+      FROM printshop_jobs pj
+      JOIN vendors v ON pj.vendor_id = v.id
+      LEFT JOIN printshop_settings ps ON ps.vendor_id = v.id
+      WHERE pj.id = $1 AND pj.deleted_at IS NULL
+      FOR UPDATE OF pj
+    `, [id]);
+
+    if (jobRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'job_not_found' });
+    }
+
+    const job = jobRes.rows[0];
+
+    // Lock check: only allow updating if still pending confirmation
+    if (job.payment_status !== 'pending') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'order_locked',
+        message: 'Preferences cannot be changed because the order has already been confirmed by the vendor.'
+      });
+    }
+
+    const currentConfig = (typeof job.print_config === 'string' ? JSON.parse(job.print_config) : job.print_config) || {};
+    const newConfig = printConfig ? { ...currentConfig, ...printConfig } : currentConfig;
+
+    const cleanPrintType = ['bw', 'color'].includes(printType) ? printType : (newConfig.printType || 'bw');
+    newConfig.printType = cleanPrintType;
+
+    const cleanAllowDownload = typeof allowDownload === 'boolean' ? allowDownload : (newConfig.allowDownload !== false);
+    newConfig.allowDownload = cleanAllowDownload;
+
+    const pricePerPage = parseFloat(cleanPrintType === 'color' ? job.color_price : job.bw_price);
+    const copies = newConfig.copies && parseInt(newConfig.copies, 10) > 0 ? parseInt(newConfig.copies, 10) : 1;
+    const dSided = !!newConfig.doubleSided;
+    const effectivePages = dSided ? Math.ceil(parseInt(job.pages, 10) / 2) : parseInt(job.pages, 10);
+    const newTotalAmount = parseFloat((pricePerPage * effectivePages * copies).toFixed(2));
+
+    await client.query(`
+      UPDATE printshop_jobs
+      SET print_type = $1, price_per_page = $2, total_amount = $3, print_config = $4, allow_download = $5
+      WHERE id = $6
+    `, [cleanPrintType, pricePerPage, newTotalAmount, JSON.stringify(newConfig), cleanAllowDownload, id]);
+
+    await client.query('COMMIT');
+
+    // Broadcast updates
+    emitToVendor(job.vendor_id, 'printshop:job_updated', {
+      jobId: id,
+      printType: cleanPrintType,
+      pricePerPage,
+      totalAmount: newTotalAmount,
+      printConfig: newConfig,
+      allowDownload: cleanAllowDownload
+    });
+    emitToJob(id, 'printshop:job_updated', {
+      jobId: id,
+      printType: cleanPrintType,
+      pricePerPage,
+      totalAmount: newTotalAmount,
+      printConfig: newConfig,
+      allowDownload: cleanAllowDownload
+    });
+
+    // End editing state for vendor
+    emitToVendor(job.vendor_id, 'printshop:sender_editing', {
+      jobIds: [id],
+      isEditing: false
+    });
+
+    res.json({
+      success: true,
+      jobId: id,
+      printType: cleanPrintType,
+      pricePerPage,
+      totalAmount: newTotalAmount,
+      printConfig: newConfig,
+      allowDownload: cleanAllowDownload
+    });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    console.error('[PrintShop] PATCH /jobs/:id/preferences error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  } finally {
+    if (client) client.release();
   }
 });
 

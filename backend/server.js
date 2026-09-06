@@ -116,8 +116,18 @@ app.use((req, res, next) => {
   // Allow internal server-to-server calls for public blogs
   if (req.path.startsWith('/api/blogs')) return next();
 
-  // Protect our backend API routes
-  if (req.path.startsWith('/health') || req.path.startsWith('/api') || req.path.startsWith('/g2p')) {
+  // Protect our backend API routes only (frontend pages like /g2p/[code] proxy to Next.js)
+  const isApiRoute = req.path.startsWith('/health') ||
+                     req.path.startsWith('/api') ||
+                     req.path.startsWith('/g2p/printshop') ||
+                     req.path.startsWith('/g2p/requests') ||
+                     req.path.startsWith('/g2p/files') ||
+                     req.path.startsWith('/g2p/vendor') ||
+                     req.path.startsWith('/g2p/tools') ||
+                     req.path.startsWith('/g2p/billing') ||
+                     req.path.startsWith('/g2p/health');
+
+  if (isApiRoute) {
     const origin = req.headers.origin;
     const referer = req.headers.referer;
     

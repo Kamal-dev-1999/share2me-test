@@ -110,7 +110,40 @@ function attachG2PSockets(io, metrics, bannedIPs) {
       }
     });
 
+    // ── sender:editing state sync ─────────────────────────────────────────────
+    socket.on('printshop:sender_editing_start', ({ jobIds, vendorId, senderName }) => {
+      if (vendorId && Array.isArray(jobIds) && jobIds.length > 0) {
+        socket.editingVendorId = vendorId;
+        socket.editingJobIds = jobIds;
+        emitToVendor(vendorId, 'printshop:sender_editing', {
+          jobIds,
+          isEditing: true,
+          senderName: senderName || 'Sender'
+        });
+      }
+    });
+
+    socket.on('printshop:sender_editing_stop', ({ jobIds, vendorId } = {}) => {
+      const targetVendorId = vendorId || socket.editingVendorId;
+      const targetJobIds = jobIds || socket.editingJobIds;
+      if (targetVendorId && targetJobIds) {
+        emitToVendor(targetVendorId, 'printshop:sender_editing', {
+          jobIds: targetJobIds,
+          isEditing: false
+        });
+        socket.editingVendorId = null;
+        socket.editingJobIds = null;
+      }
+    });
+
     socket.on('disconnect', () => {
+      if (socket.editingVendorId && socket.editingJobIds) {
+        emitToVendor(socket.editingVendorId, 'printshop:sender_editing', {
+          jobIds: socket.editingJobIds,
+          isEditing: false
+        });
+      }
+
       if (socket.agentVendorId) {
         const vendorId = socket.agentVendorId;
         const agentData = connectedAgents.get(vendorId);
