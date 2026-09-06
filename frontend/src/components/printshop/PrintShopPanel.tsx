@@ -367,7 +367,7 @@ function JobDrawer({ job, isEditing, agentOnline, onClose, onConfirm, onFail, on
           <div className="bg-white/60 border border-white/80 rounded-2xl p-4">
             <div className="flex justify-between items-center mb-2">
               <h4 className="text-[12px] font-bold text-[#111827]/60 uppercase tracking-wide">Printing Config</h4>
-              {job.jobStatus !== "printed" && !isEditing && (
+              {job.jobStatus !== "printed" && job.paymentStatus !== "failed" && job.jobStatus !== "cancelled" && !isEditing && (
                 <button
                   onClick={() => editingConfig ? handleSaveConfig() : setEditingConfig(true)}
                   disabled={savingConfig}
@@ -473,6 +473,13 @@ function JobDrawer({ job, isEditing, agentOnline, onClose, onConfirm, onFail, on
               <PrinterIcon className="w-4 h-4" /> Mark as Printed
             </button>
           )}
+
+          {(job.paymentStatus === "failed" || job.jobStatus === "cancelled") && (
+            <div className="w-full p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[12px] flex items-center justify-center gap-2 font-medium">
+              <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span>This transaction was {job.jobStatus === "cancelled" ? "cancelled" : "marked as failed"}.</span>
+            </div>
+          )}
         </div>
       </motion.div>
     </>
@@ -493,7 +500,7 @@ export function PrintShopPanel({ token }: { token: string | null }) {
   const [agentToken, setAgentToken] = useState<string | null>(null);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [batchPrinting, setBatchPrinting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"Active" | "Completed">("Active");
+  const [activeTab, setActiveTab] = useState<"Active" | "Completed" | "Failed">("Active");
   const [analyticsRange, setAnalyticsRange] = useState<RevenueRange>("daily");
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
 
@@ -506,12 +513,35 @@ export function PrintShopPanel({ token }: { token: string | null }) {
     });
   };
 
+  const isJobFailed = (j: PrintJob) => j.paymentStatus === "failed" || j.jobStatus === "cancelled";
+  const isJobCompleted = (j: PrintJob) => j.jobStatus === "printed";
+  const isJobActive = (j: PrintJob) => !isJobCompleted(j) && !isJobFailed(j);
+
+  const { activeCount, completedCount, failedCount } = useMemo(() => {
+    const visibleJobs = jobs.filter(j => !j.deletedAt);
+    let active = 0;
+    let completed = 0;
+    let failed = 0;
+    for (const j of visibleJobs) {
+      if (isJobFailed(j)) {
+        failed++;
+      } else if (isJobCompleted(j)) {
+        completed++;
+      } else {
+        active++;
+      }
+    }
+    return { activeCount: active, completedCount: completed, failedCount: failed };
+  }, [jobs]);
+
   const displayedJobs = useMemo(() => {
     const visibleJobs = jobs.filter(j => !j.deletedAt);
     if (activeTab === "Active") {
-      return visibleJobs.filter(j => j.jobStatus !== "printed");
+      return visibleJobs.filter(j => isJobActive(j));
+    } else if (activeTab === "Completed") {
+      return visibleJobs.filter(j => isJobCompleted(j));
     } else {
-      return visibleJobs.filter(j => j.jobStatus === "printed");
+      return visibleJobs.filter(j => isJobFailed(j));
     }
   }, [jobs, activeTab]);
 
@@ -707,15 +737,54 @@ export function PrintShopPanel({ token }: { token: string | null }) {
             <div className="flex bg-[#111827]/5 rounded-lg p-1 ml-4">
               <button
                 onClick={() => setActiveTab("Active")}
-                className={`px-3 py-1 text-[12px] font-bold rounded-md transition-colors ${activeTab === "Active" ? "bg-white shadow-sm text-[#111827]" : "text-[#111827]/60 hover:text-[#111827]"}`}
+                className={`px-3 py-1 text-[12px] font-bold rounded-md transition-colors flex items-center gap-1.5 ${
+                  activeTab === "Active"
+                    ? "bg-white shadow-sm text-[#111827]"
+                    : "text-[#111827]/60 hover:text-[#111827]"
+                }`}
               >
-                Active
+                <span>Active</span>
+                {activeCount > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                    activeTab === "Active" ? "bg-[#111827]/10 text-[#111827]" : "bg-[#111827]/5 text-[#111827]/60"
+                  }`}>
+                    {activeCount}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab("Completed")}
-                className={`px-3 py-1 text-[12px] font-bold rounded-md transition-colors ${activeTab === "Completed" ? "bg-white shadow-sm text-[#111827]" : "text-[#111827]/60 hover:text-[#111827]"}`}
+                className={`px-3 py-1 text-[12px] font-bold rounded-md transition-colors flex items-center gap-1.5 ${
+                  activeTab === "Completed"
+                    ? "bg-white shadow-sm text-[#111827]"
+                    : "text-[#111827]/60 hover:text-[#111827]"
+                }`}
               >
-                Completed
+                <span>Completed</span>
+                {completedCount > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                    activeTab === "Completed" ? "bg-[#111827]/10 text-[#111827]" : "bg-[#111827]/5 text-[#111827]/60"
+                  }`}>
+                    {completedCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab("Failed")}
+                className={`px-3 py-1 text-[12px] font-bold rounded-md transition-colors flex items-center gap-1.5 ${
+                  activeTab === "Failed"
+                    ? "bg-white shadow-sm text-red-600"
+                    : "text-[#111827]/60 hover:text-red-600"
+                }`}
+              >
+                <span>Failed</span>
+                {failedCount > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                    activeTab === "Failed" ? "bg-red-50 text-red-600 border border-red-200" : "bg-red-500/10 text-red-600"
+                  }`}>
+                    {failedCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -877,6 +946,11 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                       <span className="text-[13px] font-bold text-[#111827]">
                         Total: {inr(batchTotalAmount)}
                       </span>
+                      {(firstJob.paymentStatus === "failed" || firstJob.jobStatus === "cancelled") && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/15 text-red-700 text-[11px] font-bold whitespace-nowrap">
+                          <span className="w-2 h-2 rounded-full bg-red-500" /> Failed / Cancelled
+                        </span>
+                      )}
                       {firstJob.paymentStatus === "pending" && (
                         batchIsEditing ? (
                           <button

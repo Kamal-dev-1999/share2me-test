@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
+  distDir: process.env.NEXT_BUILD_DIR || '.next',
   // 'standalone' mode bundles only the necessary files to run the app.
   // Required by the production Dockerfile for a minimal image size (~50MB vs 400MB+).
   // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
