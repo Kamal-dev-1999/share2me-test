@@ -48,12 +48,27 @@ async function ensureMlServiceRunning() {
     const pythonCmd = process.env.PYTHON_EXECUTABLE || 'python';
     const pythonProc = spawn(pythonCmd, [scriptPath], {
       detached: true,
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
       cwd: path.dirname(scriptPath),
+    });
+
+    let hasExited = false;
+    pythonProc.stderr?.on('data', (chunk) => {
+      console.error(`[Python ML Error] ${chunk.toString().trim()}`);
+    });
+    pythonProc.stdout?.on('data', (chunk) => {
+      console.log(`[Python ML] ${chunk.toString().trim()}`);
+    });
+    pythonProc.on('exit', (code, signal) => {
+      hasExited = true;
+      if (code !== 0 && code !== null) {
+        console.error(`[Express BG-Remover] Python ML service exited with code ${code} (${signal || 'no signal'}). Check if 'rembg' is installed: pip install -r backend/ml/requirements.txt`);
+      }
     });
     pythonProc.unref();
 
     for (let i = 0; i < 30; i++) {
+      if (hasExited) break;
       await new Promise((r) => setTimeout(r, 600));
       if (await checkHealth()) {
         console.log('[Express BG-Remover] Python ML service auto-launched and active!');
@@ -131,7 +146,7 @@ router.post('/bg-remover', upload.single('image'), async (req, res) => {
   } catch (err) {
     console.error('[BG-Remover Route] ML service connection error:', err.message);
     return res.status(503).json({
-      error: 'Self-hosted AI inference service is initializing. Please try again in a few seconds.'
+      error: 'AI background removal service is offline or initializing. Please ensure the Python service is running (`npm run dev:ml` or `pip install -r backend/ml/requirements.txt`).'
     });
   }
 });
