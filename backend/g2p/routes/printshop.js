@@ -256,8 +256,10 @@ router.post('/jobs', async (req, res) => {
 
     // SERVER-SIDE price recalculation — client-submitted price is IGNORED
     const pricePerPage = parseFloat(cleanPrintType === 'color' ? shop.color_price : shop.bw_price);
-    const copies = printConfig && parseInt(printConfig.copies, 10) > 0 ? parseInt(printConfig.copies, 10) : 1;
-    const totalAmount  = parseFloat((pricePerPage * cleanPages * copies).toFixed(2));
+    const copies = printConfig && parseInt(printConfig.copies, 10) > 0 ? Math.min(parseInt(printConfig.copies, 10), 100) : 1;
+    const dSided = !!printConfig?.doubleSided;
+    const effectivePages = dSided ? Math.ceil(cleanPages / 2) : cleanPages;
+    const totalAmount = parseFloat((pricePerPage * effectivePages * copies).toFixed(2));
 
     const r2Key = `printshop/${shop.vendor_id}/${uuidv4()}-${cleanDocumentName}`;
     const mergedConfig = { ...(printConfig || {}), allowDownload: cleanAllowDownload };
@@ -448,7 +450,7 @@ router.post('/jobs/bulk', async (req, res) => {
     // Process each file
     for (const f of processedFiles) {
       const pricePerPage = parseFloat(f.filePrintType === 'color' ? shop.color_price : shop.bw_price);
-      const copies = f.printConfig && parseInt(f.printConfig.copies, 10) > 0 ? parseInt(f.printConfig.copies, 10) : 1;
+      const copies = f.printConfig && parseInt(f.printConfig.copies, 10) > 0 ? Math.min(parseInt(f.printConfig.copies, 10), 100) : 1;
       const dSided = !!f.printConfig?.doubleSided;
       const effectivePages = dSided ? Math.ceil(f.cleanPages / 2) : f.cleanPages;
       const fileTotalAmount = parseFloat((pricePerPage * effectivePages * copies).toFixed(2));
@@ -694,10 +696,16 @@ router.get('/jobs', requireShopkeeper, async (req, res) => {
 // ─── PUBLIC / SENDER: PATCH /printshop/jobs/bulk-update-preferences ─────────
 // Student updates preferences (Allow Download, Color/B&W, copies, double-sided, etc.) before vendor confirmation
 router.patch('/jobs/bulk-update-preferences', async (req, res) => {
+  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  if (jobSubmitLimiter.isRateLimited(ip)) {
+    return res.status(429).json({ error: 'rate_limited' });
+  }
+
   const { updates } = req.body;
   if (!Array.isArray(updates) || updates.length === 0) {
     return res.status(400).json({ error: 'invalid_updates_array' });
   }
+  const safeUpdates = updates.slice(0, 50);
 
   let client;
   try {
@@ -707,7 +715,7 @@ router.patch('/jobs/bulk-update-preferences', async (req, res) => {
     const updatedJobs = [];
     let targetVendorId = null;
 
-    for (const u of updates) {
+    for (const u of safeUpdates) {
       const { jobId, allowDownload, printType, printConfig } = u;
       if (!jobId) continue;
 
@@ -750,9 +758,11 @@ router.patch('/jobs/bulk-update-preferences', async (req, res) => {
       newConfig.allowDownload = cleanAllowDownload;
 
       const pricePerPage = parseFloat(cleanPrintType === 'color' ? job.color_price : job.bw_price);
-      const copies = newConfig.copies && parseInt(newConfig.copies, 10) > 0 ? parseInt(newConfig.copies, 10) : 1;
+      const copies = newConfig.copies && parseInt(newConfig.copies, 10) > 0 ? Math.min(parseInt(newConfig.copies, 10), 100) : 1;
+      newConfig.copies = copies;
       const dSided = !!newConfig.doubleSided;
-      const effectivePages = dSided ? Math.ceil(parseInt(job.pages, 10) / 2) : parseInt(job.pages, 10);
+      const rawPages = Math.max(parseInt(job.pages, 10) || 1, 1);
+      const effectivePages = dSided ? Math.ceil(rawPages / 2) : rawPages;
       const newTotalAmount = parseFloat((pricePerPage * effectivePages * copies).toFixed(2));
 
       await client.query(`
@@ -813,6 +823,11 @@ router.patch('/jobs/bulk-update-preferences', async (req, res) => {
 
 // ─── PUBLIC / SENDER: PATCH /printshop/jobs/:id/preferences ───────────────────
 router.patch('/jobs/:id/preferences', async (req, res) => {
+  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  if (jobSubmitLimiter.isRateLimited(ip)) {
+    return res.status(429).json({ error: 'rate_limited' });
+  }
+
   const { id } = req.params;
   const { allowDownload, printType, printConfig } = req.body;
 
@@ -858,9 +873,11 @@ router.patch('/jobs/:id/preferences', async (req, res) => {
     newConfig.allowDownload = cleanAllowDownload;
 
     const pricePerPage = parseFloat(cleanPrintType === 'color' ? job.color_price : job.bw_price);
-    const copies = newConfig.copies && parseInt(newConfig.copies, 10) > 0 ? parseInt(newConfig.copies, 10) : 1;
+    const copies = newConfig.copies && parseInt(newConfig.copies, 10) > 0 ? Math.min(parseInt(newConfig.copies, 10), 100) : 1;
+    newConfig.copies = copies;
     const dSided = !!newConfig.doubleSided;
-    const effectivePages = dSided ? Math.ceil(parseInt(job.pages, 10) / 2) : parseInt(job.pages, 10);
+    const rawPages = Math.max(parseInt(job.pages, 10) || 1, 1);
+    const effectivePages = dSided ? Math.ceil(rawPages / 2) : rawPages;
     const newTotalAmount = parseFloat((pricePerPage * effectivePages * copies).toFixed(2));
 
     await client.query(`

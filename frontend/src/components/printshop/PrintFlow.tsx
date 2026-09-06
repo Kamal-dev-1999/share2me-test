@@ -196,13 +196,11 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
       const { submitBulkPrintJob } = await import("@/lib/printShop");
 
       const payloadFiles = filesState.map(fs => {
-        const dSided = fs.config?.doubleSided ?? printConfig.doubleSided;
-        const effectivePages = dSided ? Math.ceil(fs.pages / 2) : fs.pages;
         return {
           documentName: fs.file.name,
           fileSizeBytes: fs.file.size,
           fileType: fs.file.type || "application/octet-stream",
-          pages: effectivePages,
+          pages: fs.pages || 1,
           printConfig: { ...(fs.config || printConfig), allowDownload: fs.allowDownload },
           allowDownload: fs.allowDownload,
         };
@@ -235,7 +233,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         documentName: filesState[idx].file.name,
         fileSizeBytes: filesState[idx].file.size,
         fileType: filesState[idx].file.type || "application/octet-stream",
-        pages: payloadFiles[idx].pages,
+        pages: filesState[idx].pages || 1,
         senderName: senderName.trim() || "Anonymous",
         printType: payloadFiles[idx].printConfig?.printType || printType,
         pricePerPage: j.pricePerPage,
@@ -429,6 +427,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         };
       }));
 
+      setHasPaidOnline(false);
       setIsEditingPreferences(false);
       showToast("Preferences saved successfully!");
     } catch (err: any) {
@@ -689,29 +688,36 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
                     </div>
 
                     {/* Per-File Download Permission Toggle (Requirement 1) */}
-                    <div className="pt-2 border-t border-[#111827]/5 flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-medium text-[#111827]/60">Vendor Download Permission:</span>
-                      <button
-                        type="button"
-                        onClick={() => toggleFileDownload(fs.id)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
-                          fs.allowDownload
-                            ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border border-emerald-500/30"
-                            : "bg-amber-500/15 text-amber-800 hover:bg-amber-500/25 border border-amber-500/30"
-                        }`}
-                      >
-                        {fs.allowDownload ? (
-                          <>
-                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                            Allow Download: <span className="underline font-extrabold">YES</span>
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="w-3 h-3 text-amber-600" />
-                            Allow Download: <span className="underline font-extrabold">NO (Print only)</span>
-                          </>
-                        )}
-                      </button>
+                    <div className="pt-2 border-t border-[#111827]/5 flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-medium text-[#111827]/60">Vendor Download Permission:</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleFileDownload(fs.id)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
+                            fs.allowDownload
+                              ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border border-emerald-500/30"
+                              : "bg-amber-500/15 text-amber-800 hover:bg-amber-500/25 border border-amber-500/30"
+                          }`}
+                        >
+                          {fs.allowDownload ? (
+                            <>
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              Allow Download: <span className="underline font-extrabold">YES</span>
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="w-3 h-3 text-amber-600" />
+                              Allow Download: <span className="underline font-extrabold">NO (Print only)</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      {!fs.allowDownload && (
+                        <p className="text-[10px] text-amber-700/80 font-medium text-left">
+                          Print Only: Vendor can print your document to physical paper but cannot save or download the digital file.
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}

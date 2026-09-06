@@ -1,7 +1,28 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
+// Try loading from backend/g2p/.env, backend/.env, or root .env
+const candidateEnvPaths = [
+  path.join(__dirname, '../.env'),
+  path.join(__dirname, '../../.env'),
+  path.join(__dirname, '../../../.env'),
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), 'backend/.env')
+];
+for (const envPath of candidateEnvPaths) {
+  if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+    break;
+  }
+}
+
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: DATABASE_URL environment variable is not defined.');
+  process.exit(1);
+}
+
 const { Pool } = require('pg');
 
 const pool = new Pool({

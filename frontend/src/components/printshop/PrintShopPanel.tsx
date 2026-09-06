@@ -258,9 +258,10 @@ const TIMELINE_STEPS = [
   "Printed & Completed",
 ];
 
-function JobDrawer({ job, isEditing, onClose, onConfirm, onFail, onPrint, onUpdateConfig }: {
+function JobDrawer({ job, isEditing, agentOnline, onClose, onConfirm, onFail, onPrint, onUpdateConfig }: {
   job: PrintJob;
   isEditing?: boolean;
+  agentOnline?: boolean;
   onClose: () => void;
   onConfirm: (id: string) => void;
   onFail: (id: string) => void;
@@ -346,8 +347,16 @@ function JobDrawer({ job, isEditing, onClose, onConfirm, onFail, onPrint, onUpda
 
           {/* Download Action (Enforced per-file download permission) */}
           {job.allowDownload === false || !job.fileUrl ? (
-            <div className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[12px] font-bold">
-              <Shield className="w-4 h-4 text-amber-600" /> Download disabled by sender (Print only)
+            <div className="w-full flex flex-col items-center justify-center p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[12px] gap-1.5 text-center">
+              <div className="flex items-center gap-1.5 font-bold">
+                <Shield className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Download disabled by sender (Print only)</span>
+              </div>
+              <p className="text-[11px] text-amber-700/80 font-normal">
+                {agentOnline
+                  ? "Local Print Agent is connected. You can print this document directly to your hardware printer."
+                  : "Sender restricted raw downloads. Connect the Share2Me Local Print Agent on your PC to auto-print this file."}
+              </p>
             </div>
           ) : (
             <a href={job.fileUrl} target="_blank" rel="noreferrer" className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-indigo-50 text-indigo-600 text-[13px] font-bold hover:bg-indigo-100 transition-colors shadow-sm">
@@ -971,6 +980,7 @@ export function PrintShopPanel({ token }: { token: string | null }) {
           <JobDrawer
             job={openJob}
             isEditing={editingJobIds.has(openJob.id)}
+            agentOnline={agentOnline}
             onClose={() => setOpenJobId(null)}
             onConfirm={onConfirm}
             onFail={onFail}

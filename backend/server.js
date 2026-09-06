@@ -107,25 +107,23 @@ const METERED_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
 // ─── Security Middleware: Restrict access to Frontend Origins ─────────────────
 app.use((req, res, next) => {
-  // Always allow /ping for standard monitors
-  if (req.path === '/ping') return next();
-  
-  // Allow UptimeRobot to hit /health
-  if (req.path === '/health' && (req.headers['user-agent'] || '').includes('UptimeRobot')) return next();
+  // Always allow health checks & liveness probes (Cloud Run, ECS, ALB, Uptime checks, curl)
+  if (req.path === '/ping' || req.path === '/health' || req.path === '/g2p/health') return next();
+
+  // Allow Stripe server-to-server webhook callbacks (verified via STRIPE_WEBHOOK_SECRET in webhooksRouter)
+  if (req.path.startsWith('/g2p/billing/webhook')) return next();
 
   // Allow internal server-to-server calls for public blogs
   if (req.path.startsWith('/api/blogs')) return next();
 
   // Protect our backend API routes only (frontend pages like /g2p/[code] proxy to Next.js)
-  const isApiRoute = req.path.startsWith('/health') ||
-                     req.path.startsWith('/api') ||
+  const isApiRoute = req.path.startsWith('/api') ||
                      req.path.startsWith('/g2p/printshop') ||
                      req.path.startsWith('/g2p/requests') ||
                      req.path.startsWith('/g2p/files') ||
                      req.path.startsWith('/g2p/vendor') ||
                      req.path.startsWith('/g2p/tools') ||
-                     req.path.startsWith('/g2p/billing') ||
-                     req.path.startsWith('/g2p/health');
+                     req.path.startsWith('/g2p/billing');
 
   if (isApiRoute) {
     const origin = req.headers.origin;
