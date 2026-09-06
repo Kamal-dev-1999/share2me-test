@@ -17,7 +17,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ChevronRight, Upload, X, FileText,
-  Sparkles, ShieldCheck, Loader2, AlertCircle,
+  Sparkles, ShieldCheck, Loader2, AlertCircle, Cloud,
 } from "lucide-react";
 import type { PdfTool } from "@/lib/pdfTools";
 import { categoryLabel } from "@/lib/pdfTools";
@@ -197,7 +197,15 @@ export function PdfToolShell({
               {isReady ? "Ready" : "Coming Soon"}
             </span>
             <span className="chip-outline flex items-center gap-1.5">
-              <ShieldCheck className="w-3 h-3" strokeWidth={2} /> In-browser
+              {tool.processingTier === "server" ? (
+                <>
+                  <Cloud className="w-3 h-3 text-indigo-500" strokeWidth={2} /> Cloud Processing
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3 h-3 text-emerald-500" strokeWidth={2} /> In-browser
+                </>
+              )}
             </span>
           </div>
         </div>

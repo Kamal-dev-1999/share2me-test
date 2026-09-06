@@ -24,6 +24,7 @@ WORKDIR /app
 # - ttf-freefont, ttf-dejavu, font-noto, font-noto-cjk: for fonts and international characters
 RUN apk add --no-cache \
     qpdf \
+    mupdf-tools \
     libreoffice \
     tesseract-ocr \
     tesseract-ocr-data-eng \
