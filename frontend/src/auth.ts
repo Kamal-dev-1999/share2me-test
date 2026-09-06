@@ -57,6 +57,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               const vendorData = await res.json();
               token.id = vendorData.id;
               token.shareCode = vendorData.share2me_id;
+              token.planType = vendorData.plan_type || "FREE";
             } else {
               console.error("[NextAuth] Failed to upsert vendor:", await res.text());
             }
@@ -71,6 +72,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id;
         session.user.shareCode = token.shareCode;
+        session.user.planType = token.planType || "FREE";
         session.user.adminAuthorized = !!token.adminAuthorized;
       }
       return session;

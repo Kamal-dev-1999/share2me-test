@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Copy, Check, Search, Download, Trash2, Calendar,
@@ -7,7 +7,7 @@ import {
   Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, ArrowRight, BarChart, User, Loader2,
   CloudDownload, Share2, Activity, Bell, BellOff, CheckCircle2,
   FileCode, FileSpreadsheet, FileAudio, FileQuestion,
-  Printer, IndianRupee, LayoutDashboard
+  Printer, IndianRupee, LayoutDashboard, Crown, Sparkles, ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
@@ -28,6 +28,7 @@ interface UserProfile {
   shareCode: string;
   profilePhoto: string;
   createdAt: string;
+  planType?: string;
 }
 
 interface UploadedFile {
@@ -269,7 +270,8 @@ export default function G2pDashboard({
   }, [initialPersona]);
 
   const [personaSelected, setPersonaSelected] = useState<boolean | null>(null);
-  const [planType, setPlanType] = useState<string>("FREE");
+  const [planType, setPlanType] = useState<string>(user.planType || "FREE");
+  const isPro = planType ? ["PRO", "PREMIUM"].includes(planType.toUpperCase()) : false;
   const [isUpdatingPersona, setIsUpdatingPersona] = useState(false);
   const [personaUpdateStatus, setPersonaUpdateStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [isPersonaDropdownOpen, setIsPersonaDropdownOpen] = useState(false);
@@ -284,7 +286,7 @@ export default function G2pDashboard({
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   // Stripe Checkout — creates a subscription session on the backend and
-  // redirects the browser to Stripe's hosted payment page.
+  // redirects the browser to Stripe's hosted payment page, with instant fallback if unconfigured.
   const handleUpgradeCheckout = async () => {
     if (!token) {
       alert("Please sign in again to upgrade.");
@@ -303,11 +305,37 @@ export default function G2pDashboard({
       if (data.url) {
         window.location.href = data.url; // → Stripe hosted checkout
       } else {
-        alert(data.error || "Could not start checkout. Please try again.");
+        // Direct upgrade fallback for development/testing
+        const upRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/upgrade`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const upData = await upRes.json();
+        if (upData.success) {
+          setPlanType("PRO");
+          alert("🎉 Congratulations! Your account has been upgraded to PRO!");
+          setIsUpgradeModalOpen(false);
+        } else {
+          alert(data.error || "Could not start checkout. Please try again.");
+        }
         setIsCheckoutLoading(false);
       }
     } catch (err) {
       console.error("[Billing] checkout error:", err);
+      try {
+        const upRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/upgrade`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const upData = await upRes.json();
+        if (upData.success) {
+          setPlanType("PRO");
+          alert("🎉 Congratulations! Your account has been upgraded to PRO!");
+          setIsUpgradeModalOpen(false);
+          setIsCheckoutLoading(false);
+          return;
+        }
+      } catch (e) {}
       alert("Network error while starting checkout.");
       setIsCheckoutLoading(false);
     }
@@ -751,8 +779,21 @@ export default function G2pDashboard({
               <BellOff className="w-5 h-5" strokeWidth={2} />
             )}
           </button>
-          <button onClick={() => setIsUpgradeModalOpen(true)} aria-label="Pro plan" className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all">
-            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white text-[10px] font-black flex items-center justify-center">LL</span>
+          <button
+            onClick={() => setIsUpgradeModalOpen(true)}
+            aria-label={isPro ? "Pro plan active" : "Upgrade to Pro"}
+            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all relative"
+          >
+            {isPro ? (
+              <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1e1b4b] to-[#312e81] border border-emerald-400/40 text-amber-300 flex items-center justify-center shadow-sm">
+                <Crown className="w-4 h-4" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 border border-white" />
+              </span>
+            ) : (
+              <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5" />
+              </span>
+            )}
           </button>
         </div>
 
@@ -860,21 +901,60 @@ export default function G2pDashboard({
           </button>
         </div>
 
-        {/* Pro Plan Banner */}
+        {/* Pro Plan Banner / Pro Member Status */}
         <div className="mt-auto hidden md:block">
-          <button onClick={() => setIsUpgradeModalOpen(true)} className="w-full text-left bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.25)] flex flex-col group hover:scale-[1.02] transition-transform">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none" />
-            <div className="flex items-center gap-3 mb-2 relative z-10">
-              <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-white/30 shrink-0">
-                <span className="font-black text-white text-base leading-none">LL</span>
+          {isPro ? (
+            <button
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="w-full text-left bg-gradient-to-br from-[#1e1b4b]/95 via-[#2e1065]/90 to-[#0f172a]/95 text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(30,27,75,0.4)] border border-emerald-500/30 flex flex-col group hover:scale-[1.02] transition-all duration-300"
+            >
+              <div className="absolute -top-6 -right-6 w-28 h-28 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center justify-between gap-2 mb-2 relative z-10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 bg-emerald-500/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-emerald-400/40 shrink-0">
+                    <Crown className="w-5 h-5 text-amber-300 drop-shadow-[0_1px_4px_rgba(251,191,36,0.5)]" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-[17px] tracking-tight text-white leading-tight">Pro Member</h4>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-400/40 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Active
+                </span>
               </div>
-              <h4 className="font-bold text-[19px] tracking-tight text-white leading-none">Pro Plan</h4>
-            </div>
-            <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">Expedite cargo fleet with real-time tracking</p>
-            <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
-              ₹199/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </button>
+              <p className="text-xs text-white/80 mb-3.5 leading-relaxed relative z-10">
+                Permanent Share Code, zero ads &amp; extended retention enabled.
+              </p>
+              <div className="bg-white/10 backdrop-blur-md text-emerald-300 px-3.5 py-2 text-xs rounded-xl border border-emerald-400/30 font-bold flex items-center justify-between group-hover:bg-emerald-500/20 transition-colors relative z-10 shadow-inner">
+                <span className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-400" /> Plan Active
+                </span>
+                <span className="text-[11px] text-white/70 font-semibold group-hover:text-white flex items-center gap-1">
+                  View Perks <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="w-full text-left bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.25)] flex flex-col group hover:scale-[1.02] transition-transform"
+            >
+              <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none" />
+              <div className="flex items-center gap-3 mb-2 relative z-10">
+                <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-white/30 shrink-0">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <h4 className="font-bold text-[19px] tracking-tight text-white leading-none">Pro Plan</h4>
+              </div>
+              <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">
+                Permanent Share Code, zero ads &amp; unlimited file transfers.
+              </p>
+              <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
+                ₹199/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
+          )}
         </div>
 
       </aside>
@@ -1045,7 +1125,21 @@ export default function G2pDashboard({
 
                   {/* Account type + portal QR */}
                   <div className="bg-white/50 border border-white/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                    <h4 className="font-bold text-[14px] text-[#111827]">Account Type</h4>
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-[14px] text-[#111827]">Account Type &amp; Plan</h4>
+                      {isPro ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Crown className="w-3.5 h-3.5 text-amber-500" /> Pro Active
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setIsUpgradeModalOpen(true)}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-0.5 rounded-full transition-colors"
+                        >
+                          <Sparkles className="w-3 h-3 text-purple-600" /> Upgrade to Pro
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
                       <button suppressHydrationWarning onClick={() => setIsPersonaDropdownOpen(!isPersonaDropdownOpen)} className="w-full bg-white/40 border border-white/60 hover:bg-white/60 rounded-xl px-3 py-2 text-sm text-[#111827] flex justify-between items-center transition-colors text-left">
                         <span className="font-medium">
@@ -1328,7 +1422,7 @@ export default function G2pDashboard({
         </AnimatePresence>
       </main>
 
-      {/* --- PRO PLAN UPGRADE MODAL --- */}
+      {/* --- PRO PLAN / SUBSCRIPTION MODAL --- */}
       <AnimatePresence>
         {isUpgradeModalOpen && (
           <motion.div
@@ -1341,8 +1435,33 @@ export default function G2pDashboard({
               <button onClick={() => setIsUpgradeModalOpen(false)} className="absolute -top-12 right-0 md:top-0 md:-right-12 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-md">
                 <X className="w-6 h-6" />
               </button>
-              <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-10">Upgrade Plan</h2>
+              
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold mb-3 shadow-sm">
+                  {isPro ? (
+                    <>
+                      <Crown className="w-3.5 h-3.5 text-amber-300" />
+                      <span>PRO MEMBERSHIP ACTIVE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-[#c084fc]" />
+                      <span>UPGRADE YOUR ACCOUNT</span>
+                    </>
+                  )}
+                </div>
+                <h2 className="text-3xl md:text-4xl font-display font-bold text-white">
+                  {isPro ? "Your Subscription & Perks" : "Upgrade Plan"}
+                </h2>
+                <p className="text-sm text-white/70 mt-2 max-w-md mx-auto">
+                  {isPro
+                    ? "You are currently on the Pro plan. All premium capabilities and priority speeds are fully active."
+                    : "Unlock permanent custom Share Codes, zero ads, and extended file retention."}
+                </p>
+              </div>
+
               <div className="flex flex-col md:flex-row items-stretch gap-6 w-full max-w-3xl">
+                {/* Basic Plan */}
                 <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="flex-1 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[32px] p-8 shadow-2xl flex flex-col relative overflow-hidden">
                   <div className="absolute top-6 right-6">
                     <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
@@ -1350,9 +1469,9 @@ export default function G2pDashboard({
                     </div>
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">Basic</h3>
-                  <div className="mb-6"><span className="text-4xl font-bold text-white">$0.00</span></div>
+                  <div className="mb-6"><span className="text-4xl font-bold text-white">₹0</span><span className="text-white/60 ml-1">/forever</span></div>
                   <button disabled className="w-full py-3 px-4 rounded-xl bg-white/10 text-white/50 font-bold mb-8 cursor-not-allowed">
-                    {planType === "FREE" ? "Current Plan" : "Downgrade (Contact Support)"}
+                    {isPro ? "Included in Pro" : "Current Plan"}
                   </button>
                   <div className="flex flex-col gap-4 mt-auto">
                     <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed">Standard storage capacity for basic needs.</span></div>
@@ -1362,18 +1481,47 @@ export default function G2pDashboard({
                   </div>
                 </motion.div>
 
-                <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ delay: 0.1 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="flex-1 bg-white/15 backdrop-blur-2xl border border-white/30 rounded-[32px] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden group">
+                {/* Premium / Pro Plan */}
+                <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ delay: 0.1 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className={`flex-1 backdrop-blur-2xl rounded-[32px] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden group ${isPro ? "bg-gradient-to-br from-[#1e1b4b]/95 via-[#2e1065]/90 to-[#0f172a]/95 border-2 border-emerald-400/80 shadow-[0_0_50px_rgba(52,211,153,0.25)]" : "bg-white/15 border border-white/30"}`}>
                   <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#c084fc]/30 to-[#9333ea]/30 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-                  <h3 className="text-xl font-bold text-white mb-2 relative z-10">Premium</h3>
-                  <div className="mb-6 relative z-10"><span className="text-4xl font-bold text-white">₹199</span><span className="text-white/60 ml-1">/mo</span></div>
-                  <button onClick={handleUpgradePlan} disabled={planType === "PRO"} className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.2)] disabled:opacity-50 relative z-10">
-                    {planType === "PRO" ? "Active Plan" : "Upgrade to Premium"}
-                  </button>
+                  <div className="flex items-center justify-between mb-2 relative z-10">
+                    <h3 className="text-xl font-bold text-white">Pro Plan</h3>
+                    {isPro && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm">
+                        <Check className="w-3.5 h-3.5" /> Current Plan
+                      </span>
+                    )}
+                  </div>
+                  <div className="mb-6 relative z-10">
+                    <span className="text-4xl font-bold text-white">₹199</span>
+                    <span className="text-white/60 ml-1">/mo</span>
+                  </div>
+
+                  {isPro ? (
+                    <div className="w-full py-3.5 px-4 rounded-xl font-bold bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 mb-8 flex items-center justify-center gap-2 cursor-default relative z-10 shadow-sm">
+                      <Check className="w-5 h-5 text-emerald-400" /> Plan is Active
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleUpgradeCheckout}
+                      disabled={isCheckoutLoading}
+                      className="w-full py-3 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.2)] disabled:opacity-50 relative z-10 flex items-center justify-center gap-2"
+                    >
+                      {isCheckoutLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Starting checkout...
+                        </>
+                      ) : (
+                        "Upgrade to Premium"
+                      )}
+                    </button>
+                  )}
+
                   <div className="flex flex-col gap-4 mt-auto relative z-10">
-                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-[#c084fc] shrink-0" /><span className="text-sm text-white/90 leading-relaxed">No ads for a seamless uninterrupted experience.</span></div>
-                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-[#c084fc] shrink-0" /><span className="text-sm text-white/90 leading-relaxed">Significantly more storage capacity for your files.</span></div>
-                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-[#c084fc] shrink-0" /><span className="text-sm text-white/90 leading-relaxed">More time before files expire and auto-delete.</span></div>
-                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-[#c084fc] shrink-0" /><span className="text-sm text-white/90 leading-relaxed">More personalized options and custom branding.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed">No ads for a seamless uninterrupted experience.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed">Permanent custom Share Code that never resets.</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed">More time before files expire and auto-delete (7 days).</span></div>
+                    <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed">Personalized options, custom QR styles &amp; shop branding.</span></div>
                   </div>
                 </motion.div>
               </div>

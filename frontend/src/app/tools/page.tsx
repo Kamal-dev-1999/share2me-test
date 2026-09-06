@@ -265,8 +265,12 @@ export default function ToolsLanding() {
                 <Search className="w-5 h-5 text-on-surface-variant" strokeWidth={2.2} />
               </div>
               <input
+                id="tools-search"
+                name="search"
                 suppressHydrationWarning
                 type="text"
+                aria-label="Search tools"
+                maxLength={100}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search tools — bg remover, sign pdf, merge, compress, word…"

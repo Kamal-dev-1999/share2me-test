@@ -258,7 +258,7 @@ export function SendFlow({
                 ${files.length > 0 ? "bg-[#F7F8F8]/40" : ""}
               `}
             >
-              <input ref={fileInputRef} type="file" className="hidden" multiple onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }} disabled={!isIdle} />
+              <input ref={fileInputRef} id="p2p-file-upload" name="files" type="file" aria-label="Select files to send via P2P transfer" className="hidden" multiple onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }} disabled={!isIdle} />
               
               <div className="flex flex-col items-center gap-3">
                 <span className={`icon-tile-lg w-12 h-12 rounded-xl ${

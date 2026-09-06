@@ -35,6 +35,10 @@ function P2PContent() {
     <div className="min-h-screen bg-background flex flex-col text-on-surface font-body">
 
       <main className="w-full max-w-[1200px] mx-auto px-5 md:px-8 lg:px-12 pt-8 pb-24 flex-1">
+        {/* Visually-hidden h1 for screen readers and SEO — layout is visually driven by the mode toggle */}
+        <h1 className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0" style={{ clip: "rect(0,0,0,0)" }}>
+          Share2Me — Peer-to-Peer File Transfer
+        </h1>
         {/* Navigation / Actions Header */}
         <div className="mb-6">
           <Link

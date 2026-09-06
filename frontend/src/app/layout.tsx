@@ -326,7 +326,6 @@ export default function RootLayout({
         <SideRail />
         <Providers>{children}</Providers>
         <GoogleAnalytics gaId="G-8XDS75JXYK" />
-        <GoogleAnalytics gaId="G-CCBEZ2KK0S" />
         <GoogleTagManager gtmId="GTM-KS4LVZSF" />
       </body>
     </html>

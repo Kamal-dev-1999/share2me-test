@@ -158,7 +158,11 @@ export default function BlogIndexClient({ initialArticles = [] }: { initialArtic
                 <Search className="h-4 w-4 text-text-tertiary group-focus-within:text-text-primary transition-colors" />
               </div>
               <input
+                id="blog-search"
+                name="search"
                 type="text"
+                aria-label="Search blog articles"
+                maxLength={200}
                 placeholder="Search articles..."
                 value={searchQuery}
                 onChange={handleSearchChange}
