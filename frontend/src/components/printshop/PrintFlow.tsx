@@ -30,7 +30,7 @@ import { countPages } from "@/lib/pageCount";
 import { io as socketIO, Socket } from "socket.io-client";
 
 type Step = 1 | 2 | 3 | 4 | 5;
-const STEP_LABELS = ["Upload", "Print type", "Configure", "Payment", "Done"];
+const STEP_LABELS = ["Upload", "Print Type", "Configure", "Payment", "Done"];
 
 interface UploadedFileItem {
   id: string;
@@ -604,26 +604,73 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         </div>
       </div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center justify-between mb-6 px-1">
-        {STEP_LABELS.map((label, idx) => {
-          const s = (idx + 1) as Step;
-          const active = step === s;
-          const done = step > s;
-          return (
-            <div key={label} className="flex items-center gap-2">
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-extrabold transition-all ${
-                done ? "bg-emerald-500 text-white shadow-sm" : active ? "bg-[#111827] text-white shadow-md ring-4 ring-[#111827]/10" : "bg-[#111827]/10 text-[#111827]/40"
-              }`}>
-                {done ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : s}
-              </span>
-              <span className={`text-[12px] hidden sm:inline font-bold ${active ? "text-[#111827]" : "text-[#111827]/40"}`}>
-                {label}
-              </span>
-              {idx < STEP_LABELS.length - 1 && <span className="w-4 sm:w-8 h-0.5 bg-[#111827]/10 mx-1" />}
-            </div>
-          );
-        })}
+      {/* Progress Stepper / Breadcrumb */}
+      <div className="w-full mb-7 sm:mb-9 select-none">
+        <div className="flex items-center justify-between w-full">
+          {STEP_LABELS.map((label, idx) => {
+            const s = (idx + 1) as Step;
+            const active = step === s;
+            const done = step > s;
+            const canNavigate = done && !submitting && step < 5;
+
+            return (
+              <div key={label} className="flex items-center flex-1 last:flex-none">
+                {/* Step node & label */}
+                <div
+                  onClick={() => canNavigate && setStep(s)}
+                  className={`relative flex flex-col items-center shrink-0 ${canNavigate ? "cursor-pointer group" : ""}`}
+                  title={canNavigate ? `Go back to ${label}` : undefined}
+                >
+                  <span
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[12px] sm:text-[13px] font-extrabold transition-all shrink-0 ${
+                      done
+                        ? "bg-emerald-500 text-white shadow-sm hover:bg-emerald-600"
+                        : active
+                        ? "bg-[#111827] text-white shadow-md ring-4 ring-[#111827]/10"
+                        : "bg-[#111827]/10 text-[#111827]/40"
+                    }`}
+                  >
+                    {done ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : s}
+                  </span>
+
+                  {/* Desktop / tablet label placed underneath circle */}
+                  <span
+                    className={`absolute -bottom-5 sm:-bottom-6 text-[11px] font-semibold whitespace-nowrap hidden sm:block transition-colors ${
+                      active
+                        ? "text-[#111827] font-bold"
+                        : done
+                        ? "text-emerald-700 font-medium group-hover:text-emerald-800"
+                        : "text-[#111827]/40"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+
+                {/* Adaptive connector track */}
+                {idx < STEP_LABELS.length - 1 && (
+                  <div className="flex-1 h-[2px] mx-1 sm:mx-2 rounded-full overflow-hidden bg-[#111827]/10">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        step > idx + 1 ? "bg-emerald-500 w-full" : "w-0"
+                      }`}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Mobile current step indicator */}
+        <div className="flex items-center justify-between sm:hidden mt-3 px-1 py-1 rounded-lg bg-[#111827]/[0.03]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#111827]/50">
+            Step {step} of {STEP_LABELS.length}
+          </span>
+          <span className="text-[12px] font-extrabold text-[#111827]">
+            {STEP_LABELS[step - 1]}
+          </span>
+        </div>
       </div>
 
       {/* Step Content */}
