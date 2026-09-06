@@ -1,7 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 
@@ -174,6 +171,11 @@ export default function RootLayout({
     <html lang="en" className="light" suppressHydrationWarning>
       <head>
         <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6158699724091217"
+          crossOrigin="anonymous"
+        />
+        <script
           suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -319,17 +321,9 @@ export default function RootLayout({
         </svg>
         <SideRail />
         <Providers>{children}</Providers>
-        <Analytics />
-        <SpeedInsights />
         <GoogleAnalytics gaId="G-8XDS75JXYK" />
         <GoogleAnalytics gaId="G-CCBEZ2KK0S" />
         <GoogleTagManager gtmId="GTM-KS4LVZSF" />
-        <Script
-          id="google-adsense"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6158699724091217"
-          strategy="afterInteractive"
-          crossOrigin="anonymous"
-        />
       </body>
     </html>
   );
