@@ -335,7 +335,7 @@ export default function G2pDashboard({
           setIsCheckoutLoading(false);
           return;
         }
-      } catch (e) {}
+      } catch (e) { }
       alert("Network error while starting checkout.");
       setIsCheckoutLoading(false);
     }
@@ -740,17 +740,17 @@ export default function G2pDashboard({
           {(
             isShopkeeper
               ? [
-                  { tab: "printshop" as TabMode, icon: LayoutDashboard, grad: "g2p-dash", label: "Print Orders" },
-                  { tab: "share" as TabMode, icon: Share2, grad: "g2p-share", label: "Share Portal" },
-                  { tab: "payments" as TabMode, icon: IndianRupee, grad: "g2p-analytics", label: "Payments" },
-                  { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings", label: "Settings" },
-                ]
+                { tab: "printshop" as TabMode, icon: LayoutDashboard, grad: "g2p-dash", label: "Print Orders" },
+                { tab: "share" as TabMode, icon: Share2, grad: "g2p-share", label: "Share Portal" },
+                { tab: "payments" as TabMode, icon: IndianRupee, grad: "g2p-analytics", label: "Payments" },
+                { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings", label: "Settings" },
+              ]
               : [
-                  { tab: "inbox" as TabMode, icon: CloudDownload, grad: "g2p-dash", label: "Dashboard" },
-                  { tab: "share" as TabMode, icon: Share2, grad: "g2p-share", label: "Share Portal" },
-                  { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings", label: "Settings" },
-                  { tab: "analytics" as TabMode, icon: Activity, grad: "g2p-analytics", label: "Analytics" },
-                ]
+                { tab: "inbox" as TabMode, icon: CloudDownload, grad: "g2p-dash", label: "Dashboard" },
+                { tab: "share" as TabMode, icon: Share2, grad: "g2p-share", label: "Share Portal" },
+                { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings", label: "Settings" },
+                { tab: "analytics" as TabMode, icon: Activity, grad: "g2p-analytics", label: "Analytics" },
+              ]
           ).map(({ tab, icon: TabIcon, grad, label }) => (
             <button
               key={tab}
@@ -1435,7 +1435,7 @@ export default function G2pDashboard({
               <button onClick={() => setIsUpgradeModalOpen(false)} className="absolute -top-12 right-0 md:top-0 md:-right-12 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-md">
                 <X className="w-6 h-6" />
               </button>
-              
+
               <div className="text-center mb-8">
                 <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold mb-3 shadow-sm">
                   {isPro ? (

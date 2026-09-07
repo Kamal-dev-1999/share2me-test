@@ -1,15 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   IndianRupee, Printer, Palette, CheckCircle2, MapPin,
-  Loader2, Check, Clock, ShieldCheck, CreditCard, KeyRound, AlertCircle, X, Banknote
+  Loader2, Check, Clock, ShieldCheck, CreditCard, KeyRound, AlertCircle, X, Banknote, ChevronDown
 } from "lucide-react";
 import {
   getShopSettings, saveShopSettings, type ShopkeeperSettings,
   getBillingStatus, requestBankOtp, verifyBankOtp, updateUpiDetails, type BillingStatus
 } from "@/lib/printShop";
+
+const RETENTION_OPTIONS = [
+  { value: 12, label: "12 Hours", desc: "Short-term privacy" },
+  { value: 24, label: "24 Hours (Default)", desc: "Standard daily cycle" },
+  { value: 48, label: "2 Days (48 Hours)", desc: "Weekend buffer" },
+  { value: 168, label: "7 Days (1 Week)", desc: "Weekly archival" },
+  { value: 720, label: "30 Days (1 Month)", desc: "Extended retention" },
+];
 
 export function PrintingSettings({ token }: { token: string | null }) {
   const [settings, setSettings] = useState<ShopkeeperSettings>({
@@ -35,6 +43,34 @@ export function PrintingSettings({ token }: { token: string | null }) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [galleryNotice, setGalleryNotice] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Custom theme-matched retention dropdown state
+  const [isRetentionDropdownOpen, setIsRetentionDropdownOpen] = useState(false);
+  const retentionDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (retentionDropdownRef.current && !retentionDropdownRef.current.contains(event.target as Node)) {
+        setIsRetentionDropdownOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsRetentionDropdownOpen(false);
+      }
+    }
+    if (isRetentionDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isRetentionDropdownOpen]);
+
+  const currentRetentionOption =
+    RETENTION_OPTIONS.find((o) => o.value === (settings.retentionHours || 24)) || RETENTION_OPTIONS[1];
 
   // Free local blob previews when the settings screen unmounts.
   useEffect(() => () => {
@@ -306,71 +342,75 @@ export function PrintingSettings({ token }: { token: string | null }) {
       {saveError && <p className="-mt-3 mb-4 text-[12px] font-medium text-red-500">{saveError}</p>}
 
       <div className="grid md:grid-cols-2 gap-4 items-start">
-        {/* ── Secure Payouts Section ── */}
-        <div className="bg-white/50 border border-white/70 rounded-2xl p-4 flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-[#111827]" strokeWidth={2} />
-            <span className="text-[13px] font-bold text-[#111827]">Payouts — Direct UPI</span>
-          </div>
+        {/* ── Left Column: Payments & Printing Details ── */}
+        <div className="flex flex-col gap-4">
+          {/* Payouts Section */}
+          <div className="bg-white/50 border border-white/70 rounded-2xl p-4 flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#111827]" strokeWidth={2} />
+              <span className="text-[13px] font-bold text-[#111827]">Payouts — Direct UPI</span>
+            </div>
 
-          <div className="flex flex-col bg-white/40 rounded-xl border border-[#111827]/10 overflow-hidden p-4">
-            {billing?.upi_id ? (
-              <div className="flex flex-col items-center gap-4 text-center">
-                {billing.bank_verification_status === 'verified' ? (
-                  <div className="flex flex-col items-center gap-1 text-emerald-600">
-                    <CheckCircle2 className="w-8 h-8 mb-1" />
-                    <span className="text-[14px] font-bold">Bank Account Verified</span>
-                    <span className="text-[12px] text-emerald-600/80">Students pay your UPI directly — you receive 100% of every order</span>
-                  </div>
-                ) : billing.bank_verification_status === 'failed' ? (
-                  <div className="flex flex-col items-center gap-1 text-red-600">
-                    <AlertCircle className="w-8 h-8 mb-1" />
-                    <span className="text-[14px] font-bold">Verification Failed</span>
-                    <span className="text-[12px] text-red-600/80">Please update your bank details.</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-amber-600">
-                    <Clock className="w-8 h-8 mb-1" />
-                    <span className="text-[14px] font-bold">Verification Pending</span>
-                    <span className="text-[12px] text-amber-600/80">We’re confirming your UPI details…</span>
-                  </div>
-                )}
-                
-                <div className="w-full p-3 bg-[#111827]/5 rounded-xl border border-[#111827]/10 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Banknote className="w-5 h-5 text-[#111827]/60" />
-                    <div className="text-left">
-                      <p className="text-[11px] text-[#111827]/50 font-medium uppercase tracking-wider">Settlement UPI ID</p>
-                      <p className="text-[13px] font-bold text-[#111827]">{billing.upi_id}</p>
+            <div className="flex flex-col bg-white/40 rounded-xl border border-[#111827]/10 overflow-hidden p-4">
+              {billing?.upi_id ? (
+                <div className="flex flex-col items-center gap-4 text-center">
+                  {billing.bank_verification_status === 'verified' ? (
+                    <div className="flex flex-col items-center gap-1 text-emerald-600">
+                      <CheckCircle2 className="w-8 h-8 mb-1" />
+                      <span className="text-[14px] font-bold">Bank Account Verified</span>
+                      <span className="text-[12px] text-emerald-600/80">Students pay your UPI directly — you receive 100% of every order</span>
+                    </div>
+                  ) : billing.bank_verification_status === 'failed' ? (
+                    <div className="flex flex-col items-center gap-1 text-red-600">
+                      <AlertCircle className="w-8 h-8 mb-1" />
+                      <span className="text-[14px] font-bold">Verification Failed</span>
+                      <span className="text-[12px] text-red-600/80">Please update your bank details.</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-amber-600">
+                      <Clock className="w-8 h-8 mb-1" />
+                      <span className="text-[14px] font-bold">Verification Pending</span>
+                      <span className="text-[12px] text-amber-600/80">We’re confirming your UPI details…</span>
+                    </div>
+                  )}
+                  
+                  <div className="w-full p-3 bg-[#111827]/5 rounded-xl border border-[#111827]/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Banknote className="w-5 h-5 text-[#111827]/60" />
+                      <div className="text-left">
+                        <p className="text-[11px] text-[#111827]/50 font-medium uppercase tracking-wider">Settlement UPI ID</p>
+                        <p className="text-[13px] font-bold text-[#111827]">{billing.upi_id}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <button
-                  onClick={() => { setShowOtpModal(true); setOtpStep("request"); }}
-                  className="mt-2 w-full h-10 rounded-xl bg-[#111827]/10 hover:bg-[#111827]/20 text-[#111827] text-[12px] font-bold transition-colors"
-                >
-                  Manage Bank Details
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-center">
-                <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mb-1">
-                  <CreditCard className="w-6 h-6 text-indigo-600" />
+                  <button
+                    onClick={() => { setShowOtpModal(true); setOtpStep("request"); }}
+                    className="mt-2 w-full h-10 rounded-xl bg-[#111827]/10 hover:bg-[#111827]/20 text-[#111827] text-[12px] font-bold transition-colors"
+                  >
+                    Manage Bank Details
+                  </button>
                 </div>
-                <h4 className="text-[14px] font-bold text-[#111827]">Setup Direct Payments</h4>
-                <p className="text-[12px] text-[#111827]/60">Link your UPI ID to receive 100% of every order instantly directly from students.</p>
-                
-                <button
-                  onClick={() => { setShowOtpModal(true); setOtpStep("request"); }}
-                  className="mt-3 w-full inline-flex items-center justify-center h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold transition-colors shadow-sm shadow-indigo-500/20"
-                >
-                  Connect UPI ID
-                </button>
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mb-1">
+                    <CreditCard className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <h4 className="text-[14px] font-bold text-[#111827]">Setup Direct Payments</h4>
+                  <p className="text-[12px] text-[#111827]/60">Link your UPI ID to receive 100% of every order instantly directly from students.</p>
+                  
+                  <button
+                    onClick={() => { setShowOtpModal(true); setOtpStep("request"); }}
+                    className="mt-3 w-full inline-flex items-center justify-center h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold transition-colors shadow-sm shadow-indigo-500/20"
+                  >
+                    Connect UPI ID
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* Printing Prices Card */}
           <div className="bg-white/50 border border-white/70 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <IndianRupee className="w-4 h-4 text-[#111827]" strokeWidth={2} />
@@ -403,6 +443,98 @@ export function PrintingSettings({ token }: { token: string | null }) {
                   />
                 </div>
               </label>
+            </div>
+          </div>
+
+          {/* ── Data Retention Period ── */}
+          <div className="bg-white/50 border border-white/70 rounded-2xl p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-[#111827]" strokeWidth={2} />
+                <span className="text-[13px] font-bold text-[#111827]">Data Retention Period</span>
+              </div>
+              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                Active: {currentRetentionOption.label}
+              </span>
+            </div>
+            
+            <div ref={retentionDropdownRef} className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold text-[#111827]/60">
+                File &amp; Job Auto-Delete
+              </label>
+
+              {/* Anchor container specifically wrapping the trigger button and its popup */}
+              <div className="relative w-full">
+                <button
+                  type="button"
+                  onClick={() => setIsRetentionDropdownOpen((prev) => !prev)}
+                  aria-expanded={isRetentionDropdownOpen}
+                  aria-haspopup="listbox"
+                  className={`w-full bg-white hover:bg-white/95 border rounded-xl px-3.5 py-2.5 text-[13px] font-bold text-[#111827] flex items-center justify-between shadow-sm transition-all cursor-pointer select-none group min-h-[44px] ${
+                    isRetentionDropdownOpen
+                      ? "border-[#111827]/40 ring-2 ring-[#111827]/10 shadow-md"
+                      : "border-white/80 hover:border-[#111827]/20"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 truncate">
+                    <Clock className="w-4 h-4 text-[#111827]/70 shrink-0 group-hover:text-[#111827] transition-colors" />
+                    <span className="truncate">{currentRetentionOption.label}</span>
+                  </div>
+                  <motion.div
+                    animate={{ rotate: isRetentionDropdownOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="shrink-0 ml-2"
+                  >
+                    <ChevronDown className="w-4 h-4 text-[#111827]/50 group-hover:text-[#111827] transition-colors" />
+                  </motion.div>
+                </button>
+
+                <AnimatePresence>
+                  {isRetentionDropdownOpen && (
+                    <motion.div
+                      role="listbox"
+                      initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                      transition={{ duration: 0.16, ease: "easeOut" }}
+                      className="absolute top-[calc(100%+6px)] left-0 right-0 w-full bg-white/95 backdrop-blur-2xl border border-white/90 rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06)] z-[70] p-1.5 max-h-60 sm:max-h-64 overflow-y-auto flex flex-col gap-1 overscroll-contain"
+                    >
+                      {RETENTION_OPTIONS.map((opt) => {
+                        const isSelected = (settings.retentionHours || 24) === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => {
+                              setSettings((s) => ({ ...s, retentionHours: opt.value }));
+                              setIsRetentionDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-between cursor-pointer min-h-[44px] ${
+                              isSelected
+                                ? "bg-[#111827] text-white shadow-sm font-bold"
+                                : "text-[#111827]/80 hover:bg-black/5 hover:text-[#111827] font-medium"
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0 pr-2">
+                              <span className="text-[13px] leading-tight truncate">{opt.label}</span>
+                              <span className={`text-[10px] mt-0.5 ${isSelected ? "text-white/70" : "text-[#111827]/45"}`}>
+                                {opt.desc}
+                              </span>
+                            </div>
+                            {isSelected && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <p className="text-[11px] text-[#111827]/55 leading-relaxed mt-1">
+                User-sent files and orders older than this duration are automatically and permanently purged from cloud storage and the database to maintain privacy.
+              </p>
             </div>
           </div>
         </div>
