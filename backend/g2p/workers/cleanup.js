@@ -51,8 +51,9 @@ async function runG2PCleanup() {
     const printshopExpiredRes = await query(`
       SELECT j.id, j.r2_key 
       FROM printshop_jobs j
-      JOIN printshop_settings s ON j.vendor_id = s.vendor_id
-      WHERE j.created_at < NOW() - (COALESCE(s.retention_hours, 24) || ' hours')::interval
+      LEFT JOIN printshop_settings s ON j.vendor_id = s.vendor_id
+      WHERE j.deleted_at IS NULL
+        AND j.created_at < NOW() - (COALESCE(s.retention_hours, 24) || ' hours')::interval
     `);
 
     if (printshopExpiredRes.rowCount > 0) {
