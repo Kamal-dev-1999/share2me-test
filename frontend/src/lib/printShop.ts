@@ -225,6 +225,8 @@ export interface ShopkeeperSettings {
   qrImageUrl?: string | null;  // Razorpay QR image URL (permanent)
   qrId?: string | null;        // Razorpay QR Code ID
   retentionHours?: number;
+  isPro?: boolean;
+  maxRetentionHours?: number;
   latitude?: number | null;
   longitude?: number | null;
   shopImages?: { r2Key: string; url: string }[];

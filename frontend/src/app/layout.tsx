@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 
@@ -325,6 +326,7 @@ export default function RootLayout({
         </svg>
         <SideRail />
         <Providers>{children}</Providers>
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
         <GoogleAnalytics gaId="G-8XDS75JXYK" />
         <GoogleTagManager gtmId="GTM-KS4LVZSF" />
       </body>

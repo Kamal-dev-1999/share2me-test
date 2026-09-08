@@ -47,13 +47,20 @@ async function runG2PCleanup() {
       }
     }
 
-    // Task D: Print Shop Data Retention Cleanup
+    // Task D: Print Shop Data Retention Cleanup (2 Hours for Free, Up to 7 Days for Pro)
     const printshopExpiredRes = await query(`
       SELECT j.id, j.r2_key 
       FROM printshop_jobs j
+      JOIN vendors v ON j.vendor_id = v.id
       LEFT JOIN printshop_settings s ON j.vendor_id = s.vendor_id
       WHERE j.deleted_at IS NULL
-        AND j.created_at < NOW() - (COALESCE(s.retention_hours, 24) || ' hours')::interval
+        AND j.created_at < NOW() - (
+          CASE 
+            WHEN v.plan_type = 'PRO' AND v.subscription_ends_at > NOW() 
+            THEN (LEAST(GREATEST(COALESCE(s.retention_hours, 24), 2), 168) || ' hours')::interval
+            ELSE (LEAST(COALESCE(s.retention_hours, 2), 2) || ' hours')::interval
+          END
+        )
     `);
 
     if (printshopExpiredRes.rowCount > 0) {
@@ -81,6 +88,28 @@ async function runG2PCleanup() {
       `, [jobIdsToDelete]);
       
       console.log(`[PrintShop Cleanup] Soft deleted & scrubbed ${jobIdsToDelete.length} expired print jobs`);
+    }
+
+    // Task E: Vendor Subscription Auto-Expiry (30-day lifecycle)
+    const expiredVendorsRes = await query(`
+      UPDATE vendors
+      SET plan_type = 'FREE',
+          subscription_tier = 'free',
+          subscription_status = 'expired'
+      WHERE plan_type = 'PRO'
+        AND subscription_ends_at IS NOT NULL
+        AND subscription_ends_at < NOW()
+      RETURNING id, name, email
+    `);
+
+    if (expiredVendorsRes.rowCount > 0) {
+      const expiredIds = expiredVendorsRes.rows.map(v => v.id);
+      await query(`
+        UPDATE printshop_settings
+        SET retention_hours = 2, updated_at = NOW()
+        WHERE vendor_id = ANY($1::uuid[]) AND retention_hours > 2
+      `, [expiredIds]);
+      console.log(`[Subscription Worker] Auto-downgraded ${expiredVendorsRes.rowCount} expired vendors to FREE`);
     }
 
   } catch (err) {

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   IndianRupee, Printer, Palette, CheckCircle2, MapPin,
-  Loader2, Check, Clock, ShieldCheck, CreditCard, KeyRound, AlertCircle, X, Banknote, ChevronDown
+  Loader2, Check, Clock, ShieldCheck, CreditCard, KeyRound, AlertCircle, X, Banknote, ChevronDown, Crown, Lock
 } from "lucide-react";
 import {
   getShopSettings, saveShopSettings, type ShopkeeperSettings,
@@ -12,11 +12,11 @@ import {
 } from "@/lib/printShop";
 
 const RETENTION_OPTIONS = [
-  { value: 12, label: "12 Hours", desc: "Short-term privacy" },
-  { value: 24, label: "24 Hours (Default)", desc: "Standard daily cycle" },
-  { value: 48, label: "2 Days (48 Hours)", desc: "Weekend buffer" },
-  { value: 168, label: "7 Days (1 Week)", desc: "Weekly archival" },
-  { value: 720, label: "30 Days (1 Month)", desc: "Extended retention" },
+  { value: 2, label: "2 Hours (Free Default)", desc: "Standard auto-purge for free tier", proOnly: false },
+  { value: 12, label: "12 Hours (Pro)", desc: "Half-day customer pickup window", proOnly: true },
+  { value: 24, label: "24 Hours (Pro)", desc: "Full-day buffer for daily jobs", proOnly: true },
+  { value: 48, label: "2 Days (Pro)", desc: "Weekend buffer for multi-day orders", proOnly: true },
+  { value: 168, label: "7 Days (Pro Max)", desc: "Maximum 1-week archival safety", proOnly: true },
 ];
 
 export function PrintingSettings({ token }: { token: string | null }) {
@@ -43,6 +43,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [galleryNotice, setGalleryNotice] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [retentionNotice, setRetentionNotice] = useState<string | null>(null);
 
   // Custom theme-matched retention dropdown state
   const [isRetentionDropdownOpen, setIsRetentionDropdownOpen] = useState(false);
@@ -69,8 +70,10 @@ export function PrintingSettings({ token }: { token: string | null }) {
     }
   }, [isRetentionDropdownOpen]);
 
+  const isPro = !!settings.isPro;
   const currentRetentionOption =
-    RETENTION_OPTIONS.find((o) => o.value === (settings.retentionHours || 24)) || RETENTION_OPTIONS[1];
+    RETENTION_OPTIONS.find((o) => o.value === (settings.retentionHours || (isPro ? 24 : 2))) ||
+    (isPro ? RETENTION_OPTIONS[2] : RETENTION_OPTIONS[0]);
 
   // Free local blob previews when the settings screen unmounts.
   useEffect(() => () => {
@@ -453,8 +456,8 @@ export function PrintingSettings({ token }: { token: string | null }) {
                 <Clock className="w-4 h-4 text-[#111827]" strokeWidth={2} />
                 <span className="text-[13px] font-bold text-[#111827]">Data Retention Period</span>
               </div>
-              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                Active: {currentRetentionOption.label}
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isPro ? "text-emerald-700 bg-emerald-500/10" : "text-amber-700 bg-amber-500/10"}`}>
+                Active: {currentRetentionOption.label} {!isPro && "(Free 2h limit)"}
               </span>
             </div>
             
@@ -500,7 +503,9 @@ export function PrintingSettings({ token }: { token: string | null }) {
                       className="absolute top-[calc(100%+6px)] left-0 right-0 w-full bg-white/95 backdrop-blur-2xl border border-white/90 rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06)] z-[70] p-1.5 max-h-60 sm:max-h-64 overflow-y-auto flex flex-col gap-1 overscroll-contain"
                     >
                       {RETENTION_OPTIONS.map((opt) => {
-                        const isSelected = (settings.retentionHours || 24) === opt.value;
+                        const isSelected = (settings.retentionHours || (isPro ? 24 : 2)) === opt.value;
+                        const isLocked = opt.proOnly && !isPro;
+
                         return (
                           <button
                             key={opt.value}
@@ -508,17 +513,32 @@ export function PrintingSettings({ token }: { token: string | null }) {
                             role="option"
                             aria-selected={isSelected}
                             onClick={() => {
+                              if (isLocked) {
+                                setRetentionNotice("Extended retention up to 7 days is unlocked with Share2Me Pro (₹499/30d). Upgrade from the top bar!");
+                                setTimeout(() => setRetentionNotice(null), 5000);
+                                setIsRetentionDropdownOpen(false);
+                                return;
+                              }
                               setSettings((s) => ({ ...s, retentionHours: opt.value }));
                               setIsRetentionDropdownOpen(false);
                             }}
                             className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-between cursor-pointer min-h-[44px] ${
                               isSelected
                                 ? "bg-[#111827] text-white shadow-sm font-bold"
+                                : isLocked
+                                ? "text-[#111827]/60 hover:bg-black/5 font-medium"
                                 : "text-[#111827]/80 hover:bg-black/5 hover:text-[#111827] font-medium"
                             }`}
                           >
                             <div className="flex flex-col min-w-0 pr-2">
-                              <span className="text-[13px] leading-tight truncate">{opt.label}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[13px] leading-tight truncate">{opt.label}</span>
+                                {isLocked && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/15 text-amber-800 uppercase tracking-wider">
+                                    <Crown className="w-2.5 h-2.5 text-amber-600" /> Pro
+                                  </span>
+                                )}
+                              </div>
                               <span className={`text-[10px] mt-0.5 ${isSelected ? "text-white/70" : "text-[#111827]/45"}`}>
                                 {opt.desc}
                               </span>
@@ -532,8 +552,19 @@ export function PrintingSettings({ token }: { token: string | null }) {
                 </AnimatePresence>
               </div>
 
+              {retentionNotice && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-900 text-[11px] font-semibold flex items-center gap-2"
+                >
+                  <Crown className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{retentionNotice}</span>
+                </motion.div>
+              )}
+
               <p className="text-[11px] text-[#111827]/55 leading-relaxed mt-1">
-                User-sent files and orders older than this duration are automatically and permanently purged from cloud storage and the database to maintain privacy.
+                User-sent files and orders older than this duration are automatically and permanently purged from cloud storage and the database to maintain privacy. Free accounts retain files for 2 hours; Pro accounts retain files for up to 7 days.
               </p>
             </div>
           </div>

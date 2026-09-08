@@ -31,7 +31,7 @@ router.post('/presign', async (req, res) => {
 
     // Verify request ownership and get vendor plan_type
     const reqCheck = await client.query(`
-      SELECT r.id, r.vendor_id, v.plan_type 
+      SELECT r.id, r.vendor_id, v.plan_type, v.subscription_ends_at 
       FROM requests r
       JOIN vendors v ON r.vendor_id = v.id
       WHERE r.id = $1 AND r.status_token = $2 AND r.deleted_at IS NULL
@@ -43,7 +43,8 @@ router.post('/presign', async (req, res) => {
       return res.status(404).json({ error: 'request_not_found' });
     }
     const vendorId = reqCheck.rows[0].vendor_id;
-    const planType = reqCheck.rows[0].plan_type || 'FREE';
+    const isExpired = reqCheck.rows[0].subscription_ends_at && new Date(reqCheck.rows[0].subscription_ends_at) < new Date();
+    const planType = (reqCheck.rows[0].plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
 
     // Enforce plan-aware quotas
     const MAX_SIZES = {

@@ -177,7 +177,55 @@ router.post('/razorpay', express.json(), async (req, res) => {
     const { event, payload } = req.body;
     const rzpAccountId = req.body.account_id; // For route linked accounts
 
-    if (event === 'fund_account.validation.completed' || event === 'account.instantly_activated') {
+    if (event === 'order.paid' || event === 'payment.captured') {
+      const paymentEntity = payload?.payment?.entity || {};
+      const orderEntity = payload?.order?.entity || {};
+      const orderId = paymentEntity.order_id || orderEntity.id;
+      const paymentId = paymentEntity.id;
+      const notes = paymentEntity.notes || orderEntity.notes || {};
+
+      if (notes.plan_id === 'pro_monthly' && notes.vendor_id) {
+        const vendorId = notes.vendor_id;
+        const vRes = await query('SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1', [vendorId]);
+        if (vRes.rowCount > 0) {
+          const vendor = vRes.rows[0];
+          const now = new Date();
+          let startsAt = now;
+          let endsAt;
+
+          if (vendor.subscription_ends_at && new Date(vendor.subscription_ends_at) > now) {
+            startsAt = new Date(vendor.subscription_ends_at);
+            endsAt = new Date(startsAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+          } else {
+            endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          }
+
+          if (orderId) {
+            await query(`
+              UPDATE vendor_subscriptions
+              SET status = 'paid',
+                  razorpay_payment_id = COALESCE(razorpay_payment_id, $1),
+                  starts_at = $2,
+                  ends_at = $3,
+                  updated_at = NOW()
+              WHERE razorpay_order_id = $4
+            `, [paymentId, startsAt, endsAt, orderId]);
+          }
+
+          await query(`
+            UPDATE vendors
+            SET plan_type = 'PRO',
+                subscription_tier = 'pro',
+                subscription_status = 'active',
+                subscription_starts_at = COALESCE(subscription_starts_at, $1),
+                subscription_ends_at = $2
+            WHERE id = $3
+          `, [startsAt, endsAt, vendorId]);
+
+          console.log(`[Razorpay Webhook] Vendor ${vendorId} Pro plan activated via webhook until ${endsAt.toISOString()}`);
+        }
+      }
+    } else if (event === 'fund_account.validation.completed' || event === 'account.instantly_activated') {
       if (rzpAccountId) {
         await query(`UPDATE printshop_settings SET bank_verification_status = 'verified', updated_at = NOW() WHERE vendor_id = (SELECT id FROM vendors WHERE razorpay_account_id = $1 LIMIT 1)`, [rzpAccountId]);
         await query(`UPDATE vendors SET charges_enabled = true WHERE razorpay_account_id = $1`, [rzpAccountId]);

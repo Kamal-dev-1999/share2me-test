@@ -175,3 +175,25 @@ ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS shop_images JSONB DEFAUL
 ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
 ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMPTZ;
+
+-- Vendor Subscriptions Ledger (Razorpay Pro Plan)
+CREATE TABLE IF NOT EXISTS vendor_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  plan_id VARCHAR(50) DEFAULT 'pro_monthly',
+  amount NUMERIC(10, 2) NOT NULL DEFAULT 499.00,
+  currency VARCHAR(10) DEFAULT 'INR',
+  razorpay_order_id TEXT UNIQUE NOT NULL,
+  razorpay_payment_id TEXT UNIQUE,
+  razorpay_signature TEXT,
+  status VARCHAR(30) DEFAULT 'created', -- 'created', 'paid', 'failed'
+  starts_at TIMESTAMPTZ,
+  ends_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_subscriptions_vendor ON vendor_subscriptions(vendor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vendor_subscriptions_order ON vendor_subscriptions(razorpay_order_id);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS subscription_starts_at TIMESTAMPTZ;
+

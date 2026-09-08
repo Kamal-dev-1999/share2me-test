@@ -69,11 +69,22 @@ router.get('/me', async (req, res) => {
   try {
     const vRes = await query(`
       SELECT id, name, share2me_id, persona, persona_selected, plan_type, phone, company, website, bio,
-             stripe_account_id, charges_enabled
+             stripe_account_id, charges_enabled, subscription_tier, subscription_status,
+             subscription_starts_at, subscription_ends_at
       FROM vendors WHERE id = $1
     `, [req.vendorId]);
     if (vRes.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
-    res.json(vRes.rows[0]);
+    
+    const row = vRes.rows[0];
+    const isExpired = row.subscription_ends_at && new Date(row.subscription_ends_at) < new Date();
+    const effectivePlan = (row.plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
+    row.plan_type = effectivePlan;
+    row.is_pro = effectivePlan === 'PRO';
+    row.days_remaining = (row.subscription_ends_at && !isExpired)
+      ? Math.max(0, Math.ceil((new Date(row.subscription_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : 0;
+
+    res.json(row);
   } catch (err) {
     console.error('[G2P] Fetch vendor profile error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -140,15 +151,12 @@ router.post('/profile', async (req, res) => {
   }
 });
 
-// Upgrade to PRO plan (Mock)
+// Pro upgrades require Razorpay payment verification
 router.post('/upgrade', async (req, res) => {
-  try {
-    await query(`UPDATE vendors SET plan_type = 'PRO' WHERE id = $1`, [req.vendorId]);
-    res.json({ success: true, plan_type: 'PRO' });
-  } catch (err) {
-    console.error('[G2P] Upgrade error:', err);
-    res.status(500).json({ error: 'internal_error' });
-  }
+  return res.status(403).json({
+    error: 'payment_required',
+    message: 'Pro plan upgrades require payment verification via Razorpay. Use /g2p/billing/subscription/create-order.'
+  });
 });
 
 // Get all active requests for this vendor
@@ -465,8 +473,10 @@ router.get('/analytics', async (req, res) => {
     }
 
     // 5. Storage Capacity and Plan Type
-    const vendorRes = await query(`SELECT plan_type FROM vendors WHERE id = $1`, [req.vendorId]);
-    const planType = vendorRes.rows[0].plan_type || 'FREE';
+    const vendorRes = await query(`SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1`, [req.vendorId]);
+    const v = vendorRes.rows[0] || {};
+    const isExpired = v.subscription_ends_at && new Date(v.subscription_ends_at) < new Date();
+    const planType = (v.plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
     
     const storageRes = await query(`
       SELECT COALESCE(SUM(f.size_bytes), 0) as total_bytes 

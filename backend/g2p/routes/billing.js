@@ -49,17 +49,27 @@ router.use(async (req, res, next) => {
 // GET /billing/status
 router.get('/status', async (req, res) => {
   try {
-    const vRes = await query('SELECT charges_enabled, razorpay_account_id FROM vendors WHERE id = $1', [req.vendorId]);
+    const vRes = await query('SELECT charges_enabled, razorpay_account_id, plan_type, subscription_tier, subscription_status, subscription_ends_at FROM vendors WHERE id = $1', [req.vendorId]);
     const pRes = await query('SELECT upi_id, bank_verification_status FROM printshop_settings WHERE vendor_id = $1', [req.vendorId]);
     
-    const vendor = vRes.rows[0];
+    const vendor = vRes.rows[0] || {};
     const settings = pRes.rows[0] || {};
+
+    const isExpired = vendor.subscription_ends_at && new Date(vendor.subscription_ends_at) < new Date();
+    const effectivePlan = (vendor.plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
+    const daysRemaining = vendor.subscription_ends_at && !isExpired
+      ? Math.max(0, Math.ceil((new Date(vendor.subscription_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : 0;
 
     res.json({
       charges_enabled: vendor.charges_enabled || false,
       razorpay_account_id: vendor.razorpay_account_id,
       upi_id: settings.upi_id || null,
-      bank_verification_status: settings.bank_verification_status || 'pending'
+      bank_verification_status: settings.bank_verification_status || 'pending',
+      plan_type: effectivePlan,
+      subscription_status: isExpired ? 'expired' : (vendor.subscription_status || 'none'),
+      subscription_ends_at: vendor.subscription_ends_at || null,
+      days_remaining: daysRemaining,
     });
   } catch (err) {
     console.error('[Billing] GET /status error:', err);
@@ -175,4 +185,142 @@ router.post('/upi/update', async (req, res) => {
   }
 });
 
+// POST /billing/subscription/create-order
+router.post('/subscription/create-order', async (req, res) => {
+  try {
+    const vRes = await query('SELECT id, name, email, phone, plan_type, subscription_ends_at FROM vendors WHERE id = $1', [req.vendorId]);
+    if (vRes.rowCount === 0) {
+      return res.status(404).json({ error: 'vendor_not_found' });
+    }
+    const vendor = vRes.rows[0];
+    const amountPaise = 49900; // ₹499 in paise
+
+    const rzp = getRazorpay();
+    const receipt = `pro_${req.vendorId.substring(0, 8)}_${Date.now()}`;
+    const orderOptions = {
+      amount: amountPaise,
+      currency: 'INR',
+      receipt: receipt.substring(0, 40),
+      notes: {
+        vendor_id: req.vendorId,
+        plan_id: 'pro_monthly',
+        plan_name: 'Share2Me Pro'
+      }
+    };
+
+    const order = await rzp.orders.create(orderOptions);
+
+    // Save order in vendor_subscriptions ledger
+    await query(`
+      INSERT INTO vendor_subscriptions (
+        vendor_id, plan_id, amount, currency, razorpay_order_id, status
+      ) VALUES ($1, 'pro_monthly', 499.00, 'INR', $2, 'created')
+    `, [req.vendorId, order.id]);
+
+    res.json({
+      success: true,
+      orderId: order.id,
+      amount: amountPaise,
+      currency: 'INR',
+      keyId: process.env.RAZORPAY_KEY_ID,
+      vendor: {
+        name: vendor.name || '',
+        email: vendor.email || req.vendorEmail || '',
+        phone: vendor.phone || ''
+      }
+    });
+  } catch (err) {
+    console.error('[Billing] POST /subscription/create-order error:', err);
+    res.status(500).json({ error: 'order_creation_failed', message: err.message });
+  }
+});
+
+// POST /billing/subscription/verify-payment
+router.post('/subscription/verify-payment', async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: 'missing_fields', message: 'Missing payment verification details.' });
+    }
+
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return res.status(500).json({ error: 'razorpay_unconfigured' });
+    }
+
+    const expectedSignature = crypto.createHmac('sha256', secret)
+      .update(razorpay_order_id + '|' + razorpay_payment_id)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      console.warn(`[Billing] Signature mismatch for order ${razorpay_order_id}`);
+      return res.status(400).json({ error: 'signature_mismatch', message: 'Payment verification failed. Invalid signature.' });
+    }
+
+    // Check if order exists in vendor_subscriptions
+    const subRes = await query(`
+      SELECT id, vendor_id, status FROM vendor_subscriptions 
+      WHERE razorpay_order_id = $1 AND vendor_id = $2
+    `, [razorpay_order_id, req.vendorId]);
+
+    if (subRes.rowCount === 0) {
+      return res.status(404).json({ error: 'order_not_found', message: 'Subscription order record not found.' });
+    }
+
+    // Fetch vendor's current subscription status to handle stacking (early renewal)
+    const vRes = await query('SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1', [req.vendorId]);
+    const vendor = vRes.rows[0];
+
+    const now = new Date();
+    let startsAt = now;
+    let endsAt;
+
+    if (vendor && vendor.subscription_ends_at && new Date(vendor.subscription_ends_at) > now) {
+      // Active subscription: extend by 30 days from existing expiry
+      startsAt = new Date(vendor.subscription_ends_at);
+      endsAt = new Date(startsAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      // New or expired: 30 days from now
+      endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // Update vendor_subscriptions ledger
+    await query(`
+      UPDATE vendor_subscriptions
+      SET status = 'paid',
+          razorpay_payment_id = $1,
+          razorpay_signature = $2,
+          starts_at = $3,
+          ends_at = $4,
+          updated_at = NOW()
+      WHERE razorpay_order_id = $5
+    `, [razorpay_payment_id, razorpay_signature, startsAt, endsAt, razorpay_order_id]);
+
+    // Update vendors table
+    await query(`
+      UPDATE vendors
+      SET plan_type = 'PRO',
+          subscription_tier = 'pro',
+          subscription_status = 'active',
+          subscription_starts_at = COALESCE(subscription_starts_at, $1),
+          subscription_ends_at = $2
+      WHERE id = $3
+    `, [startsAt, endsAt, req.vendorId]);
+
+    console.log(`[Billing] Vendor ${req.vendorId} upgraded to PRO until ${endsAt.toISOString()}`);
+
+    res.json({
+      success: true,
+      plan_type: 'PRO',
+      subscription_status: 'active',
+      subscription_ends_at: endsAt.toISOString(),
+      days_remaining: Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    });
+  } catch (err) {
+    console.error('[Billing] POST /subscription/verify-payment error:', err);
+    res.status(500).json({ error: 'verification_failed', message: err.message });
+  }
+});
+
 module.exports = router;
+

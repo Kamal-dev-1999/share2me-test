@@ -1134,7 +1134,8 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
              ps.payment_qr_url, ps.payment_qr_id, ps.shop_images,
              ST_Y(ps.location::geometry) as latitude, 
              ST_X(ps.location::geometry) as longitude,
-             v.razorpay_account_id, v.charges_enabled, v.upi_id
+             v.razorpay_account_id, v.charges_enabled, v.upi_id,
+             v.plan_type, v.subscription_ends_at
       FROM vendors v
       LEFT JOIN printshop_settings ps ON ps.vendor_id = v.id
       WHERE v.id = $1
@@ -1145,6 +1146,18 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
     }
 
     const row = result.rows[0];
+    const isExpired = row.subscription_ends_at && new Date(row.subscription_ends_at) < new Date();
+    const isPro = (row.plan_type === 'PRO' && !isExpired);
+    const maxRetentionHours = isPro ? 168 : 2;
+
+    // Effective retention hours (Free users cannot exceed 2 hours)
+    let effectiveRetention = row.retention_hours !== null ? parseInt(row.retention_hours, 10) : (isPro ? 24 : 2);
+    if (!isPro && effectiveRetention > 2) {
+      effectiveRetention = 2;
+    } else if (isPro && effectiveRetention > 168) {
+      effectiveRetention = 168;
+    }
+
     // Legacy R2 QR (manual upload) — superseded by Razorpay auto-QR but kept for backward compat
     let legacyQrUrl = null;
     if (row.qr_r2_key) {
@@ -1174,7 +1187,9 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
       locationName: row.location_name || '',
       qrUrl: row.payment_qr_url || legacyQrUrl,  // prefer Razorpay auto-QR
       isAccepting: row.is_accepting ?? true,
-      retentionHours: row.retention_hours !== null ? parseInt(row.retention_hours, 10) : 24,
+      retentionHours: effectiveRetention,
+      maxRetentionHours,
+      isPro,
       razorpay_account_id: row.razorpay_account_id || null,
       charges_enabled: row.charges_enabled || false,
       upiId: row.upi_id || '',
@@ -1198,8 +1213,7 @@ router.put('/settings', requireShopkeeper, async (req, res) => {
   const cleanColorPrice   = toPositiveFloat(colorPrice);
   const cleanLocation     = sanitizeText(locationName, 120);
   const cleanIsAccepting  = isAccepting === false ? false : true;
-  const cleanRetention    = Number.isInteger(Number(retentionHours)) ? Number(retentionHours) : 24;
-  
+
   // Validate shopImages (must be array of strings, max 3)
   const cleanShopImages = Array.isArray(shopImages) 
     ? shopImages.filter(k => typeof k === 'string').slice(0, 3) 
@@ -1213,6 +1227,21 @@ router.put('/settings', requireShopkeeper, async (req, res) => {
   }
 
   try {
+    // Check vendor's subscription tier for allowed retention hours
+    const vRes = await query('SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1', [req.vendorId]);
+    const v = vRes.rows[0] || {};
+    const isExpired = v.subscription_ends_at && new Date(v.subscription_ends_at) < new Date();
+    const isPro = (v.plan_type === 'PRO' && !isExpired);
+    const maxAllowedRetention = isPro ? 168 : 2; // 7 days (168h) for Pro, 2 hours for Free
+
+    let cleanRetention = Number.isInteger(Number(retentionHours)) ? Number(retentionHours) : (isPro ? 24 : 2);
+    if (cleanRetention > maxAllowedRetention) {
+      cleanRetention = maxAllowedRetention;
+    }
+    if (cleanRetention < 1) {
+      cleanRetention = 2;
+    }
+
     await query(`
       INSERT INTO printshop_settings (vendor_id, bw_price, color_price, location_name, is_accepting, retention_hours, shop_images, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
@@ -1226,7 +1255,7 @@ router.put('/settings', requireShopkeeper, async (req, res) => {
             updated_at = NOW()
     `, [req.vendorId, cleanBwPrice, cleanColorPrice, cleanLocation, cleanIsAccepting, cleanRetention, JSON.stringify(cleanShopImages)]);
 
-    res.json({ success: true });
+    res.json({ success: true, retentionHours: cleanRetention, isPro });
   } catch (err) {
     console.error('[PrintShop] PUT /settings error:', err);
     res.status(500).json({ error: 'internal_error' });
