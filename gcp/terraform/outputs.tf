@@ -12,16 +12,6 @@ output "backend_url" {
   value       = google_cloud_run_v2_service.backend.uri
 }
 
-# ── Custom Domains ────────────────────────────────────────────────────────────
-output "frontend_domain_records" {
-  description = "DNS records to add for frontend custom domain"
-  value       = google_cloud_run_domain_mapping.frontend.status
-}
-
-output "backend_domain_records" {
-  description = "DNS records to add for backend custom domain"
-  value       = google_cloud_run_domain_mapping.backend.status
-}
 
 # ── Artifact Registry ─────────────────────────────────────────────────────────
 output "artifact_registry_url" {
@@ -86,7 +76,7 @@ output "vpc_network" {
 
 output "vpc_connector" {
   description = "Serverless VPC Access connector name"
-  value       = google_vpc_access_connector.main.name
+  value       = var.redis_enabled ? google_vpc_access_connector.main[0].name : "disabled"
 }
 
 # ── Quick Reference ───────────────────────────────────────────────────────────

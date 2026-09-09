@@ -29,6 +29,7 @@ resource "google_compute_subnetwork" "private" {
 # Cost: ~$6/month for the connector instances (2× e2-micro).
 
 resource "google_vpc_access_connector" "main" {
+  count   = var.redis_enabled ? 1 : 0
   name    = "${var.project_name}-vpc-conn"
   region  = var.gcp_region
   project = var.gcp_project_id
@@ -49,6 +50,7 @@ resource "google_vpc_access_connector" "main" {
 # The VPC connector's IP range needs access to Redis port 6379.
 
 resource "google_compute_firewall" "allow_redis" {
+  count   = var.redis_enabled ? 1 : 0
   name    = "${var.project_name}-allow-redis"
   network = google_compute_network.main.name
   project = var.gcp_project_id
@@ -86,10 +88,12 @@ resource "google_compute_firewall" "deny_all_ingress" {
 }
 
 # ─── Cloud Router + NAT ──────────────────────────────────────────────────────
-# Cloud NAT allows VPC connector instances (which are private) to reach the
-# internet for outbound requests (e.g., Stripe API, Metered TURN, npm).
+# Cloud NAT is only needed when Redis and Serverless VPC Connector are enabled
+# so private connector instances can make outbound internet calls.
+# Disabled when Redis is disabled to save ~$33/month in NAT gateway hourly charges.
 
 resource "google_compute_router" "main" {
+  count   = var.redis_enabled ? 1 : 0
   name    = "${var.project_name}-router"
   region  = var.gcp_region
   network = google_compute_network.main.id
@@ -97,8 +101,9 @@ resource "google_compute_router" "main" {
 }
 
 resource "google_compute_router_nat" "main" {
+  count                              = var.redis_enabled ? 1 : 0
   name                               = "${var.project_name}-nat"
-  router                             = google_compute_router.main.name
+  router                             = google_compute_router.main[0].name
   region                             = var.gcp_region
   project                            = var.gcp_project_id
   nat_ip_allocate_option             = "AUTO_ONLY"
@@ -109,3 +114,4 @@ resource "google_compute_router_nat" "main" {
     filter = "ERRORS_ONLY"
   }
 }
+

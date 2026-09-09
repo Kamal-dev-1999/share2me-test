@@ -22,7 +22,7 @@ resource "google_storage_bucket" "auto_blogs" {
   # Lifecycle: delete old versions after 30 days to save storage
   lifecycle_rule {
     condition {
-      num_newer_versions = 3   # Keep at most 3 versions per object
+      num_newer_versions = 3 # Keep at most 3 versions per object
       with_state         = "ARCHIVED"
     }
     action {

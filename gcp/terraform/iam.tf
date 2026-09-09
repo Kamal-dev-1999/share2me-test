@@ -25,6 +25,13 @@ resource "google_project_iam_member" "frontend_monitoring" {
   member  = "serviceAccount:${google_service_account.frontend.email}"
 }
 
+resource "google_project_iam_member" "frontend_secret_accessor" {
+  project = var.gcp_project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.frontend.email}"
+}
+
+
 # ── Backend Service Account ──────────────────────────────────────────────────
 resource "google_service_account" "backend" {
   account_id   = "${var.project_name}-backend"

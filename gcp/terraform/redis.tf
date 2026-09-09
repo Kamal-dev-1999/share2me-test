@@ -26,8 +26,8 @@ resource "google_redis_instance" "main" {
 
   # Redis configuration tuned for Socket.io signaling state
   redis_configs = {
-    maxmemory-policy = "allkeys-lru"    # Evict least-recently-used keys when full
-    notify-keyspace-events = ""          # Disabled — not needed for adapter
+    maxmemory-policy       = "allkeys-lru" # Evict least-recently-used keys when full
+    notify-keyspace-events = ""            # Disabled — not needed for adapter
   }
 
   # Maintenance window: Sunday 3 AM IST (Saturday 9:30 PM UTC)

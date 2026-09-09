@@ -17,3 +17,12 @@ Ads policies/
 backend/ml/models/
 backend/ml/test_*.py
 __pycache__/
+
+# GCP Service Account Keys & Credentials
+share2me-*.json
+gcp-key.json
+*-fa06032901c9.json
+*credentials*.json
+*.pem
+*.key
+

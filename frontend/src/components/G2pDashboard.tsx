@@ -19,6 +19,8 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
+import { getBackendUrl } from "@/lib/backendUrl";
+
 
 interface UserProfile {
   userId: string;
@@ -49,7 +51,7 @@ interface UploadRecord {
 
 type TabMode = "inbox" | "share" | "settings" | "analytics" | "printshop" | "payments";
 
-const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+const EXPRESS_BACKEND_URL = getBackendUrl();
 
 function getIconMetadata(mimeType: string, filename: string) {
   const name = filename.toLowerCase();

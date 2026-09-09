@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getToolBySlug } from "../lib/pdfTools";
 import axios from "axios";
+import { getBackendUrl } from "@/lib/backendUrl";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -57,7 +58,7 @@ export interface UseToolProcessorReturn extends ProcessorState {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const WORKER_PATH = "/workers/pdf-processor.js";
-const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+const EXPRESS_BACKEND_URL = getBackendUrl();
 
 // Generate or reuse a per-browser-session token for job ownership
 // (persists through page refreshes, cleared on tab close via sessionStorage)

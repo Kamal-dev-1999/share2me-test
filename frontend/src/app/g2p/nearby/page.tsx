@@ -5,6 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ChevronLeft, MapPin, Search, AlertCircle, Loader2, Printer } from "lucide-react";
 import { inr } from "@/lib/printShop";
+import { getBackendUrl } from "@/lib/backendUrl";
 
 // Dynamically import the map component with SSR disabled
 const NearbyMap = dynamic(() => import("@/components/printshop/NearbyMap"), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center bg-gray-100 animate-pulse"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div> });
@@ -58,7 +59,7 @@ export default function NearbyPrintShops() {
   const fetchNearbyShops = async (lat: number, lng: number, r: number) => {
     setLoading(true);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_EXPRESS_URL || "https://share2me-version-2-0.onrender.com"}/g2p/printshop`;
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${getBackendUrl()}/g2p/printshop`;
       const res = await fetch(`${API_BASE}/nearby?lat=${lat}&lng=${lng}&radius=${r}`);
       if (!res.ok) throw new Error("Failed to fetch nearby shops");
       const data = await res.json();

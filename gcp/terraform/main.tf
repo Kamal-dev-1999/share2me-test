@@ -1,12 +1,14 @@
 # ─── GCP Provider Configuration ───────────────────────────────────────────────
 provider "google" {
-  project = var.gcp_project_id
-  region  = var.gcp_region
+  project     = var.gcp_project_id
+  region      = var.gcp_region
+  credentials = fileexists("${path.module}/gcp-key.json") ? file("${path.module}/gcp-key.json") : null
 }
 
 provider "google-beta" {
-  project = var.gcp_project_id
-  region  = var.gcp_region
+  project     = var.gcp_project_id
+  region      = var.gcp_region
+  credentials = fileexists("${path.module}/gcp-key.json") ? file("${path.module}/gcp-key.json") : null
 }
 
 # ─── Enable Required APIs ─────────────────────────────────────────────────────
@@ -16,8 +18,8 @@ provider "google-beta" {
 resource "google_project_service" "required_apis" {
   for_each = toset([
     "run.googleapis.com",              # Cloud Run
-    "artifactregistry.googleapis.com",  # Artifact Registry (container images)
-    "secretmanager.googleapis.com",     # Secret Manager
+    "artifactregistry.googleapis.com", # Artifact Registry (container images)
+    "secretmanager.googleapis.com",    # Secret Manager
     "vpcaccess.googleapis.com",        # Serverless VPC Access (Redis)
     "redis.googleapis.com",            # Memorystore Redis
     "compute.googleapis.com",          # Compute Engine (networking, Cloud Armor)

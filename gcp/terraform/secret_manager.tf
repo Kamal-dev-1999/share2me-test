@@ -91,3 +91,111 @@ resource "google_secret_manager_secret_version" "gemini_api_key" {
   secret      = google_secret_manager_secret.gemini_api_key.id
   secret_data = var.gemini_api_key
 }
+
+# ── Auth Secret (JWT / NextAuth) ──
+resource "google_secret_manager_secret" "auth_secret" {
+  secret_id = "${var.project_name}-auth-secret"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "auth_secret" {
+  count       = var.auth_secret != "" ? 1 : 0
+  secret      = google_secret_manager_secret.auth_secret.id
+  secret_data = var.auth_secret
+}
+
+# ── Google OAuth Client Secret ──
+resource "google_secret_manager_secret" "google_client_secret" {
+  secret_id = "${var.project_name}-google-client-secret"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "google_client_secret" {
+  count       = var.google_client_secret != "" ? 1 : 0
+  secret      = google_secret_manager_secret.google_client_secret.id
+  secret_data = var.google_client_secret
+}
+
+# ── Razorpay Key Secret ──
+resource "google_secret_manager_secret" "razorpay_key_secret" {
+  secret_id = "${var.project_name}-razorpay-key-secret"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "razorpay_key_secret" {
+  count       = var.razorpay_key_secret != "" ? 1 : 0
+  secret      = google_secret_manager_secret.razorpay_key_secret.id
+  secret_data = var.razorpay_key_secret
+}
+
+# ── Cloudflare R2 Access Key ID & Secret ──
+resource "google_secret_manager_secret" "r2_access_key_id" {
+  secret_id = "${var.project_name}-r2-access-key-id"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "r2_access_key_id" {
+  count       = var.r2_access_key_id != "" ? 1 : 0
+  secret      = google_secret_manager_secret.r2_access_key_id.id
+  secret_data = var.r2_access_key_id
+}
+
+resource "google_secret_manager_secret" "r2_secret_access_key" {
+  secret_id = "${var.project_name}-r2-secret-access-key"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "r2_secret_access_key" {
+  count       = var.r2_secret_access_key != "" ? 1 : 0
+  secret      = google_secret_manager_secret.r2_secret_access_key.id
+  secret_data = var.r2_secret_access_key
+}
+
+# ── SMTP Password ──
+resource "google_secret_manager_secret" "smtp_pass" {
+  secret_id = "${var.project_name}-smtp-pass"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "smtp_pass" {
+  count       = var.smtp_pass != "" ? 1 : 0
+  secret      = google_secret_manager_secret.smtp_pass.id
+  secret_data = var.smtp_pass
+}
+

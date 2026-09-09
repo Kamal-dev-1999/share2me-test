@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle2, HelpCircle, Zap, Shield, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { getBackendUrl } from "@/lib/backendUrl";
 
 export default function PricingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -38,7 +39,7 @@ export default function PricingPage() {
         return;
       }
 
-      const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+      const backendUrl = getBackendUrl();
       const res = await fetch(`${backendUrl}/g2p/billing/checkout`, {
         method: "POST",
         headers: {

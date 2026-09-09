@@ -184,6 +184,97 @@ variable "gemini_api_key" {
   default     = ""
 }
 
+variable "auth_secret" {
+  description = "NextAuth / JWT encryption secret shared between frontend and backend"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_client_id" {
+  description = "Google OAuth Client ID for NextAuth"
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth Client Secret for NextAuth"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "authorized_admin_emails" {
+  description = "Comma-separated list of authorized admin emails"
+  type        = string
+  default     = "kamaltripathi1431@gmail.com,admin@share2.me,rishabh@share2.me"
+}
+
+
+variable "razorpay_key_id" {
+  description = "Razorpay Key ID"
+  type        = string
+  default     = ""
+}
+
+variable "razorpay_key_secret" {
+  description = "Razorpay Key Secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "r2_bucket_name" {
+  description = "Cloudflare R2 bucket name"
+  type        = string
+  default     = ""
+}
+
+variable "r2_account_id" {
+  description = "Cloudflare R2 account ID"
+  type        = string
+  default     = ""
+}
+
+variable "r2_access_key_id" {
+  description = "Cloudflare R2 access key ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "r2_secret_access_key" {
+  description = "Cloudflare R2 secret access key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "smtp_host" {
+  description = "SMTP host"
+  type        = string
+  default     = ""
+}
+
+variable "smtp_port" {
+  description = "SMTP port"
+  type        = string
+  default     = "587"
+}
+
+variable "smtp_user" {
+  description = "SMTP username/email"
+  type        = string
+  default     = ""
+}
+
+variable "smtp_pass" {
+  description = "SMTP password/app password"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "google_analytics_id" {
   description = "Google Analytics Measurement ID (e.g. G-XXXXXXXXXX)"
   type        = string

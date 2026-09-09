@@ -8,6 +8,8 @@
  * The single source of truth is now PostgreSQL, not localStorage.
  */
 
+import { getBackendUrl } from "@/lib/backendUrl";
+
 // ─────────────────────────────────────────────────────────────
 // Types (identical to Phase 1 — components don't change)
 // ─────────────────────────────────────────────────────────────
@@ -66,14 +68,15 @@ export interface PrintJob {
 // API base helper
 // ─────────────────────────────────────────────────────────────
 
-const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${EXPRESS_BACKEND_URL}/g2p/printshop`;
+export function getApiBase(): string {
+  return process.env.NEXT_PUBLIC_API_BASE || `${getBackendUrl()}/g2p/printshop`;
+}
 
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const separator = path.includes('?') ? '&' : '?';
-  const url = `${API_BASE}${path}${separator}_t=${Date.now()}`;
+  const url = `${getApiBase()}${path}${separator}_t=${Date.now()}`;
   const res = await fetch(url, { headers, cache: 'no-store' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'network_error' }));
@@ -85,7 +88,7 @@ async function apiGet<T>(path: string, token?: string): Promise<T> {
 async function apiPost<T>(path: string, body: unknown, token?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store' });
+  const res = await fetch(`${getApiBase()}${path}`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'network_error' }));
     throw new Error(err.error || 'api_error');
@@ -96,7 +99,7 @@ async function apiPost<T>(path: string, body: unknown, token?: string): Promise<
 async function apiPut<T>(path: string, body: unknown, token?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { method: 'PUT', headers, body: JSON.stringify(body), cache: 'no-store' });
+  const res = await fetch(`${getApiBase()}${path}`, { method: 'PUT', headers, body: JSON.stringify(body), cache: 'no-store' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'network_error' }));
     throw new Error(err.error || 'api_error');
@@ -105,7 +108,7 @@ async function apiPut<T>(path: string, body: unknown, token?: string): Promise<T
 }
 
 async function apiPatch<T>(path: string, token: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${getApiBase()}${path}`, {
     method: 'PATCH',
     headers: { 'Authorization': `Bearer ${token}` },
     cache: 'no-store',
@@ -117,11 +120,11 @@ async function apiPatch<T>(path: string, token: string): Promise<T> {
   return res.json();
 }
 
+
 // ─────────────────────────────────────────────────────────────
 // Role — persisted to backend
 // ─────────────────────────────────────────────────────────────
 
-/**
 /**
  * Sets the vendor's persona in the database.
  * token is the NextAuth session JWT.
@@ -135,7 +138,7 @@ export async function setPersona(persona: UserPersona, account?: string | null, 
     } catch { /* quota exceeded — ignore */ }
   }
   if (!token) return;
-  const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || `${EXPRESS_BACKEND_URL}/g2p/vendor`;
+  const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || `${getBackendUrl()}/g2p/vendor`;
   await fetch(`${vendorApiBase}/persona`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -165,7 +168,7 @@ export async function getPersona(account?: string | null, token?: string): Promi
 
   if (!token) return { persona: null, persona_selected: false };
   try {
-    const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || `${EXPRESS_BACKEND_URL}/g2p/vendor`;
+    const vendorApiBase = process.env.NEXT_PUBLIC_API_BASE?.replace('/printshop', '') || `${getBackendUrl()}/g2p/vendor`;
     const res = await fetch(`${vendorApiBase}/me`, { headers: { 'Authorization': `Bearer ${token}` }, cache: 'no-store' });
     if (!res.ok) return { persona: null, persona_selected: false };
     const data = await res.json();
@@ -249,7 +252,7 @@ export async function saveShopLocation(lat: number, lng: number, token: string):
 
 export async function uploadQrImage(file: File, token: string): Promise<{ qrUrl: string }> {
   const arrayBuffer = await file.arrayBuffer();
-  const res = await fetch(`${API_BASE}/settings/qr`, {
+  const res = await fetch(`${getApiBase()}/settings/qr`, {
     method: 'PUT',
     headers: {
       'Content-Type': file.type,
@@ -274,7 +277,7 @@ export interface BillingStatus {
 }
 
 export async function getBillingStatus(token: string): Promise<BillingStatus> {
-  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/status`, {
+  const res = await fetch(`${getApiBase().replace('/printshop', '')}/billing/status`, {
     method: 'GET',
     headers: { 'Authorization': `Bearer ${token}` },
     cache: 'no-store'
@@ -284,7 +287,7 @@ export async function getBillingStatus(token: string): Promise<BillingStatus> {
 }
 
 export async function requestBankOtp(token: string): Promise<{ success: boolean; message: string }> {
-  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/bank/request-edit`, {
+  const res = await fetch(`${getApiBase().replace('/printshop', '')}/billing/bank/request-edit`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
   });
@@ -296,7 +299,7 @@ export async function requestBankOtp(token: string): Promise<{ success: boolean;
 }
 
 export async function verifyBankOtp(otp: string, token: string): Promise<{ success: boolean; editToken: string }> {
-  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/bank/verify-otp`, {
+  const res = await fetch(`${getApiBase().replace('/printshop', '')}/billing/bank/verify-otp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -317,7 +320,7 @@ export async function updateUpiDetails(
   upiName: string,
   token: string
 ): Promise<{ success: boolean; upi_id: string; status: string }> {
-  const res = await fetch(`${API_BASE.replace('/printshop', '')}/billing/upi/update`, {
+  const res = await fetch(`${getApiBase().replace('/printshop', '')}/billing/upi/update`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -413,7 +416,7 @@ export interface JobPreferenceUpdate {
 }
 
 export async function updateBulkJobPreferences(updates: JobPreferenceUpdate[]): Promise<{ success: boolean; updatedJobs: any[] }> {
-  const res = await fetch(`${API_BASE}/jobs/bulk-update-preferences`, {
+  const res = await fetch(`${getApiBase()}/jobs/bulk-update-preferences`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ updates }),
@@ -427,7 +430,7 @@ export async function updateBulkJobPreferences(updates: JobPreferenceUpdate[]): 
 }
 
 export async function updateSingleJobPreferences(jobId: string, update: Omit<JobPreferenceUpdate, 'jobId'>): Promise<any> {
-  const res = await fetch(`${API_BASE}/jobs/${jobId}/preferences`, {
+  const res = await fetch(`${getApiBase()}/jobs/${jobId}/preferences`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(update),
@@ -492,7 +495,7 @@ export async function confirmJobPayment(jobId: string, token: string): Promise<{
 }
 
 export async function markJobPrinted(jobId: string, token: string, printConfig?: PrintConfig): Promise<{ printedAt: string }> {
-  const res = await fetch(`${API_BASE}/jobs/${jobId}/print`, {
+  const res = await fetch(`${getApiBase()}/jobs/${jobId}/print`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
     body: JSON.stringify(printConfig ? { printConfig } : {}),
@@ -510,7 +513,7 @@ export async function markJobFailed(jobId: string, token: string): Promise<void>
 }
 
 export async function updatePrintConfig(jobId: string, config: Partial<PrintConfig>, token: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/jobs/${jobId}/config`, {
+  const res = await fetch(`${getApiBase()}/jobs/${jobId}/config`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',

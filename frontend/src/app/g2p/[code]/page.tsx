@@ -8,8 +8,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { PrintFlow } from "@/components/printshop/PrintFlow";
 import { getPublicShopSettings } from "@/lib/printShop";
-
-const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+import { getBackendUrl } from "@/lib/backendUrl";
 
 interface VendorProfile {
   id: string;
@@ -23,6 +22,7 @@ interface PageProps {
 
 export default function G2pSenderPortal({ params }: PageProps) {
   const { code } = use(params);
+  const EXPRESS_BACKEND_URL = getBackendUrl();
   const [receiver, setReceiver] = useState<VendorProfile | null>(null);
   const [loading, setLoading] = useState(true);
 

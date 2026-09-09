@@ -24,7 +24,7 @@ resource "google_cloud_run_v2_service" "frontend" {
     # ── Scaling ────────────────────────────────────────────────────────────────
     scaling {
       min_instance_count = var.frontend_min_instances # 0 = scale to zero
-      max_instance_count = var.frontend_max_instances  # Cap at 5
+      max_instance_count = var.frontend_max_instances # Cap at 5
     }
 
     # ── Execution Environment ──────────────────────────────────────────────────
@@ -70,10 +70,6 @@ resource "google_cloud_run_v2_service" "frontend" {
         value = "production"
       }
       env {
-        name  = "PORT"
-        value = "3000"
-      }
-      env {
         name  = "HOSTNAME"
         value = "0.0.0.0"
       }
@@ -90,6 +86,52 @@ resource "google_cloud_run_v2_service" "frontend" {
         value = "1"
       }
 
+      # ── NextAuth & App Configuration ──
+      env {
+        name  = "AUTH_TRUST_HOST"
+        value = "true"
+      }
+      env {
+        name  = "NEXTAUTH_URL"
+        value = "https://${var.frontend_domain}"
+      }
+      env {
+        name  = "NEXT_PUBLIC_EXPRESS_URL"
+        value = "https://${var.backend_domain}"
+      }
+      env {
+        name  = "NEXT_PUBLIC_RAZORPAY_KEY_ID"
+        value = var.razorpay_key_id
+      }
+      env {
+        name  = "GOOGLE_CLIENT_ID"
+        value = var.google_client_id
+      }
+      env {
+        name  = "AUTHORIZED_ADMIN_EMAILS"
+        value = var.authorized_admin_emails
+      }
+
+      # ── Secrets (injected from Secret Manager) ──
+      env {
+        name = "AUTH_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.auth_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "GOOGLE_CLIENT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.google_client_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+
       # ── Startup Probe ───────────────────────────────────────────────────────
       # Determines when the container is ready to receive traffic.
       # Next.js standalone server takes ~5-15s to start.
@@ -100,12 +142,12 @@ resource "google_cloud_run_v2_service" "frontend" {
         }
         initial_delay_seconds = 5
         period_seconds        = 5
-        failure_threshold     = 10   # 5 + (10 × 5) = 55s max startup time
+        failure_threshold     = 10 # 5 + (10 × 5) = 55s max startup time
         timeout_seconds       = 5
       }
 
       # ── Liveness Probe ──────────────────────────────────────────────────────
-      # Detects hung processes — restarts the container if it fails.
+      # Periodic health check. If this fails 3 times, Cloud Run restarts the container.
       liveness_probe {
         http_get {
           path = "/"
@@ -129,6 +171,9 @@ resource "google_cloud_run_v2_service" "frontend" {
   depends_on = [
     google_project_service.required_apis,
     google_artifact_registry_repository.docker,
+    google_project_iam_member.frontend_secret_accessor,
+    google_secret_manager_secret_version.auth_secret,
+    google_secret_manager_secret_version.google_client_secret,
   ]
 
   lifecycle {
@@ -151,24 +196,6 @@ resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
   member   = "allUsers"
 }
 
-# ─── Custom Domain Mapping ────────────────────────────────────────────────────
-# Maps share2.me → Cloud Run frontend service.
-# Cloud Run auto-provisions a managed SSL certificate for the domain.
-#
-# ⚠️ After apply, you must add the CNAME record shown in outputs to your DNS.
+# ─── Custom Domain Mapping (Deferred) ──────────────────────────────────────────
+# Custom domains in asia-south1 are managed via DNS CNAME / Cloudflare proxy.
 
-resource "google_cloud_run_domain_mapping" "frontend" {
-  name     = var.frontend_domain
-  location = var.gcp_region
-  project  = var.gcp_project_id
-
-  metadata {
-    namespace = var.gcp_project_id
-  }
-
-  spec {
-    route_name = google_cloud_run_v2_service.frontend.name
-  }
-
-  depends_on = [google_cloud_run_v2_service.frontend]
-}

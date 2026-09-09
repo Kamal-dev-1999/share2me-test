@@ -8,6 +8,11 @@
 # Secrets — never commit
 terraform.tfvars
 *.auto.tfvars
+*.json
+gcp-key.json
+share2me-*.json
+*.pem
+*.key
 
 # IDE
 .idea/

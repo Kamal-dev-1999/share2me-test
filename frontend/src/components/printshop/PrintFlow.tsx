@@ -28,6 +28,7 @@ import {
 } from "@/lib/printShop";
 import { countPages } from "@/lib/pageCount";
 import { io as socketIO, Socket } from "socket.io-client";
+import { getBackendUrl } from "@/lib/backendUrl";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 const STEP_LABELS = ["Upload", "Print Type", "Configure", "Payment", "Done"];
@@ -275,10 +276,10 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
   useEffect(() => {
     if (step !== 5 || jobs.length === 0) return;
 
-    const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+    const EXPRESS_BACKEND_URL = getBackendUrl();
 
     const socket = socketIO(
-      process.env.NEXT_PUBLIC_SOCKET_URL || EXPRESS_BACKEND_URL,
+      EXPRESS_BACKEND_URL,
       { transports: ["websocket", "polling"] }
     );
     socketRef.current = socket;

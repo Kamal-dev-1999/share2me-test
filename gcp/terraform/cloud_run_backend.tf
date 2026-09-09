@@ -34,7 +34,7 @@ resource "google_cloud_run_v2_service" "backend" {
     # ── Scaling ────────────────────────────────────────────────────────────────
     scaling {
       min_instance_count = var.backend_min_instances # 1 = always warm
-      max_instance_count = var.backend_max_instances  # Cap at 3
+      max_instance_count = var.backend_max_instances # Cap at 3
     }
 
     # ── Execution Environment ──────────────────────────────────────────────────
@@ -61,10 +61,13 @@ resource "google_cloud_run_v2_service" "backend" {
     # the client's room state local to one instance.
     session_affinity = true
 
-    # ── VPC Connector (for Redis) ──────────────────────────────────────────────
-    vpc_access {
-      connector = google_vpc_access_connector.main.id
-      egress    = "PRIVATE_RANGES_ONLY" # Only route private IPs through VPC
+    # ── VPC Connector (for Redis, optional) ───────────────────────────────────
+    dynamic "vpc_access" {
+      for_each = google_vpc_access_connector.main
+      content {
+        connector = vpc_access.value.id
+        egress    = "PRIVATE_RANGES_ONLY"
+      }
     }
 
     containers {
@@ -76,11 +79,10 @@ resource "google_cloud_run_v2_service" "backend" {
           cpu    = var.backend_cpu
           memory = var.backend_memory
         }
-        # CPU is always allocated (even between requests) because:
-        # 1. WebSocket connections are long-lived, not request/response
-        # 2. Socket.io heartbeats run continuously
-        # 3. Background tasks (PDF generation) need CPU between HTTP requests
-        cpu_idle = false
+        # Cloud Run automatically keeps CPU allocated during active requests and open
+        # WebSocket connections. Setting cpu_idle = true allows the idle discount when
+        # no requests/connections are active, saving over $150/month in idle 24/7 vCPU costs.
+        cpu_idle = true
 
         startup_cpu_boost = true
       }
@@ -99,12 +101,12 @@ resource "google_cloud_run_v2_service" "backend" {
         value = "production"
       }
       env {
-        name  = "PORT"
-        value = "8000"
-      }
-      env {
         name  = "ALLOWED_ORIGINS"
         value = var.allowed_origins
+      }
+      env {
+        name  = "AUTHORIZED_ADMIN_EMAILS"
+        value = var.authorized_admin_emails
       }
       env {
         name  = "REDIS_URL"
@@ -156,6 +158,93 @@ resource "google_cloud_run_v2_service" "backend" {
           }
         }
       }
+      env {
+        name = "GEMINI_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.gemini_api_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "AUTH_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.auth_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "AUTH_JWT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.auth_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "RAZORPAY_KEY_ID"
+        value = var.razorpay_key_id
+      }
+      env {
+        name = "RAZORPAY_KEY_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.razorpay_key_secret.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "R2_BUCKET_NAME"
+        value = var.r2_bucket_name
+      }
+      env {
+        name  = "R2_ACCOUNT_ID"
+        value = var.r2_account_id
+      }
+      env {
+        name = "R2_ACCESS_KEY_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.r2_access_key_id.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "R2_SECRET_ACCESS_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.r2_secret_access_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "SMTP_HOST"
+        value = var.smtp_host
+      }
+      env {
+        name  = "SMTP_PORT"
+        value = var.smtp_port
+      }
+      env {
+        name  = "SMTP_USER"
+        value = var.smtp_user
+      }
+      env {
+        name = "SMTP_PASS"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.smtp_pass.secret_id
+            version = "latest"
+          }
+        }
+      }
 
       # ── Startup Probe ───────────────────────────────────────────────────────
       # Backend is heavier (Chromium, LibreOffice install) — allow more time.
@@ -166,7 +255,7 @@ resource "google_cloud_run_v2_service" "backend" {
         }
         initial_delay_seconds = 10
         period_seconds        = 5
-        failure_threshold     = 12   # 10 + (12 × 5) = 70s max startup
+        failure_threshold     = 12 # 10 + (12 × 5) = 70s max startup
         timeout_seconds       = 5
       }
 
@@ -192,11 +281,16 @@ resource "google_cloud_run_v2_service" "backend" {
   depends_on = [
     google_project_service.required_apis,
     google_artifact_registry_repository.docker,
-    google_vpc_access_connector.main,
-    google_secret_manager_secret.metered_api_key,
-    google_secret_manager_secret.stripe_secret_key,
-    google_secret_manager_secret.stripe_webhook_secret,
-    google_secret_manager_secret.database_url,
+    google_secret_manager_secret_version.metered_api_key,
+    google_secret_manager_secret_version.stripe_secret_key,
+    google_secret_manager_secret_version.stripe_webhook_secret,
+    google_secret_manager_secret_version.database_url,
+    google_secret_manager_secret_version.gemini_api_key,
+    google_secret_manager_secret_version.auth_secret,
+    google_secret_manager_secret_version.razorpay_key_secret,
+    google_secret_manager_secret_version.r2_access_key_id,
+    google_secret_manager_secret_version.r2_secret_access_key,
+    google_secret_manager_secret_version.smtp_pass,
   ]
 
   lifecycle {
@@ -221,19 +315,6 @@ resource "google_cloud_run_v2_service_iam_member" "backend_public" {
   member   = "allUsers"
 }
 
-# ─── Custom Domain Mapping ────────────────────────────────────────────────────
-resource "google_cloud_run_domain_mapping" "backend" {
-  name     = var.backend_domain
-  location = var.gcp_region
-  project  = var.gcp_project_id
+# ─── Custom Domain Mapping (Deferred) ──────────────────────────────────────────
+# Custom domains in asia-south1 are managed via DNS CNAME / Cloudflare proxy.
 
-  metadata {
-    namespace = var.gcp_project_id
-  }
-
-  spec {
-    route_name = google_cloud_run_v2_service.backend.name
-  }
-
-  depends_on = [google_cloud_run_v2_service.backend]
-}

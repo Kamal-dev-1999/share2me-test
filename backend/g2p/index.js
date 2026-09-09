@@ -3,14 +3,10 @@ const cors = require('cors');
 
 const g2pRouter = express.Router();
 
-// Allow cross-origin requests from the Next.js frontend
-const DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3001', 'https://share2me-test.vercel.app', 'https://share2me.vercel.app', 'https://share2me.in', 'https://www.share2me.in', 'https://share2.me'];
-const CORS_ORIGINS = process.env.ALLOWED_ORIGINS ? [...new Set([...process.env.ALLOWED_ORIGINS.split(','), ...DEV_ORIGINS])] : DEV_ORIGINS;
-g2pRouter.use(cors({
-  origin: CORS_ORIGINS,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-status-token', 'x-session-token']
-}));
+const { expressCorsOptions } = require('../lib/corsPolicy');
+
+// Allow cross-origin requests with OR fallback mechanism
+g2pRouter.use(cors(expressCorsOptions));
 
 // Mount Webhooks first so they get raw body instead of parsed JSON
 const webhooksRouter = require('./routes/webhooks');

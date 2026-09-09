@@ -1,7 +1,8 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { getBackendUrl } from "@/lib/backendUrl";
 
-const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+const EXPRESS_BACKEND_URL = getBackendUrl();
 const AUTH_SECRET = process.env.AUTH_SECRET;
 if (!AUTH_SECRET) {
   if (process.env.NODE_ENV === 'production') {

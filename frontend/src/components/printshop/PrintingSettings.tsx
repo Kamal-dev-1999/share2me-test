@@ -10,6 +10,7 @@ import {
   getShopSettings, saveShopSettings, type ShopkeeperSettings,
   getBillingStatus, requestBankOtp, verifyBankOtp, updateUpiDetails, type BillingStatus
 } from "@/lib/printShop";
+import { getBackendUrl } from "@/lib/backendUrl";
 
 const RETENTION_OPTIONS = [
   { value: 2, label: "2 Hours (Free Default)", desc: "Standard auto-purge for free tier", proOnly: false },
@@ -101,7 +102,7 @@ export function PrintingSettings({ token }: { token: string | null }) {
     }
     setUploadingImage(true);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_EXPRESS_URL || "https://share2me-version-2-0.onrender.com"}/g2p/printshop`;
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${getBackendUrl()}/g2p/printshop`;
       const presignRes = await fetch(`${API_BASE}/settings/images/presign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

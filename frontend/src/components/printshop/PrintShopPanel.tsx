@@ -25,8 +25,9 @@ import {
   type PrintJob, type RevenueRange, type PrintConfig,
 } from "@/lib/printShop";
 import { io as socketIO, Socket } from "socket.io-client";
+import { getBackendUrl } from "@/lib/backendUrl";
 
-const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+const EXPRESS_BACKEND_URL = getBackendUrl();
 
 // ─────────────────────────────────────────────────────────────
 // Shared bits

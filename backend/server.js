@@ -25,16 +25,12 @@ const RateLimiter = require('./lib/RateLimiter');
 const app    = express();
 const server = http.createServer(app);
 
-const DEV_ORIGINS = [
-  'http://localhost:3000', 
-  'http://localhost:3001', 
-  'https://share2me-test.vercel.app', 
-  'https://share2me.vercel.app', 
-  'https://share2me.in', 
-  'https://www.share2me.in',
-  'https://share2.me'
-];
-const CORS_ORIGINS = process.env.ALLOWED_ORIGINS ? [...new Set([...process.env.ALLOWED_ORIGINS.split(','), ...DEV_ORIGINS])] : DEV_ORIGINS;
+const cors = require('cors');
+const {
+  isOriginAllowed,
+  socketCorsOrigin,
+  expressCorsOptions,
+} = require('./lib/corsPolicy');
 
 // Graceful shutdown — triggered by PM2 reload or systemd stop
 process.on('SIGTERM', () => {
@@ -46,8 +42,9 @@ process.on('SIGTERM', () => {
 // ─── Socket.io ────────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: CORS_ORIGINS,
+    origin: socketCorsOrigin,
     methods: ['GET', 'POST'],
+    credentials: true,
   },
   perMessageDeflate: {
     threshold:              128,
@@ -105,10 +102,16 @@ let cachedMeteredIceServers   = null;
 let cachedMeteredIceServersAt = 0;
 const METERED_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
+// ─── Enable CORS with OR Fallback Mechanism ───────────────────────────────────
+app.use(cors(expressCorsOptions));
+
 // ─── Security Middleware: Restrict access to Frontend Origins ─────────────────
 app.use((req, res, next) => {
   // Always allow health checks & liveness probes (Cloud Run, ECS, ALB, Uptime checks, curl)
   if (req.path === '/ping' || req.path === '/health' || req.path === '/g2p/health') return next();
+
+  // Always allow OPTIONS preflight requests
+  if (req.method === 'OPTIONS') return next();
 
   // Allow Stripe server-to-server webhook callbacks (verified via STRIPE_WEBHOOK_SECRET in webhooksRouter)
   if (req.path.startsWith('/g2p/billing/webhook')) return next();
@@ -145,7 +148,7 @@ app.use((req, res, next) => {
       return res.status(403).json({ error: 'Direct API access forbidden. This API can only be accessed by the Share2Me frontend.' });
     }
 
-    if (!CORS_ORIGINS.includes(source)) {
+    if (!isOriginAllowed(source)) {
       return res.status(403).json({ error: 'Origin not allowed' });
     }
   }

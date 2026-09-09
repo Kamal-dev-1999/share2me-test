@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { IndianRupee, Banknote, Files, FileText, X } from "lucide-react";
 import { getPrintJobs, inr, type PrintJob } from "@/lib/printShop";
 import { io as socketIO, Socket } from "socket.io-client";
+import { getBackendUrl } from "@/lib/backendUrl";
 
 interface BatchToast {
   id: string;
@@ -70,10 +71,10 @@ export function PrintJobNotifier({ soundEnabled = true, token }: { soundEnabled?
   useEffect(() => {
     if (!token) return;
 
-    const EXPRESS_BACKEND_URL = process.env.NEXT_PUBLIC_EXPRESS_URL || process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || process.env.NEXT_PUBLIC_SIGNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://share2me-version-2-0.onrender.com";
+    const EXPRESS_BACKEND_URL = getBackendUrl();
 
     const socket: Socket = socketIO(
-      process.env.NEXT_PUBLIC_SOCKET_URL || EXPRESS_BACKEND_URL,
+      EXPRESS_BACKEND_URL,
       { transports: ["websocket", "polling"] }
     );
 
