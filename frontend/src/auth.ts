@@ -22,6 +22,7 @@ function isEmailAdminAuthorized(email?: string | null): boolean {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",

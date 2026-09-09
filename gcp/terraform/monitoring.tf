@@ -70,6 +70,10 @@ resource "google_monitoring_uptime_check_config" "backend" {
     "USA",
   ]
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   depends_on = [google_project_service.required_apis]
 }
 

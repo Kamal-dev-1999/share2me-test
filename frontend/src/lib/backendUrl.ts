@@ -37,7 +37,8 @@ export function getBackendUrl(): string {
       envUrl &&
       envUrl.trim() &&
       !envUrl.includes("onrender.com") &&
-      !envUrl.includes("api.share2me.in")
+      !envUrl.includes("api.share2me.in") &&
+      !envUrl.includes("api.share2.me")
     ) {
       return envUrl.trim();
     }
@@ -57,7 +58,8 @@ export function getBackendUrl(): string {
     envUrl &&
     envUrl.trim() &&
     !envUrl.includes("onrender.com") &&
-    !envUrl.includes("api.share2me.in")
+    !envUrl.includes("api.share2me.in") &&
+    !envUrl.includes("api.share2.me")
   ) {
     return envUrl.trim();
   }

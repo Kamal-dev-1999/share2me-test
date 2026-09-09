@@ -71,7 +71,7 @@ resource "google_cloud_run_v2_service" "frontend" {
       }
       env {
         name  = "DEPLOY_TAG"
-        value = "v2-cors-fallback-20260909"
+        value = "v3-auth-domain-fix-20260909"
       }
       env {
         name  = "HOSTNAME"
@@ -96,11 +96,19 @@ resource "google_cloud_run_v2_service" "frontend" {
         value = "true"
       }
       env {
+        name  = "AUTH_URL"
+        value = "https://${var.frontend_domain}"
+      }
+      env {
         name  = "NEXTAUTH_URL"
         value = "https://${var.frontend_domain}"
       }
       env {
         name  = "NEXT_PUBLIC_EXPRESS_URL"
+        value = "https://${var.backend_domain}"
+      }
+      env {
+        name  = "BACKEND_URL"
         value = "https://${var.backend_domain}"
       }
       env {
