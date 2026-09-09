@@ -1,21 +1,40 @@
 # ─── Firebase Hosting: Cloud Run Rewrite Gateway ──────────────────────────────
 # Routes traffic from custom domain (share2me.in) to Cloud Run services:
-# - /api/** and /g2p/** -> Cloud Run Backend (asia-south1)
-# - /**                 -> Cloud Run Frontend (asia-south1)
+# - /api/auth/** and /api/g2p-token/** -> Cloud Run Frontend (NextAuth & SSR)
+# - /g2p/**, /api/blogs/**, /api/admin/**, /api/ice-servers -> Cloud Run Backend
+# - /**                                 -> Cloud Run Frontend
 
 resource "google_firebase_hosting_version" "default" {
   provider = google-beta
   site_id  = var.gcp_project_id
 
   config {
+    # ── NextAuth & Frontend APIs (must be served by Next.js Frontend) ────────
     rewrites {
-      glob = "/api/**"
+      glob = "/api/auth/**"
       run {
-        service_id = google_cloud_run_v2_service.backend.name
-        region     = google_cloud_run_v2_service.backend.location
+        service_id = google_cloud_run_v2_service.frontend.name
+        region     = google_cloud_run_v2_service.frontend.location
       }
     }
 
+    rewrites {
+      glob = "/api/g2p-token/**"
+      run {
+        service_id = google_cloud_run_v2_service.frontend.name
+        region     = google_cloud_run_v2_service.frontend.location
+      }
+    }
+
+    rewrites {
+      glob = "/api/tools/**"
+      run {
+        service_id = google_cloud_run_v2_service.frontend.name
+        region     = google_cloud_run_v2_service.frontend.location
+      }
+    }
+
+    # ── Backend APIs (Express routes) ────────────────────────────────────────
     rewrites {
       glob = "/g2p/**"
       run {
@@ -24,6 +43,31 @@ resource "google_firebase_hosting_version" "default" {
       }
     }
 
+    rewrites {
+      glob = "/api/blogs/**"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/api/admin/**"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/api/ice-servers"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    # ── All other traffic goes to Frontend ───────────────────────────────────
     rewrites {
       glob = "/**"
       run {
@@ -38,5 +82,5 @@ resource "google_firebase_hosting_release" "default" {
   provider     = google-beta
   site_id      = var.gcp_project_id
   version_name = google_firebase_hosting_version.default.name
-  message      = "Deploying Cloud Run rewrite to frontend and backend"
+  message      = "Deploying precise Cloud Run rewrites for NextAuth and backend"
 }

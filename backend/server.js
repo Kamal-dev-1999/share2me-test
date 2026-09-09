@@ -240,22 +240,29 @@ app.get('/metrics', (req, res) => {
   });
 });
 
-// Proxy everything else to Next.js dev server
-const NEXT_URL = process.env.NEXT_URL || 'http://localhost:3001';
-app.use('/', createProxyMiddleware({
-  target:       NEXT_URL,
-  changeOrigin: true,
-  on: {
-    error: (err, _req, res) => {
-      if (res && typeof res.writeHead === 'function') {
-        res.writeHead(502, { 'Content-Type': 'text/plain' });
-        res.end(`Next.js not reachable at ${NEXT_URL} — is it running?`);
-      } else if (res && typeof res.destroy === 'function') {
-        res.destroy();
-      }
+// Proxy everything else to Next.js dev server (only in local dev or if NEXT_URL is explicitly set)
+const NEXT_URL = process.env.NEXT_URL || (process.env.NODE_ENV !== 'production' ? 'http://localhost:3001' : null);
+if (NEXT_URL) {
+  app.use('/', createProxyMiddleware({
+    target:       NEXT_URL,
+    changeOrigin: true,
+    on: {
+      error: (err, _req, res) => {
+        if (res && typeof res.writeHead === 'function') {
+          res.writeHead(502, { 'Content-Type': 'text/plain' });
+          res.end(`Next.js not reachable at ${NEXT_URL} — is it running?`);
+        } else if (res && typeof res.destroy === 'function') {
+          res.destroy();
+        }
+      },
     },
-  },
-}));
+  }));
+} else {
+  // In production standalone Cloud Run, unmatched routes return 404
+  app.use('/', (_req, res) => {
+    res.status(404).json({ error: 'Endpoint not found' });
+  });
+}
 
 // ─── Shared State ─────────────────────────────────────────────────────────────
 const bannedIPs = new Map(); // ip  → unbanTimestamp
