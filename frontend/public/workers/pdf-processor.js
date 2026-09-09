@@ -19,10 +19,22 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Import pdf-lib — loaded as a classic script via importScripts in the worker
+// Import pdf-lib — loaded as a classic script via importScripts in the worker.
+// Prioritize self-hosted local bundle to guarantee instant loading, zero CSP
+// violations, and full offline/firewall resilience.
 // ─────────────────────────────────────────────────────────────────────────────
 
-importScripts('https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+if (typeof PDFLib === 'undefined') {
+  try {
+    importScripts('./pdf-lib.min.js');
+  } catch (e1) {
+    try {
+      importScripts('/workers/pdf-lib.min.js');
+    } catch (e2) {
+      importScripts('https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+    }
+  }
+}
 
 // pdf-lib is now available as the global `PDFLib`
 const { PDFDocument, degrees, rgb, StandardFonts, PageSizes } = PDFLib;
