@@ -28,6 +28,8 @@ resource "google_project_service" "required_apis" {
     "iam.googleapis.com",              # IAM
     "iamcredentials.googleapis.com",   # IAM Credentials (Workload Identity)
     "cloudresourcemanager.googleapis.com",
+    "firebase.googleapis.com",         # Firebase Management
+    "firebasehosting.googleapis.com",  # Firebase Hosting
   ])
 
   project                    = var.gcp_project_id
