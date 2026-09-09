@@ -102,7 +102,7 @@ resource "google_cloud_run_v2_service" "backend" {
       }
       env {
         name  = "DEPLOY_TAG"
-        value = "v2-cors-fallback-20260909"
+        value = "v3-vendor-upsert-fix-20260909"
       }
       env {
         name  = "ALLOWED_ORIGINS"

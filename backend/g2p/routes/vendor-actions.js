@@ -8,17 +8,10 @@ const { verifyVendorJWT } = require('../lib/auth');
 const router = express.Router();
 const crypto = require('crypto');
 
-// Server-to-server endpoint for NextAuth to upsert the vendor during login
-// Restricted to internal calls only (must come from localhost / same-host)
+// Server-to-server endpoint for NextAuth to upsert/fetch the vendor during login
+// Authenticated using internal shared secret (AUTH_JWT_SECRET)
 router.post('/upsert', async (req, res) => {
-  // Reject external calls — this endpoint is for internal backend-to-backend use only
-  const reqHost = req.ip || req.socket?.remoteAddress || '';
-  const isInternal = reqHost === '127.0.0.1' || reqHost === '::1' || reqHost === '::ffff:127.0.0.1';
-  if (!isInternal) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  // Shared-secret check as defence-in-depth
+  // Shared-secret check: Only frontend possessing AUTH_JWT_SECRET can call this endpoint
   const authHeader = req.headers.authorization || '';
   const secret = process.env.AUTH_JWT_SECRET;
   if (!secret || authHeader !== `Bearer ${secret}`) {
@@ -29,8 +22,27 @@ router.post('/upsert', async (req, res) => {
   if (!name || !providerId) return res.status(400).json({ error: 'missing_fields' });
 
   try {
-    // Check if exists first to avoid generating a new share2me_id if not needed
-    const existing = await query(`SELECT id, share2me_id, email FROM vendors WHERE auth_provider_id = $1`, [providerId]);
+    // Check if exists first by auth_provider_id
+    let existing = await query(
+      `SELECT id, share2me_id, email, plan_type FROM vendors WHERE auth_provider_id = $1`,
+      [providerId]
+    );
+
+    // If not found by providerId, check by email (handles legacy accounts)
+    if (existing.rowCount === 0 && email) {
+      existing = await query(
+        `SELECT id, share2me_id, email, plan_type FROM vendors WHERE email = $1`,
+        [email]
+      );
+      if (existing.rowCount > 0) {
+        // Link auth_provider_id to existing vendor record
+        await query(
+          `UPDATE vendors SET auth_provider_id = $1 WHERE id = $2`,
+          [providerId, existing.rows[0].id]
+        );
+      }
+    }
+
     if (existing.rowCount > 0) {
       if (email && !existing.rows[0].email) {
         // Backfill email if it was previously missing
@@ -45,7 +57,7 @@ router.post('/upsert', async (req, res) => {
     const insertRes = await query(`
       INSERT INTO vendors (name, email, auth_provider_id, share2me_id)
       VALUES ($1, $2, $3, $4)
-      RETURNING id, share2me_id
+      RETURNING id, share2me_id, plan_type
     `, [name, email || null, providerId, share2me_id]);
     
     res.json(insertRes.rows[0]);
