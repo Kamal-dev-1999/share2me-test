@@ -29,6 +29,7 @@ import {
 import { countPages } from "@/lib/pageCount";
 import { io as socketIO, Socket } from "socket.io-client";
 import { getBackendUrl } from "@/lib/backendUrl";
+import { loadToolOutput } from "@/lib/toolOutputStore";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 const STEP_LABELS = ["Upload", "Print Type", "Configure", "Payment", "Done"];
@@ -170,6 +171,17 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
       }
     }
   };
+
+  // Auto-load file from tools if it exists in toolOutputStore
+  useEffect(() => {
+    loadToolOutput()
+      .then((file) => {
+        if (file) {
+          handleFiles([file]);
+        }
+      })
+      .catch((err) => console.error("Failed to recover tool output file in PrintFlow:", err));
+  }, []);
 
   const removeFile = (id: string) => {
     setFilesState(prev => prev.filter(fs => fs.id !== id));

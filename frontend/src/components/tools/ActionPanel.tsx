@@ -1,28 +1,29 @@
 "use client";
 
 /**
- * ActionPanel â€” Post-processing action hub.
+ * ActionPanel — Post-processing action hub.
  * Appears after any tool completes.
  *
- * v2 fixes:
- *  - Black-card bug fixed: --signal-yellow is aliased to #090909 in this theme.
- *    All cards now use explicit hardcoded colors, never CSS variable aliases.
- *  - Added "Preview" modal â€” renders the output inline (PDF via iframe, image via img).
- *  - Download + Preview shown side-by-side in a prominent 2-column top row.
+ * v3 fixes:
+ *  - Canvas-based PDF preview using pdfjs-dist (eliminates Chrome iframe plugin blocking).
+ *  - IndexedDB tool output store (saveToolOutput) for 1GB+ direct P2P and G2P transfers.
+ *  - Fixed garbled UTF-8 characters across cards and modals.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Download, Zap, HardDrive, Wrench, CheckCircle2,
-  TrendingDown, Loader2, Eye, X, type LucideIcon,
+  TrendingDown, Loader2, Eye, X, ExternalLink, type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ProcessedOutput } from "@/hooks/useToolProcessor";
+import { renderPdfToCanvases, type RenderedPage } from "@/lib/pdfRender";
+import { saveToolOutput } from "@/lib/toolOutputStore";
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Types
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface ActionPanelProps {
   output: ProcessedOutput;
@@ -32,9 +33,9 @@ interface ActionPanelProps {
 
 type ActionStatus = "idle" | "loading" | "done" | "error";
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 function formatSize(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -48,9 +49,147 @@ function compressionRatio(input: number, output: number): number | null {
   return Math.round(((input - output) / input) * 100);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Preview Sub-components
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TextPreview({ objectUrl }: { objectUrl: string }) {
+  const [text, setText] = useState<string>("");
+  useEffect(() => {
+    fetch(objectUrl)
+      .then((r) => r.text())
+      .then(setText)
+      .catch(() => setText("Could not load text."));
+  }, [objectUrl]);
+
+  return (
+    <div className="h-full overflow-auto p-6">
+      <pre
+        style={{
+          fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          color: "#1A1A1A",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          background: "#FAFAFA",
+          borderRadius: "12px",
+          padding: "20px",
+          border: "1px solid #E1E3E5",
+        }}
+      >
+        {text || "Loading…"}
+      </pre>
+    </div>
+  );
+}
+
+function PageCanvas({ page, pageNum, totalPages }: { page: RenderedPage; pageNum: number; totalPages: number }) {
+  const mountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = mountRef.current;
+    if (!el) return;
+    el.innerHTML = "";
+    page.canvas.style.maxWidth = "100%";
+    page.canvas.style.height = "auto";
+    page.canvas.style.display = "block";
+    page.canvas.style.margin = "0 auto";
+    page.canvas.style.borderRadius = "4px";
+    el.appendChild(page.canvas);
+  }, [page]);
+
+  return (
+    <div className="relative bg-white rounded-xl shadow-sm border border-[#E1E3E5] overflow-hidden max-w-full flex flex-col items-center">
+      <div ref={mountRef} className="max-w-full overflow-x-auto p-3 bg-white" />
+      <div className="w-full bg-[#F7F8F8] border-t border-[#E1E3E5] py-1.5 px-3 text-center text-[11px] font-medium text-[#5F6368]">
+        Page {pageNum} of {totalPages}
+      </div>
+    </div>
+  );
+}
+
+function PdfPreview({ blob, objectUrl, filename }: { blob: Blob; objectUrl: string; filename: string }) {
+  const [pages, setPages] = useState<RenderedPage[]>([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [useIframeFallback, setUseIframeFallback] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setUseIframeFallback(false);
+      try {
+        const buffer = await blob.arrayBuffer();
+        if (cancelled) return;
+        const res = await renderPdfToCanvases(
+          buffer,
+          1.5,
+          (done, total) => {
+            if (!cancelled) setProgress({ done, total });
+          },
+          50
+        );
+        if (cancelled) return;
+        setPages(res.pages);
+        setTotalPages(res.totalPages);
+        setLoading(false);
+      } catch (err) {
+        console.warn("Canvas PDF rendering failed, falling back to iframe:", err);
+        if (!cancelled) {
+          setUseIframeFallback(true);
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [blob]);
+
+  if (useIframeFallback) {
+    return (
+      <iframe
+        src={`${objectUrl}#toolbar=1&navpanes=0`}
+        title={`Preview — ${filename}`}
+        className="w-full h-full border-0"
+      />
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 text-[#5F6368]">
+        <Loader2 className="w-7 h-7 animate-spin text-[#111]" strokeWidth={2} />
+        <p className="text-[13px] font-medium">
+          {progress.total > 0
+            ? `Rendering page ${progress.done} of ${progress.total}…`
+            : "Rendering document preview…"}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-y-auto p-4 sm:p-6 flex flex-col items-center gap-4">
+      {pages.map((p, idx) => (
+        <PageCanvas key={idx} page={p} pageNum={idx + 1} totalPages={totalPages} />
+      ))}
+      {totalPages > pages.length && (
+        <p className="text-[12px] text-[#5F6368] py-2">
+          Showing first {pages.length} of {totalPages} pages. Download file for complete document.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Preview Modal
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 function PreviewModal({ output, onClose }: { output: ProcessedOutput; onClose: () => void }) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
@@ -63,53 +202,33 @@ function PreviewModal({ output, onClose }: { output: ProcessedOutput; onClose: (
 
   // Close on Escape key
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-// ── Text Preview Sub-component ─────────────────────────────────────────────────────────────────
-
-function TextPreview({ objectUrl }: { objectUrl: string }) {
-  const [text, setText] = useState<string>("");
-  useEffect(() => {
-    fetch(objectUrl).then(r => r.text()).then(setText).catch(() => setText("Could not load text."));
-  }, [objectUrl]);
-  return (
-    <div className="h-full overflow-auto p-6">
-      <pre style={{
-        fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        color: "#1A1A1A",
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
-        background: "#FAFAFA",
-        borderRadius: "12px",
-        padding: "20px",
-        border: "1px solid #E1E3E5",
-      }}>{text || "Loading…"}</pre>
-    </div>
-  );
-}
-
-// (end TextPreview)
-
-
   const isImage = output.mimeType.startsWith("image/");
   const isPdf = output.mimeType === "application/pdf";
-  const isText = output.mimeType === "text/plain" || output.mimeType === "text/markdown" || output.filename.endsWith(".md");
-  const isOffice = [
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ].includes(output.mimeType) || output.filename.match(/\.(docx|xlsx|pptx)$/i);
+  const isText =
+    output.mimeType === "text/plain" ||
+    output.mimeType === "text/markdown" ||
+    output.filename.endsWith(".md");
+  const isOffice =
+    [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ].includes(output.mimeType) || Boolean(output.filename.match(/\.(docx|xlsx|pptx)$/i));
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
@@ -126,11 +245,13 @@ function TextPreview({ objectUrl }: { objectUrl: string }) {
         }}
       >
         {/* Header */}
-        <div style={{ borderBottom: "1px solid #E1E3E5", background: "#F7F8F8" }}
+        <div
+          style={{ borderBottom: "1px solid #E1E3E5", background: "#F7F8F8" }}
           className="flex items-center justify-between px-5 py-3 shrink-0"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div style={{ background: "#111", borderRadius: "10px" }}
+            <div
+              style={{ background: "#111", borderRadius: "10px" }}
               className="w-8 h-8 flex items-center justify-center shrink-0"
             >
               <Eye className="w-4 h-4 text-white" strokeWidth={2} />
@@ -140,18 +261,33 @@ function TextPreview({ objectUrl }: { objectUrl: string }) {
                 {output.filename}
               </p>
               <p className="text-[11px] leading-tight" style={{ color: "#5F6368" }}>
-                {formatSize(output.outputBytes)} Â· Read-only preview
+                {formatSize(output.outputBytes)} · Read-only preview
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close preview"
-            style={{ background: "#fff", border: "1px solid #E1E3E5", borderRadius: "8px" }}
-            className="w-8 h-8 flex items-center justify-center transition-colors hover:bg-gray-100 shrink-0 ml-3"
-          >
-            <X className="w-4 h-4" style={{ color: "#5F6368" }} strokeWidth={2} />
-          </button>
+          <div className="flex items-center gap-2 shrink-0 ml-3">
+            {objectUrl && (
+              <a
+                href={objectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open in new tab"
+                aria-label="Open preview in new tab"
+                style={{ background: "#fff", border: "1px solid #E1E3E5", borderRadius: "8px" }}
+                className="w-8 h-8 flex items-center justify-center transition-colors hover:bg-gray-100"
+              >
+                <ExternalLink className="w-3.5 h-3.5" style={{ color: "#5F6368" }} strokeWidth={2} />
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close preview"
+              style={{ background: "#fff", border: "1px solid #E1E3E5", borderRadius: "8px" }}
+              className="w-8 h-8 flex items-center justify-center transition-colors hover:bg-gray-100"
+            >
+              <X className="w-4 h-4" style={{ color: "#5F6368" }} strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -173,7 +309,15 @@ function TextPreview({ objectUrl }: { objectUrl: string }) {
             <TextPreview objectUrl={objectUrl} />
           ) : isOffice ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
-              <div style={{ background: "#F0FDF4", borderRadius: "16px", padding: "24px 32px", textAlign: "center", border: "1px solid #BBF7D0" }}>
+              <div
+                style={{
+                  background: "#F0FDF4",
+                  borderRadius: "16px",
+                  padding: "24px 32px",
+                  textAlign: "center",
+                  border: "1px solid #BBF7D0",
+                }}
+              >
                 <div style={{ fontSize: "32px", marginBottom: "8px" }}>
                   {output.filename.endsWith(".docx") ? "📄" : output.filename.endsWith(".xlsx") ? "📊" : "📊"}
                 </div>
@@ -186,11 +330,7 @@ function TextPreview({ objectUrl }: { objectUrl: string }) {
               </div>
             </div>
           ) : isPdf ? (
-            <iframe
-              src={`${objectUrl}#toolbar=1&navpanes=0`}
-              title={`Preview — ${output.filename}`}
-              className="w-full h-full border-0"
-            />
+            <PdfPreview blob={output.blob} objectUrl={objectUrl} filename={output.filename} />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500 text-sm">
               No preview available for this file type.
@@ -199,11 +339,12 @@ function TextPreview({ objectUrl }: { objectUrl: string }) {
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: "1px solid #E1E3E5", background: "#fff" }}
+        <div
+          style={{ borderTop: "1px solid #E1E3E5", background: "#fff" }}
           className="flex items-center justify-between px-5 py-3 shrink-0"
         >
           <p className="text-[11px]" style={{ color: "#8A8F93" }}>
-            Preview only â€” your file is still in your browser
+            Preview only — your file is still in your browser
           </p>
           <button
             onClick={onClose}
@@ -218,9 +359,9 @@ function TextPreview({ objectUrl }: { objectUrl: string }) {
   );
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Secondary Action Card
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 function SecondaryCard({
   icon: Icon,
@@ -289,7 +430,14 @@ function SecondaryCard({
 
       {/* Arrow */}
       {!isLoading && (
-        <svg className="w-4 h-4 shrink-0" style={{ color: "#8A8F93" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <svg
+          className="w-4 h-4 shrink-0"
+          style={{ color: "#8A8F93" }}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.75}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
       )}
@@ -297,9 +445,9 @@ function SecondaryCard({
   );
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) {
   const router = useRouter();
@@ -315,35 +463,40 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
     try {
       const url = URL.createObjectURL(output.blob);
       const a = document.createElement("a");
-      a.href = url; a.download = output.filename;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      a.href = url;
+      a.download = output.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       setDownloadStatus("done");
-    } catch { setDownloadStatus("error"); }
+    } catch {
+      setDownloadStatus("error");
+    }
   }, [output]);
 
   const handleP2PShare = useCallback(async () => {
     setP2pStatus("loading");
     try {
-      const dataUrl = await new Promise<string>((res, rej) => {
-        const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsDataURL(output.blob);
-      });
-      sessionStorage.setItem("share2me_tool_output", JSON.stringify({ dataUrl, filename: output.filename, mimeType: output.mimeType, timestamp: Date.now() }));
+      await saveToolOutput(output);
       setP2pStatus("done");
       setTimeout(() => router.push("/p2p?source=tool"), 600);
-    } catch { setP2pStatus("error"); }
+    } catch (err) {
+      console.error("Failed to share via P2P:", err);
+      setP2pStatus("error");
+    }
   }, [output, router]);
 
   const handleG2PShare = useCallback(async () => {
     setG2pStatus("loading");
     try {
-      const dataUrl = await new Promise<string>((res, rej) => {
-        const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsDataURL(output.blob);
-      });
-      sessionStorage.setItem("share2me_tool_output", JSON.stringify({ dataUrl, filename: output.filename, mimeType: output.mimeType, timestamp: Date.now() }));
+      await saveToolOutput(output);
       setG2pStatus("done");
-      setTimeout(() => router.push("/g2p?source=tool"), 600);
-    } catch { setG2pStatus("error"); }
+      setTimeout(() => router.push("/g2p/nearby?source=tool"), 600);
+    } catch (err) {
+      console.error("Failed to share via G2P:", err);
+      setG2pStatus("error");
+    }
   }, [output, router]);
 
   return (
@@ -358,7 +511,10 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
           {/* Result summary bar */}
           <div className="flex items-center justify-between gap-3 px-0.5 mb-1">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "#10B981" }}>
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "#10B981" }}
+              >
                 <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={3} />
               </div>
               <div className="min-w-0">
@@ -366,20 +522,28 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
                   {output.filename}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[12px]" style={{ color: "#5F6368" }}>{formatSize(output.outputBytes)}</span>
+                  <span className="text-[12px]" style={{ color: "#5F6368" }}>
+                    {formatSize(output.outputBytes)}
+                  </span>
                   {ratio !== null && (
-                    <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                      style={{ color: "#065F46", background: "#ECFDF5" }}>
+                    <span
+                      className="inline-flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ color: "#065F46", background: "#ECFDF5" }}
+                    >
                       <TrendingDown className="w-2.5 h-2.5" strokeWidth={2.5} />
-                      âˆ’{ratio}%
+                      −{ratio}%
                     </span>
                   )}
                 </div>
               </div>
             </div>
-            <button onClick={onReset} className="text-[12px] font-medium transition-colors shrink-0 whitespace-nowrap"
-              style={{ color: "#8A8F93" }} onMouseEnter={e => (e.currentTarget.style.color = "#111")}
-              onMouseLeave={e => (e.currentTarget.style.color = "#8A8F93")}>
+            <button
+              onClick={onReset}
+              className="text-[12px] font-medium transition-colors shrink-0 whitespace-nowrap"
+              style={{ color: "#8A8F93" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#111")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#8A8F93")}
+            >
               Start over
             </button>
           </div>
@@ -403,20 +567,30 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
                 borderColor: downloadStatus === "done" ? "#6EE7B7" : "#111",
               }}
             >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center border"
-                style={{ background: downloadStatus === "done" ? "#10B981" : "rgba(255,255,255,0.12)", borderColor: downloadStatus === "done" ? "#10B981" : "rgba(255,255,255,0.2)" }}>
-                {downloadStatus === "loading"
-                  ? <Loader2 className="w-4.5 h-4.5 animate-spin text-white" strokeWidth={2} />
-                  : <Download className="w-4.5 h-4.5 text-white" strokeWidth={2} />
-                }
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center border"
+                style={{
+                  background: downloadStatus === "done" ? "#10B981" : "rgba(255,255,255,0.12)",
+                  borderColor: downloadStatus === "done" ? "#10B981" : "rgba(255,255,255,0.2)",
+                }}
+              >
+                {downloadStatus === "loading" ? (
+                  <Loader2 className="w-4.5 h-4.5 animate-spin text-white" strokeWidth={2} />
+                ) : (
+                  <Download className="w-4.5 h-4.5 text-white" strokeWidth={2} />
+                )}
               </div>
               <div>
-                <p className="text-[13px] font-semibold leading-tight"
-                  style={{ color: downloadStatus === "done" ? "#065F46" : "#fff" }}>
+                <p
+                  className="text-[13px] font-semibold leading-tight"
+                  style={{ color: downloadStatus === "done" ? "#065F46" : "#fff" }}
+                >
                   {downloadStatus === "done" ? "Downloaded!" : "Download"}
                 </p>
-                <p className="text-[11px] mt-0.5 leading-tight"
-                  style={{ color: downloadStatus === "done" ? "#059669" : "rgba(255,255,255,0.6)" }}>
+                <p
+                  className="text-[11px] mt-0.5 leading-tight"
+                  style={{ color: downloadStatus === "done" ? "#059669" : "rgba(255,255,255,0.6)" }}
+                >
                   {downloadStatus === "done" ? "Saved to device" : "Save to your device"}
                 </p>
               </div>
@@ -431,12 +605,16 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
               className="flex flex-col gap-3 p-4 rounded-xl border text-left transition-all"
               style={{ background: "#fff", borderColor: "#E1E3E5" }}
             >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center border"
-                style={{ background: "#EDE9FE", borderColor: "#DDD6FE" }}>
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center border"
+                style={{ background: "#EDE9FE", borderColor: "#DDD6FE" }}
+              >
                 <Eye className="w-4.5 h-4.5" style={{ color: "#7C3AED" }} strokeWidth={2} />
               </div>
               <div>
-                <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111" }}>Preview</p>
+                <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111" }}>
+                  Preview
+                </p>
                 <p className="text-[11px] mt-0.5 leading-tight" style={{ color: "#5F6368" }}>
                   Inspect before sharing
                 </p>
@@ -448,7 +626,7 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
           <SecondaryCard
             icon={Zap}
             label="Share via P2P"
-            description="Instantly send to anyone â€” no account needed"
+            description="Instantly send to anyone — no account needed"
             status={p2pStatus}
             onClick={handleP2PShare}
           />
@@ -456,7 +634,7 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
           <SecondaryCard
             icon={HardDrive}
             label="Send to G2P Inbox"
-            description="Route to an admin inbox for printing or review"
+            description="Route to a nearby print shop or admin inbox"
             status={g2pStatus}
             onClick={handleG2PShare}
           />
@@ -465,7 +643,7 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
             <SecondaryCard
               icon={Wrench}
               label="Apply another tool"
-              description="Compress, watermark, protect â€” keep going"
+              description="Compress, watermark, protect — keep going"
               status="idle"
               onClick={onChainTool}
             />
@@ -474,9 +652,7 @@ export function ActionPanel({ output, onReset, onChainTool }: ActionPanelProps) 
       </AnimatePresence>
 
       {/* Preview Modal */}
-      {showPreview && (
-        <PreviewModal output={output} onClose={() => setShowPreview(false)} />
-      )}
+      {showPreview && <PreviewModal output={output} onClose={() => setShowPreview(false)} />}
     </>
   );
 }
