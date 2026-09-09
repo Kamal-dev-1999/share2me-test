@@ -34,9 +34,73 @@ resource "google_firebase_hosting_version" "default" {
       }
     }
 
+    rewrites {
+      glob = "/g2p/nearby"
+      run {
+        service_id = google_cloud_run_v2_service.frontend.name
+        region     = google_cloud_run_v2_service.frontend.location
+      }
+    }
+
+    rewrites {
+      glob = "/g2p/nearby/**"
+      run {
+        service_id = google_cloud_run_v2_service.frontend.name
+        region     = google_cloud_run_v2_service.frontend.location
+      }
+    }
+
     # ── Backend APIs (Express routes) ────────────────────────────────────────
     rewrites {
-      glob = "/g2p/**"
+      glob = "/g2p/billing/**"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/g2p/health"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/g2p/requests/**"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/g2p/files/**"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/g2p/vendor/**"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/g2p/printshop/**"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/g2p/tools/**"
       run {
         service_id = google_cloud_run_v2_service.backend.name
         region     = google_cloud_run_v2_service.backend.location
