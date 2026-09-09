@@ -70,6 +70,10 @@ resource "google_cloud_run_v2_service" "frontend" {
         value = "production"
       }
       env {
+        name  = "DEPLOY_TAG"
+        value = "v2-cors-fallback-20260909"
+      }
+      env {
         name  = "HOSTNAME"
         value = "0.0.0.0"
       }

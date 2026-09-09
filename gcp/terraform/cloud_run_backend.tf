@@ -101,6 +101,10 @@ resource "google_cloud_run_v2_service" "backend" {
         value = "production"
       }
       env {
+        name  = "DEPLOY_TAG"
+        value = "v2-cors-fallback-20260909"
+      }
+      env {
         name  = "ALLOWED_ORIGINS"
         value = var.allowed_origins
       }
