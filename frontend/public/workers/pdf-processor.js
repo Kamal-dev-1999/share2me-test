@@ -40,6 +40,29 @@ if (typeof PDFLib === 'undefined') {
 const { PDFDocument, degrees, rgb, StandardFonts, PageSizes } = PDFLib;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Resilience Patch for pdf-lib (Hopding/pdf-lib issue #902)
+// In non-standard or scanned PDFs, missing/pruned dictionary keys (such as in
+// normalizedEntries: Font, XObject, ExtGState, or missing indirect refs) cause
+// PDFContext.lookup to throw: "Expected instance of e, but got instance of undefined".
+// This patch gracefully supplies empty fallbacks instead of crashing the worker.
+// ─────────────────────────────────────────────────────────────────────────────
+if (PDFLib && PDFLib.PDFContext && PDFLib.PDFContext.prototype.lookup) {
+  const origLookup = PDFLib.PDFContext.prototype.lookup;
+  PDFLib.PDFContext.prototype.lookup = function (ref, ...types) {
+    try {
+      return origLookup.call(this, ref, ...types);
+    } catch (err) {
+      if (err && err.message && err.message.includes('Expected instance of') && err.message.includes('undefined')) {
+        if (PDFLib.PDFDict && types.includes(PDFLib.PDFDict)) return this.obj({});
+        if (PDFLib.PDFArray && types.includes(PDFLib.PDFArray)) return this.obj([]);
+        return undefined;
+      }
+      throw err;
+    }
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -62,7 +85,8 @@ function error(requestId, code, message) {
 async function loadPdf(buffer, config = {}) {
   try {
     return await PDFDocument.load(buffer, {
-      ignoreEncryption: false,
+      ignoreEncryption: true,
+      throwOnInvalidObject: false,
       password: config.password || undefined,
     });
   } catch (e) {
