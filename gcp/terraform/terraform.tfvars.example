@@ -53,3 +53,10 @@ rate_limit_threshold = 300
 # ─── Monitoring ──────────────────────────────────────────────────────────────
 alert_email = "your-email@example.com"
 acme_email  = "your-email@example.com"
+
+# ─── AWS S3 Blogs ────────────────────────────────────────────────────────────
+aws_access_key_id     = ""
+aws_secret_access_key = ""
+aws_region            = "ap-south-1"
+s3_blogs_bucket       = "share2me-auto-blogs-prod"
+

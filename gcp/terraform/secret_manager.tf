@@ -199,3 +199,39 @@ resource "google_secret_manager_secret_version" "smtp_pass" {
   secret_data = var.smtp_pass
 }
 
+# ── AWS S3 Credentials for Blogs ──
+resource "google_secret_manager_secret" "aws_access_key_id" {
+  secret_id = "${var.project_name}-aws-access-key-id"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "aws_access_key_id" {
+  count       = var.aws_access_key_id != "" ? 1 : 0
+  secret      = google_secret_manager_secret.aws_access_key_id.id
+  secret_data = var.aws_access_key_id
+}
+
+resource "google_secret_manager_secret" "aws_secret_access_key" {
+  secret_id = "${var.project_name}-aws-secret-access-key"
+  project   = var.gcp_project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "aws_secret_access_key" {
+  count       = var.aws_secret_access_key != "" ? 1 : 0
+  secret      = google_secret_manager_secret.aws_secret_access_key.id
+  secret_data = var.aws_secret_access_key
+}
+
+

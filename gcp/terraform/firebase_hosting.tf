@@ -108,7 +108,23 @@ resource "google_firebase_hosting_version" "default" {
     }
 
     rewrites {
+      glob = "/api/blogs"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
       glob = "/api/blogs/**"
+      run {
+        service_id = google_cloud_run_v2_service.backend.name
+        region     = google_cloud_run_v2_service.backend.location
+      }
+    }
+
+    rewrites {
+      glob = "/api/admin"
       run {
         service_id = google_cloud_run_v2_service.backend.name
         region     = google_cloud_run_v2_service.backend.location

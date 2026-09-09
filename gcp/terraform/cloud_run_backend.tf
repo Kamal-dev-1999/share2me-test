@@ -102,7 +102,7 @@ resource "google_cloud_run_v2_service" "backend" {
       }
       env {
         name  = "DEPLOY_TAG"
-        value = "v3-vendor-upsert-fix-20260909"
+        value = "v4-aws-s3-blogs-20260909"
       }
       env {
         name  = "ALLOWED_ORIGINS"
@@ -245,6 +245,32 @@ resource "google_cloud_run_v2_service" "backend" {
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.smtp_pass.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "AWS_REGION"
+        value = var.aws_region
+      }
+      env {
+        name  = "S3_BLOGS_BUCKET"
+        value = var.s3_blogs_bucket
+      }
+      env {
+        name = "AWS_ACCESS_KEY_ID"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.aws_access_key_id.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "AWS_SECRET_ACCESS_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.aws_secret_access_key.secret_id
             version = "latest"
           }
         }

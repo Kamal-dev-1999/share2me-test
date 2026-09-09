@@ -319,3 +319,31 @@ variable "acme_email" {
   type        = string
   default     = "kamaltripathi1431@gmail.com"
 }
+
+# ─── AWS S3 Blogs Credentials ─────────────────────────────────────────────────
+variable "aws_access_key_id" {
+  description = "AWS Access Key ID for S3 blogs"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS Secret Access Key for S3 blogs"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "aws_region" {
+  description = "AWS Region for S3 blogs"
+  type        = string
+  default     = "ap-south-1"
+}
+
+variable "s3_blogs_bucket" {
+  description = "AWS S3 bucket name for blogs"
+  type        = string
+  default     = "share2me-auto-blogs-prod"
+}
+
