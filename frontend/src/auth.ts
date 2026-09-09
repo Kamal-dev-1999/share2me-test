@@ -27,8 +27,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      checks: ["none"],
     }),
   ],
+  cookies: {
+    sessionToken: {
+      name: "__session",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+      },
+    },
+  },
   secret: _AUTH_SECRET,
   session: { strategy: "jwt" },
   callbacks: {

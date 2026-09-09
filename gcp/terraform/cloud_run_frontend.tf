@@ -71,7 +71,7 @@ resource "google_cloud_run_v2_service" "frontend" {
       }
       env {
         name  = "DEPLOY_TAG"
-        value = "v3-auth-domain-fix-20260909"
+        value = "v4-firebase-session-cookie-20260909"
       }
       env {
         name  = "HOSTNAME"
