@@ -14,6 +14,27 @@ logger = logging.getLogger("BGRemoverML")
 
 app = Flask(__name__)
 
+INTERNAL_ML_SECRET = os.environ.get("INTERNAL_ML_SECRET", "").strip()
+
+@app.before_request
+def verify_internal_secret():
+    # Public endpoints for Cloud Run container probes and health monitoring
+    if request.path in ('/health', '/ping', '/'):
+        return None
+
+    # Enforce internal secret key authentication if configured
+    if INTERNAL_ML_SECRET:
+        token = request.headers.get("X-Internal-Secret", "").strip()
+        auth_header = request.headers.get("Authorization", "").strip()
+        if auth_header.startswith("Bearer "):
+            token = token or auth_header[7:].strip()
+
+        if not token or token != INTERNAL_ML_SECRET:
+            logger.warning(f"[Security] Unauthorized attempt to {request.path} from IP {request.remote_addr}")
+            return jsonify({"error": "Forbidden: Access restricted to Share2Me backend."}), 403
+
+    return None
+
 # High-Speed SOTA Architecture (1024x1024 IS-Net General + BiRefNet Fast)
 MODEL_LICENSE = "Apache 2.0 / MIT (Open Commercial & Self-Hosted Use)"
 DEFAULT_MODEL = "auto"
@@ -140,18 +161,24 @@ def process_smart_pipeline(orig_img, requested_model="auto", post_process=True):
     else:
         return res_1, primary_model_name, False, metrics_1
 
+@app.route('/', methods=['GET'])
 @app.route('/health', methods=['GET'])
 def health():
     status_str = "ready" if len(sessions) > 0 else ("initializing" if is_initializing else "error")
     return jsonify({
+        "service": "share2me-ai",
         "status": status_str,
+        "version": "2.0.0",
         "is_initializing": is_initializing,
         "default_model": DEFAULT_MODEL,
         "loaded_models": list(sessions.keys()),
         "available_models": ["auto", "isnet-general-use", "birefnet-general", "birefnet-portrait", "u2net", "isnet-anime"],
+        "capabilities": ["background-removal", "multi-model-ready"],
+        "cpu_cores": os.cpu_count(),
+        "auth_required": bool(INTERNAL_ML_SECRET),
         "license": MODEL_LICENSE,
         "engine": "Official rembg + IS-Net High-Speed SOTA Architecture",
-        "device": "CPU"
+        "device": "CPU (Multi-Threaded ONNX Runtime)"
     })
 
 @app.route('/remove-background', methods=['POST'])

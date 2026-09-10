@@ -7,7 +7,7 @@ os.makedirs(u2net_dir, exist_ok=True)
 
 models_dir = os.path.join(os.path.dirname(__file__), "models")
 
-for model_name in ["isnet-general-use.onnx", "u2net.onnx"]:
+for model_name in ["isnet-general-use.onnx", "u2net.onnx", "birefnet-general.onnx"]:
     src = os.path.join(models_dir, model_name)
     dst = os.path.join(u2net_dir, model_name)
     if os.path.exists(src) and not os.path.exists(dst):

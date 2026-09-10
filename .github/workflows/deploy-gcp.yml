@@ -10,7 +10,7 @@ name: Deploy to GCP Cloud Run
 
 on:
   push:
-    branches: [main]
+    branches: [main, gcp-migration]
     paths:
       - 'frontend/**'
       - 'backend/**'
@@ -26,6 +26,8 @@ on:
         options:
           - frontend
           - backend
+          - ai
+          - all
           - both
 
 # ─── Environment Variables ────────────────────────────────────────────────────
@@ -35,8 +37,10 @@ env:
   AR_REPO: share2me-docker
   FRONTEND_SERVICE: share2me-frontend
   BACKEND_SERVICE: share2me-backend
+  AI_SERVICE: share2me-ai
   FRONTEND_DOMAIN: share2.me
   BACKEND_DOMAIN: api.share2.me
+  AI_DOMAIN: ai.share2me.in
 
 # ─── Permissions for OIDC ─────────────────────────────────────────────────────
 permissions:
@@ -51,6 +55,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      ai: ${{ steps.filter.outputs.ai }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -61,6 +66,9 @@ jobs:
               - 'frontend/**'
             backend:
               - 'backend/**'
+              - '!backend/ml/**'
+            ai:
+              - 'backend/ml/**'
 
   # ── Build & Deploy Frontend ─────────────────────────────────────────────────
   deploy-frontend:
@@ -167,6 +175,7 @@ jobs:
           gcloud run deploy ${{ env.BACKEND_SERVICE }} \
             --image=${IMAGE}:${{ github.sha }} \
             --region=${{ env.GCP_REGION }} \
+            --update-env-vars="ML_SERVICE_URL=https://${{ env.AI_DOMAIN }}/remove-background,INTERNAL_ML_SECRET=${{ secrets.INTERNAL_ML_SECRET }}" \
             --quiet
 
       - name: Verify Deployment
@@ -177,3 +186,72 @@ jobs:
           echo "Backend deployed to: ${URL}"
           curl -sf --max-time 30 "${URL}/health" > /dev/null
           echo "✅ Backend health check passed"
+
+  # ── Build & Deploy Standalone AI Service ────────────────────────────────────
+  deploy-ai:
+    name: Deploy Standalone AI Service
+    runs-on: ubuntu-latest
+    needs: changes
+    if: >
+      needs.changes.outputs.ai == 'true' ||
+      github.event.inputs.deploy_target == 'ai' ||
+      github.event.inputs.deploy_target == 'all' ||
+      github.event.inputs.deploy_target == 'both'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Authenticate to GCP using Workload Identity Federation (keyless)
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build AI Service Image
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/ai-service"
+          docker build \
+            -t ${IMAGE}:${{ github.sha }} \
+            -t ${IMAGE}:latest \
+            ./backend/ml
+
+      - name: Push AI Service Image
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/ai-service"
+          docker push ${IMAGE}:${{ github.sha }}
+          docker push ${IMAGE}:latest
+
+      - name: Deploy to Cloud Run (High Compute, Scale to Zero)
+        run: |
+          IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/ai-service"
+          gcloud run deploy ${{ env.AI_SERVICE }} \
+            --image=${IMAGE}:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --cpu=4 \
+            --memory=4Gi \
+            --execution-environment=gen2 \
+            --min-instances=0 \
+            --max-instances=5 \
+            --concurrency=12 \
+            --timeout=300s \
+            --allow-unauthenticated \
+            --set-env-vars="INTERNAL_ML_SECRET=${{ secrets.INTERNAL_ML_SECRET }}" \
+            --quiet
+
+      - name: Verify AI Deployment
+        run: |
+          URL=$(gcloud run services describe ${{ env.AI_SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.url)')
+          echo "AI Service deployed to: ${URL}"
+          curl -sf --max-time 45 "${URL}/health" > /dev/null
+          echo "✅ AI service health check passed"
+

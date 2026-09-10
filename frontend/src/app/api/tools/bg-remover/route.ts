@@ -2,24 +2,48 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
 
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:5002/remove-background";
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "https://ai.share2me.in/remove-background";
+const INTERNAL_ML_SECRET = process.env.INTERNAL_ML_SECRET || "";
 let isSpawning = false;
+
+function getHealthUrl(): string {
+  try {
+    const parsed = new URL(ML_SERVICE_URL);
+    parsed.pathname = "/health";
+    parsed.search = "";
+    return parsed.toString();
+  } catch {
+    return "http://127.0.0.1:5002/health";
+  }
+}
 
 async function checkHealth(): Promise<boolean> {
   try {
-    const res = await fetch("http://127.0.0.1:5002/health", { cache: "no-store" });
+    const healthUrl = getHealthUrl();
+    const res = await fetch(healthUrl, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json().catch(() => ({}));
       if (data.status === "ready" || data.status === "initializing") return true;
     }
   } catch {
-    // service offline
+    // service offline or waking up
   }
   return false;
 }
 
 async function ensureMlServiceRunning(): Promise<boolean> {
   if (await checkHealth()) return true;
+
+  // Only auto-spawn local Python if running in local environment
+  const isLocal = ML_SERVICE_URL.includes("127.0.0.1") || ML_SERVICE_URL.includes("localhost");
+  if (!isLocal) {
+    // For remote Cloud Run service, wait up to 15s for scale-from-zero cold start
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      if (await checkHealth()) return true;
+    }
+    return false;
+  }
 
   if (isSpawning) {
     for (let i = 0; i < 25; i++) {
@@ -102,19 +126,26 @@ export async function POST(request: NextRequest) {
     forwardFormData.append("model", model);
     forwardFormData.append("post_process_mask", postProcessMask);
 
+    const fetchHeaders: Record<string, string> = {};
+    if (INTERNAL_ML_SECRET) {
+      fetchHeaders["X-Internal-Secret"] = INTERNAL_ML_SECRET;
+    }
+
     let mlRes: Response | null = null;
     try {
       mlRes = await fetch(ML_SERVICE_URL, {
         method: "POST",
         body: forwardFormData,
+        headers: fetchHeaders,
       });
     } catch (fetchErr) {
-      console.warn("[Next.js BG-Remover Route] ML service connection error. Triggering auto-launch recovery...", fetchErr);
+      console.warn("[Next.js BG-Remover Route] ML service connection error. Triggering recovery/wakeup check...", fetchErr);
       const recovered = await ensureMlServiceRunning();
       if (recovered) {
         mlRes = await fetch(ML_SERVICE_URL, {
           method: "POST",
           body: forwardFormData,
+          headers: fetchHeaders,
         });
       } else {
         throw fetchErr;

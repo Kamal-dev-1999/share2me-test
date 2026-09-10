@@ -13,24 +13,48 @@ const upload = multer({
 const { spawn } = require('child_process');
 const path = require('path');
 
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5002/remove-background';
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'https://ai.share2me.in/remove-background';
+const INTERNAL_ML_SECRET = process.env.INTERNAL_ML_SECRET || '';
 let isSpawning = false;
+
+function getHealthUrl() {
+  try {
+    const parsed = new URL(ML_SERVICE_URL);
+    parsed.pathname = '/health';
+    parsed.search = '';
+    return parsed.toString();
+  } catch {
+    return 'http://127.0.0.1:5002/health';
+  }
+}
 
 async function checkHealth() {
   try {
-    const res = await fetch('http://127.0.0.1:5002/health', { cache: 'no-store' });
+    const healthUrl = getHealthUrl();
+    const res = await fetch(healthUrl, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json().catch(() => ({}));
       if (data.status === 'ready' || data.status === 'initializing') return true;
     }
   } catch {
-    // service offline
+    // service offline or waking up
   }
   return false;
 }
 
 async function ensureMlServiceRunning() {
   if (await checkHealth()) return true;
+
+  // Only auto-spawn local Python if running in local environment
+  const isLocal = ML_SERVICE_URL.includes('127.0.0.1') || ML_SERVICE_URL.includes('localhost');
+  if (!isLocal) {
+    // For remote Cloud Run service, wait up to 15s for scale-from-zero cold start
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      if (await checkHealth()) return true;
+    }
+    return false;
+  }
 
   if (isSpawning) {
     for (let i = 0; i < 25; i++) {
@@ -104,19 +128,33 @@ router.post('/bg-remover', upload.single('image'), async (req, res) => {
     const formData = new FormData();
     formData.append('image', blob, req.file.originalname || 'upload.png');
 
+    if (req.body?.model) {
+      formData.append('model', req.body.model);
+    }
+    if (req.body?.post_process_mask !== undefined) {
+      formData.append('post_process_mask', req.body.post_process_mask);
+    }
+
+    const fetchHeaders = {};
+    if (INTERNAL_ML_SECRET) {
+      fetchHeaders['X-Internal-Secret'] = INTERNAL_ML_SECRET;
+    }
+
     let apiRes = null;
     try {
       apiRes = await fetch(ML_SERVICE_URL, {
         method: 'POST',
         body: formData,
+        headers: fetchHeaders,
       });
     } catch (fetchErr) {
-      console.warn('[Express BG-Remover Route] ML service connection error. Triggering auto-launch recovery...');
+      console.warn('[Express BG-Remover Route] ML service connection error. Triggering recovery/wakeup check...');
       const recovered = await ensureMlServiceRunning();
       if (recovered) {
         apiRes = await fetch(ML_SERVICE_URL, {
           method: 'POST',
           body: formData,
+          headers: fetchHeaders,
         });
       } else {
         throw fetchErr;

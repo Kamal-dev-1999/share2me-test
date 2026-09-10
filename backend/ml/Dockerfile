@@ -27,5 +27,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -sf http://127.0.0.1:8080/health || exit 1
 
-# Run with Gunicorn WSGI server
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "4", "--timeout", "120", "bg_remover_service:app"]
+# Run with Gunicorn WSGI server (1 worker, 8 threads for multi-threaded inference on 4 vCPUs)
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "300", "--access-logfile", "-", "--error-logfile", "-", "bg_remover_service:app"]
