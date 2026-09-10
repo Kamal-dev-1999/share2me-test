@@ -569,7 +569,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
       page.drawText(`₹${totalAmount.toFixed(2)}`, { x: col3, y: currentY + 10, size: 11, font: bold, color: colors.primary });
 
       const pdfBytes = await doc.save();
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

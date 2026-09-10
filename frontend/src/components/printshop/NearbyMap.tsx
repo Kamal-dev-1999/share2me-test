@@ -144,8 +144,16 @@ export default function NearbyMap({ userLoc, shops, onExpandRadius }: { userLoc:
       zoomControl={false}
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        url={
+          process.env.NEXT_PUBLIC_CARTO_API_KEY
+            ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${process.env.NEXT_PUBLIC_CARTO_API_KEY}`
+            : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        }
+        attribution={
+          process.env.NEXT_PUBLIC_CARTO_API_KEY
+            ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }
       />
 
       <MapViewController userLoc={userLoc} shops={shops} />
