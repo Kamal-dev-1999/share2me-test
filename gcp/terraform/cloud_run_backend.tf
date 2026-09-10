@@ -102,7 +102,7 @@ resource "google_cloud_run_v2_service" "backend" {
       }
       env {
         name  = "DEPLOY_TAG"
-        value = "v4-aws-s3-blogs-20260909"
+        value = "v8-agent-download-and-autoconnect-20260910"
       }
       env {
         name  = "ALLOWED_ORIGINS"

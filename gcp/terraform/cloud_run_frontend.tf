@@ -71,7 +71,7 @@ resource "google_cloud_run_v2_service" "frontend" {
       }
       env {
         name  = "DEPLOY_TAG"
-        value = "v7-tools-preview-and-transfer-fix-20260909"
+        value = "v8-agent-download-and-autoconnect-20260910"
       }
       env {
         name  = "HOSTNAME"
