@@ -6,7 +6,7 @@ const https = require('https');
 const http = require('http');
 const crypto = require('crypto');
 const os = require('os');
-const { exec } = require('child_process');
+const { exec, execSync, spawn } = require('child_process');
 
 const DEFAULT_SERVER_URL = 'https://api.share2me.in';
 const SERVER_URL = process.env.SERVER_URL || DEFAULT_SERVER_URL;
@@ -83,27 +83,43 @@ function saveConfig(token, serverUrl) {
 
 /**
  * Ensures the agent auto-starts as soon as the user's PC/laptop boots into Windows.
- * Configures both the Windows Run Registry key and Startup folder script for maximum reliability.
+ * Uses a silent VBS launcher (WindowStyle 0) so NO console window or PowerShell ever opens.
  */
-function setupAutoStart() {
+function setupAutoStart(targetExe) {
   if (process.platform !== 'win32') return;
 
   try {
-    const exePath = process.execPath;
+    const exePath = targetExe || process.execPath;
     // Skip if running directly inside node during development
     if (path.basename(exePath).toLowerCase().includes('node')) return;
 
-    // 1. Windows Run Registry key
-    const regCmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "Share2MePrintAgent" /t REG_SZ /d "\\"${exePath}\\" --hidden" /f`;
+    if (!fs.existsSync(CONFIG_DIR)) {
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    }
+
+    // 1. Write the silent VBS launcher that runs with WindowStyle 0 (completely hidden)
+    const vbsPath = path.join(CONFIG_DIR, 'Share2Me-PrintAgent-AutoStart.vbs');
+    const vbsContent = [
+      'Set WshShell = CreateObject("WScript.Shell")',
+      `WshShell.Run Chr(34) & "${exePath.replace(/"/g, '""')}" & Chr(34) & " --background", 0, False`
+    ].join('\r\n');
+    fs.writeFileSync(vbsPath, vbsContent);
+
+    // Also place a helper script to easily stop the agent if needed
+    const stopBat = path.join(CONFIG_DIR, 'Stop-Agent.bat');
+    fs.writeFileSync(stopBat, '@echo off\r\ntaskkill /F /IM Share2Me-PrintAgent.exe\r\necho Share2Me Print Agent stopped.\r\n');
+
+    // 2. Windows Run Registry key uses wscript.exe so no console is allocated on logon
+    const regCmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "Share2MePrintAgent" /t REG_SZ /d "wscript.exe \\"${vbsPath}\\"" /f`;
     exec(regCmd, (err) => {
       if (err) {
         console.warn('[AutoStart] Registry registration notice:', err.message);
       } else {
-        console.log('[AutoStart] Registered Share2Me Print Agent in Windows Startup Registry.');
+        console.log('[AutoStart] Registered Share2Me Print Agent in Windows Startup Registry (Silent Mode).');
       }
     });
 
-    // 2. Windows Startup folder script (.bat) fallback
+    // 3. Windows Startup folder: Place silent .vbs launcher and clean up any old .bat
     const startupDir = path.join(
       process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
       'Microsoft',
@@ -113,10 +129,15 @@ function setupAutoStart() {
       'Startup'
     );
     if (fs.existsSync(startupDir)) {
-      const batPath = path.join(startupDir, 'Share2Me-PrintAgent-AutoStart.bat');
-      const batContent = `@echo off\r\nstart "" "${exePath}" --hidden\r\n`;
-      fs.writeFileSync(batPath, batContent);
-      console.log('[AutoStart] Placed startup launcher in Windows Startup folder:', batPath);
+      // Remove legacy .bat file if it exists so it never pops up a black window
+      const oldBat = path.join(startupDir, 'Share2Me-PrintAgent-AutoStart.bat');
+      if (fs.existsSync(oldBat)) {
+        try { fs.unlinkSync(oldBat); } catch {}
+      }
+
+      const startupVbs = path.join(startupDir, 'Share2Me-PrintAgent-AutoStart.vbs');
+      fs.writeFileSync(startupVbs, vbsContent);
+      console.log('[AutoStart] Placed silent startup launcher in Windows Startup folder:', startupVbs);
     }
   } catch (err) {
     console.warn('[AutoStart] Could not configure startup:', err.message);
@@ -226,10 +247,71 @@ function connectSocket(token, url) {
 }
 
 async function startAgent() {
-  if (process.argv.includes('--hidden')) {
-    // Divert console output to a log file when running as a background service
+  const isBackground = process.argv.includes('--background') || process.argv.includes('--hidden');
+
+  // If launched interactively by user double-click in Windows Explorer,
+  // copy to permanent location, spawn the hidden worker via wscript.exe, and close this console window immediately!
+  if (process.platform === 'win32' && !isBackground) {
+    const currentExe = process.execPath;
+    if (!path.basename(currentExe).toLowerCase().includes('node')) {
+      try {
+        if (!fs.existsSync(CONFIG_DIR)) {
+          fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        }
+
+        // Install to a stable directory so user deleting Downloads won't break startup
+        const permanentExe = path.join(CONFIG_DIR, 'Share2Me-PrintAgent.exe');
+        let targetExe = currentExe;
+        if (path.resolve(currentExe).toLowerCase() !== path.resolve(permanentExe).toLowerCase()) {
+          try {
+            fs.copyFileSync(currentExe, permanentExe);
+            targetExe = permanentExe;
+          } catch (copyErr) {
+            targetExe = currentExe;
+          }
+        }
+
+        setupAutoStart(targetExe);
+
+        const runnerVbs = path.join(CONFIG_DIR, 'Share2Me-PrintAgent-Runner.vbs');
+        const vbsContent = [
+          'Set WshShell = CreateObject("WScript.Shell")',
+          `WshShell.Run Chr(34) & "${targetExe.replace(/"/g, '""')}" & Chr(34) & " --background", 0, False`
+        ].join('\r\n');
+        fs.writeFileSync(runnerVbs, vbsContent);
+
+        // Spawn wscript detached and completely disconnect stdio so console closes instantly
+        try {
+          const child = spawn('wscript.exe', [runnerVbs], {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true
+          });
+          child.unref();
+        } catch (wErr) {
+          const child = spawn(targetExe, ['--background'], {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true
+          });
+          child.unref();
+        }
+
+        // Exit this console immediately so the terminal window closes!
+        process.exit(0);
+      } catch (err) {
+        console.warn('Could not launch background worker:', err.message);
+      }
+    }
+  }
+
+  // When running in background, divert console output to log file in config directory
+  if (isBackground) {
     try {
-      const logPath = path.join(os.tmpdir(), 'Share2Me-PrintAgent.log');
+      if (!fs.existsSync(CONFIG_DIR)) {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true });
+      }
+      const logPath = path.join(CONFIG_DIR, 'agent.log');
       const logStream = fs.createWriteStream(logPath, { flags: 'a' });
       console.log = function () {
         logStream.write(`[${new Date().toISOString()}] ` + Array.from(arguments).join(' ') + '\n');
@@ -248,7 +330,22 @@ async function startAgent() {
   console.log('=============================================');
 
   // Configure auto-start in Windows so it boots automatically
-  setupAutoStart();
+  const permanentExe = path.join(CONFIG_DIR, 'Share2Me-PrintAgent.exe');
+  const targetExe = fs.existsSync(permanentExe) ? permanentExe : process.execPath;
+  setupAutoStart(targetExe);
+
+  // Keep event loop active indefinitely
+  setInterval(() => {}, 30000);
+
+  process.on('uncaughtException', (err) => {
+    console.error('[CRASH] Uncaught Exception:', err ? err.stack || err.message : err);
+  });
+  process.on('unhandledRejection', (reason) => {
+    console.error('[CRASH] Unhandled Rejection:', reason);
+  });
+  process.on('exit', (code) => {
+    console.log('[AGENT] Process exited with code:', code);
+  });
 
   let { token, serverUrl } = loadConfig();
   if (!serverUrl) serverUrl = SERVER_URL;
