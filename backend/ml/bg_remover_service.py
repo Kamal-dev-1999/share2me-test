@@ -52,6 +52,15 @@ def get_session(model_name="isnet-general-use"):
         if model_name in sessions:
             return sessions[model_name]
 
+    # Guard: Only allow models whose ONNX files are physically pre-baked in U2NET_HOME.
+    # Prevents downloading 1GB models (like birefnet) at runtime which causes request timeouts and OOM kills.
+    u2net_home = os.environ.get("U2NET_HOME", os.path.expanduser("~/.u2net"))
+    model_file = f"{model_name}.onnx"
+    model_path = os.path.join(u2net_home, model_file)
+    if not os.path.exists(model_path) and model_name not in ("isnet-general-use", "u2net"):
+        logger.warning(f"[Safe-Guard] Model '{model_name}' ONNX not pre-baked on disk. Routing to pre-baked high-precision 'isnet-general-use'.")
+        return get_session("isnet-general-use")
+
     try:
         logger.info(f"Initializing native rembg session for model '{model_name}'...")
         session_instance = rembg.new_session(model_name)
@@ -61,8 +70,8 @@ def get_session(model_name="isnet-general-use"):
         return session_instance
     except Exception as err:
         logger.error(f"Failed to load rembg session for '{model_name}': {err}", exc_info=True)
-        if model_name != "u2net":
-            return get_session("u2net")
+        if model_name != "isnet-general-use":
+            return get_session("isnet-general-use")
         return None
 
 def load_initial_sessions():
