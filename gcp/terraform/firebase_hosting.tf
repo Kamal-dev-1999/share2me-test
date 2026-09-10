@@ -9,6 +9,23 @@ resource "google_firebase_hosting_version" "default" {
   site_id  = var.gcp_project_id
 
   config {
+    # ── AI Microservice (Cloud Run share2me-ai) ──────────────────────────────
+    rewrites {
+      glob = "/ai/**"
+      run {
+        service_id = "share2me-ai"
+        region     = var.gcp_region
+      }
+    }
+
+    rewrites {
+      glob = "/remove-background"
+      run {
+        service_id = "share2me-ai"
+        region     = var.gcp_region
+      }
+    }
+
     # ── NextAuth & Frontend APIs (must be served by Next.js Frontend) ────────
     rewrites {
       glob = "/api/auth/**"
