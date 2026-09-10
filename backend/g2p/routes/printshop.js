@@ -1509,4 +1509,15 @@ router.post('/agent-token', requireShopkeeper, async (req, res) => {
   }
 });
 
+// ─── PUBLIC: GET /printshop/agent-download ─────────────────────────────────────
+router.get('/agent-download', async (req, res) => {
+  try {
+    const downloadUrl = await generatePresignedGetUrl('agent/Share2Me-PrintAgent.exe', 'Share2Me-PrintAgent.exe', 'download');
+    return res.redirect(302, downloadUrl);
+  } catch (err) {
+    console.error('[PrintShop] GET /agent-download error:', err);
+    return res.status(500).json({ error: 'failed_to_generate_download' });
+  }
+});
+
 module.exports = router;

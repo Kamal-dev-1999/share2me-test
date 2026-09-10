@@ -68,6 +68,7 @@ function attachG2PSockets(io, metrics, bannedIPs) {
         
         // Save connection
         connectedAgents.set(vendorId, { socketId: socket.id, printers: [] });
+        emitToVendor(vendorId, 'printshop:agent_online', { online: true });
         
         console.log(`[Agent] Authenticated for vendor ${vendorId}`);
         cb?.({ ok: true, vendorId });
@@ -150,6 +151,7 @@ function attachG2PSockets(io, metrics, bannedIPs) {
         if (agentData && agentData.socketId === socket.id) {
           connectedAgents.delete(vendorId);
           emitToVendor(vendorId, 'printshop:printers_updated', { printers: [] });
+          emitToVendor(vendorId, 'printshop:agent_online', { online: false });
           console.log(`[Agent] Disconnected for vendor ${vendorId}`);
         }
       }

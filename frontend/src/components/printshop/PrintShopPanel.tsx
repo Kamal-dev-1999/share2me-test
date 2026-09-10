@@ -113,9 +113,17 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean, strin
       });
     });
 
-    socket.on("printshop:printers_updated", (payload: { printers: string[] }) => {
+    socket.on("printshop:agent_online", (payload: { online: boolean }) => {
+      setAgentOnline(payload.online);
+    });
+
+    socket.on("printshop:printers_updated", (payload: { printers: string[]; online?: boolean }) => {
       setAgentPrinters(payload.printers);
-      setAgentOnline(payload.printers.length > 0);
+      if (payload.online !== undefined) {
+        setAgentOnline(payload.online);
+      } else if (payload.printers.length > 0) {
+        setAgentOnline(true);
+      }
     });
 
     return () => { socket.disconnect(); };
@@ -552,6 +560,53 @@ export function PrintShopPanel({ token }: { token: string | null }) {
     }
   }, [agentPrinters, selectedPrinter]);
 
+  // Automatically fetch agent token on mount for zero-click background linking
+  useEffect(() => {
+    if (token && !agentToken) {
+      fetchAgentToken();
+    }
+  }, [token, agentToken]);
+
+  // Zero-click background auto-connection to local print agent
+  useEffect(() => {
+    if (agentOnline || !agentToken) return;
+
+    let cancelled = false;
+
+    const probeAndConnect = async () => {
+      try {
+        // Probe local bridge on port 13337
+        const res = await fetch("http://localhost:13337/status", {
+          headers: { Accept: "application/json" },
+          signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal ? AbortSignal.timeout(2500) : undefined,
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+
+        // If local bridge is running, auto-authenticate
+        if (data.running && !data.connected) {
+          await fetch("http://localhost:13337/auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: agentToken, serverUrl: EXPRESS_BACKEND_URL }),
+            signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal ? AbortSignal.timeout(3000) : undefined,
+          });
+          if (!cancelled) refresh();
+        }
+      } catch {
+        // Agent not yet running on this machine; silently ignore
+      }
+    };
+
+    probeAndConnect();
+    const intervalId = setInterval(probeAndConnect, 4000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [agentOnline, agentToken, refresh]);
+
   const onConfirm = async (id: string) => {
     if (!token) return;
     try { await confirmJobPayment(id, token); refresh(); } catch { }
@@ -686,8 +741,12 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                 <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-[12px] font-bold">1</div>
                 <div>
                   <p className="text-[13px] font-medium mb-1">Download & Open the Print Agent</p>
-                  <p className="text-[12px] text-white/60 mb-2">Run the agent application on this computer. It will wait for your connection.</p>
-                  <a href="/Share2Me-PrintAgent.exe" download className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[13px] font-medium transition-colors border border-white/10">
+                  <p className="text-[12px] text-white/60 mb-2">Run the agent application on this computer. It auto-starts on system boot and connects silently.</p>
+                  <a
+                    href={`${EXPRESS_BACKEND_URL}/g2p/printshop/agent-download`}
+                    download="Share2Me-PrintAgent.exe"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[13px] font-bold transition-colors shadow-sm"
+                  >
                     <Download className="w-3.5 h-3.5" /> Download Agent (.exe)
                   </a>
                 </div>
@@ -696,8 +755,10 @@ export function PrintShopPanel({ token }: { token: string | null }) {
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-[12px] font-bold">2</div>
                 <div>
-                  <p className="text-[13px] font-medium mb-1">Link to Website</p>
-                  <p className="text-[12px] text-white/60 mb-3">Once the agent is open, click below to securely connect it.</p>
+                  <p className="text-[13px] font-medium mb-1">Automatic Link to Dashboard</p>
+                  <p className="text-[12px] text-white/60 mb-3">
+                    The dashboard automatically detects and connects to your local agent in the background. You can also manually reconnect below anytime.
+                  </p>
 
                   <button
                     onClick={async () => {
@@ -708,16 +769,20 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ token: agentToken, serverUrl: EXPRESS_BACKEND_URL })
                         });
-                        if (res.ok) alert('Agent linked successfully! The terminal should now say Connected.');
-                        else alert('Failed to link agent. Make sure it is running!');
+                        if (res.ok) {
+                          refresh();
+                          alert('Agent linked successfully!');
+                        } else {
+                          alert('Failed to link agent. Make sure it is running on this PC.');
+                        }
                       } catch {
                         alert('Could not connect to the agent. Make sure you opened the .exe first!');
                       }
                     }}
                     disabled={!agentToken}
-                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[13px] font-bold transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-[13px] font-bold transition-colors disabled:opacity-50 border border-white/15"
                   >
-                    Connect Agent
+                    {agentOnline ? "Re-link Agent" : "Connect Agent Now"}
                   </button>
                 </div>
               </div>

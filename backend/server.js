@@ -119,6 +119,9 @@ app.use((req, res, next) => {
   // Allow internal server-to-server calls for public blogs
   if (req.path.startsWith('/api/blogs')) return next();
 
+  // Allow direct browser download of local print agent binary
+  if (req.path === '/g2p/printshop/agent-download') return next();
+
   // Protect our backend API routes only (frontend pages like /g2p/[code] proxy to Next.js)
   const isApiRoute = req.path.startsWith('/api') ||
                      req.path.startsWith('/g2p/printshop') ||
