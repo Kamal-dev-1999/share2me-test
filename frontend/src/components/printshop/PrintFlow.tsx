@@ -17,12 +17,12 @@ import { motion, AnimatePresence } from "framer-motion";
 /* eslint-disable @next/next/no-img-element */
 import {
   Upload, FileText, Printer, Palette, CheckCircle2, Loader2, Clock,
-  Download, IndianRupee, MapPin, ChevronLeft, QrCode, Banknote, Check,
+  Download, MapPin, ChevronLeft, QrCode, Banknote, Check,
   Edit2, Shield, ShieldCheck, Lock, X, RefreshCw, AlertCircle
 } from "lucide-react";
 import QRCode from "react-qr-code";
 import {
-  getPublicShopSettings, submitPrintJob, inr, formatBytes, DEFAULT_SETTINGS,
+  getPublicShopSettings, inr, formatBytes, DEFAULT_SETTINGS,
   updateBulkJobPreferences,
   type PrintType, type PrintJob, type PublicShopInfo, type PaymentMethod, type PrintConfig,
 } from "@/lib/printShop";
@@ -127,7 +127,6 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
   };
 
   const effectiveSettings = settings ?? DEFAULT_SETTINGS;
-  const qrConfigured = !!effectiveSettings.qrUrl || !!effectiveSettings.charges_enabled;
 
   const total = useMemo(() => {
     if (!printType) return 0;
@@ -320,10 +319,10 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
           if (j.id !== payload.jobId) return j;
           return {
             ...j,
-            paymentStatus: (payload.paymentStatus || j.paymentStatus) as any,
+            paymentStatus: (payload.paymentStatus || j.paymentStatus) as PrintJob["paymentStatus"],
             paymentId: payload.paymentId || j.paymentId,
             paidAt: payload.paidAt || j.paidAt,
-            jobStatus: (payload.jobStatus || j.jobStatus) as any,
+            jobStatus: (payload.jobStatus || j.jobStatus) as PrintJob["jobStatus"],
             printedAt: payload.printedAt || j.printedAt,
             printType: payload.printType || j.printType,
             pricePerPage: payload.pricePerPage !== undefined ? payload.pricePerPage : j.pricePerPage,
@@ -443,8 +442,9 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
       setHasPaidOnline(false);
       setIsEditingPreferences(false);
       showToast("Preferences saved successfully!");
-    } catch (err: any) {
-      if (err.message && err.message.includes("order_locked")) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("order_locked")) {
         setEditError("This order was just confirmed by the vendor and is now locked.");
         setIsEditingPreferences(false);
         setLockedBanner("Order confirmed by vendor — preferences locked.");
@@ -564,9 +564,12 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
         page.drawText(`₹${j.totalAmount.toFixed(2)}`, { x: col3, y: currentY + 10, size: 11, font: bold, color: colors.primary });
         currentY -= 25;
       }
+      currentY -= 10;
+      page.drawText("Total:", { x: col2, y: currentY + 10, size: 11, font: bold, color: colors.primary });
+      page.drawText(`₹${totalAmount.toFixed(2)}`, { x: col3, y: currentY + 10, size: 11, font: bold, color: colors.primary });
 
       const pdfBytes = await doc.save();
-      const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1141,7 +1144,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
                 </div>
                 <div className="flex items-center gap-3 bg-blue-500/10 text-blue-700 px-4 py-3 rounded-xl border border-blue-500/20 text-[13px] text-left w-full max-w-sm mb-5">
                   <Printer className="w-5 h-5 shrink-0" />
-                  <p>Your document is in the print queue. We'll update this screen as soon as it's printed!</p>
+                  <p>Your document is in the print queue. We&apos;ll update this screen as soon as it&apos;s printed!</p>
                 </div>
                 <button onClick={downloadReceipt} className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors">
                   <Download className="w-4 h-4" /> Download receipt
@@ -1282,7 +1285,7 @@ export function PrintFlow({ shopCode, shopName }: { shopCode: string; shopName: 
 
               {/* Editable file list */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
-                {editingDrafts.map((draft, idx) => (
+                {editingDrafts.map((draft) => (
                   <div key={draft.jobId} className="bg-[#111827]/5 border border-[#111827]/10 rounded-2xl p-4 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="min-w-0 flex-1">

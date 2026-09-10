@@ -11,9 +11,9 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FileText, CheckCircle2, Clock, XCircle, IndianRupee, Palette, Printer,
+  FileText, CheckCircle2, Clock, XCircle, IndianRupee, Palette,
   X, ChevronRight, User, CalendarDays, BadgeCheck, CheckSquare, Printer as PrinterIcon, Download, Key, RefreshCw,
-  Shield, ShieldOff, Lock
+  Shield
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -76,10 +76,10 @@ export function useJobs(token?: string): [PrintJob[], () => void, boolean, strin
       paidAt?: string;
       jobStatus?: string;
       printedAt?: string;
-      printType?: any;
+      printType?: PrintJob["printType"];
       pricePerPage?: number;
       totalAmount?: number;
-      printConfig?: any;
+      printConfig?: PrintConfig;
       allowDownload?: boolean;
     }) => {
       setJobs((prev) => prev.map((j) => j.id === payload.jobId
@@ -637,7 +637,7 @@ export function PrintShopPanel({ token }: { token: string | null }) {
       await batchPrint(Array.from(selectedJobIds), selectedPrinter, token);
       setSelectedJobIds(new Set());
       refresh();
-    } catch (err) {
+    } catch {
       alert("Failed to send jobs to printer. Make sure the agent is running.");
     } finally {
       setBatchPrinting(false);
@@ -710,7 +710,7 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                         });
                         if (res.ok) alert('Agent linked successfully! The terminal should now say Connected.');
                         else alert('Failed to link agent. Make sure it is running!');
-                      } catch (err) {
+                      } catch {
                         alert('Could not connect to the agent. Make sure you opened the .exe first!');
                       }
                     }}
