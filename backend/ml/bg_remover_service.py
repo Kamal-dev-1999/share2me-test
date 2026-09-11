@@ -108,18 +108,18 @@ def get_session(model_name="isnet-general-use"):
 def load_initial_sessions():
     """
     Synchronous model pre-loading during container boot.
-    Runs while Cloud Run Startup CPU Boost is active so ONNX models load in ~1.5s from disk.
+    Pre-loads the primary high-speed SOTA model ('isnet-general-use') in ~1s.
+    The secondary fallback model ('u2net') will be loaded on-demand if fallback is triggered.
     """
     global is_initializing
-    logger.info("Pre-loading primary ML models ('isnet-general-use', 'u2net')...")
+    logger.info("Pre-loading primary ML model ('isnet-general-use')...")
     try:
         get_session("isnet-general-use")
-        get_session("u2net")
     except Exception as e:
         logger.error(f"Error during model pre-loading: {e}", exc_info=True)
     finally:
         is_initializing = False
-    logger.info("All primary ML models pre-loaded and ready for inference!")
+    logger.info("Primary ML model pre-loaded and ready for inference!")
 
 # Pre-load synchronously so Gunicorn --preload warms up memory before binding port 8080
 load_initial_sessions()
