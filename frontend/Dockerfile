@@ -3,10 +3,10 @@ FROM node:20-alpine AS deps
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json* ./
 
 # Full install — devDependencies (TypeScript, ESLint) are required by `next build`
-RUN npm ci
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 
 # ─── Stage 2: Build ───────────────────────────────────────────────────────────
