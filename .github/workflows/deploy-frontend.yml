@@ -52,6 +52,7 @@ jobs:
             ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/frontend:latest
           build-args: |
             NEXT_PUBLIC_SIGNAL_URL=https://${{ env.BACKEND_DOMAIN }}
+            NEXT_PUBLIC_GA_MEASUREMENT_ID=G-CCBEZ2KK0S
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

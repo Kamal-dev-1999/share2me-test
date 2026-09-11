@@ -82,11 +82,11 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://adservice.google.com https://googleads.g.doubleclick.net https://checkout.razorpay.com https://unpkg.com https://cdnjs.cloudflare.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://adservice.google.com https://googleads.g.doubleclick.net https://checkout.razorpay.com https://unpkg.com https://cdnjs.cloudflare.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
-              "connect-src 'self' blob: data: wss: ws: https: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:* https://www.google-analytics.com https://analytics.google.com https://region1.analytics.google.com https://pagead2.googlesyndication.com https://api.razorpay.com https://lumberjack-cx.razorpay.com https://unpkg.com",
+              "connect-src 'self' blob: data: wss: ws: https: http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:* https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://region1.analytics.google.com https://stats.g.doubleclick.net https://*.g.doubleclick.net https://pagead2.googlesyndication.com https://api.razorpay.com https://lumberjack-cx.razorpay.com https://unpkg.com",
               "media-src 'self' blob: https: http://localhost:* http://127.0.0.1:*",
               "worker-src 'self' blob: https://unpkg.com",
               "frame-src 'self' blob: https://www.googletagmanager.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://api.razorpay.com https://checkout.razorpay.com",

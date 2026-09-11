@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { Sparkles, Download, RotateCcw, Loader2, Image as ImageIcon, Sliders, Columns, Clipboard } from "lucide-react";
 import type { PdfTool } from "@/lib/pdfTools";
 import { ToolChrome, ToolDropZone } from "./ToolChrome";
+import { trackToolUse, trackDownload } from "@/lib/analytics";
 
 export function BgRemoverUI({ tool }: { tool: PdfTool }) {
   const [file, setFile] = useState<File | null>(null);
@@ -60,6 +61,11 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
     setOriginalUrl(URL.createObjectURL(f));
     setProcessedUrl(null);
     setSliderPos(50);
+    trackToolUse({
+      toolName: "bg-remover",
+      action: "select_file",
+      fileSizeBytes: f.size,
+    });
   };
 
   // Listen for global window Ctrl+V / Cmd+V paste events
@@ -121,6 +127,14 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
     setError(null);
 
     const targetModel = overrideModel || model;
+    const startTime = Date.now();
+
+    trackToolUse({
+      toolName: "bg-remover",
+      action: "process_start",
+      model: targetModel,
+      fileSizeBytes: file.size,
+    });
 
     try {
       const formData = new FormData();
@@ -215,8 +229,25 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
       if (processedUrl) URL.revokeObjectURL(processedUrl);
       const url = URL.createObjectURL(blob);
       setProcessedUrl(url);
+
+      const durationMs = Date.now() - startTime;
+      trackToolUse({
+        toolName: "bg-remover",
+        action: "process_success",
+        durationMs,
+        model: targetModel,
+        fileSizeBytes: file.size,
+      });
     } catch (err: any) {
       console.error("[BG_REMOVER] Processing error:", err);
+      trackToolUse({
+        toolName: "bg-remover",
+        action: "process_error",
+        durationMs: Date.now() - startTime,
+        model: targetModel,
+        fileSizeBytes: file.size,
+        errorReason: err.message,
+      });
       setError(err.message || "Background removal failed. Your original image is still intact — please try again.");
     } finally {
       setProcessing(false);
@@ -225,9 +256,19 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
 
   const downloadResult = () => {
     if (!processedUrl || !file) return;
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    trackToolUse({
+      toolName: "bg-remover",
+      action: "download",
+      fileSizeBytes: file.size,
+    });
+    trackDownload({
+      fileName: `${baseName}-no-bg.png`,
+      fileType: "png",
+      source: "bg-remover",
+    });
     const a = document.createElement("a");
     a.href = processedUrl;
-    const baseName = file.name.replace(/\.[^/.]+$/, "");
     a.download = `${baseName}-no-bg.png`;
     document.body.appendChild(a);
     a.click();
@@ -235,6 +276,10 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
   };
 
   const resetAll = () => {
+    trackToolUse({
+      toolName: "bg-remover",
+      action: "reset",
+    });
     if (originalUrl) URL.revokeObjectURL(originalUrl);
     if (processedUrl) URL.revokeObjectURL(processedUrl);
     setFile(null);

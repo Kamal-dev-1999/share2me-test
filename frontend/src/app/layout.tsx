@@ -5,6 +5,8 @@ import "./globals.css";
 
 import { SideRail } from "@/components/SideRail";
 import { Providers } from "@/components/Providers";
+import { AnalyticsTracker, WebVitals } from "@/components/analytics/AnalyticsTracker";
+import { GA_MEASUREMENT_ID } from "@/lib/analytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.share2me.in'),
@@ -326,8 +328,10 @@ export default function RootLayout({
         </svg>
         <SideRail />
         <Providers>{children}</Providers>
+        <AnalyticsTracker />
+        <WebVitals />
         <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-        <GoogleAnalytics gaId="G-8XDS75JXYK" />
+        <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
         <GoogleTagManager gtmId="GTM-KS4LVZSF" />
       </body>
     </html>
