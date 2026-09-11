@@ -10,52 +10,53 @@ export const GA_MEASUREMENT_ID =
 declare global {
   interface Window {
     gtag?: (...args: any[]) => void;
-    dataLayer?: any[];
+    dataLayer?: Object[];
   }
 }
 
 /**
- * Low-level safe wrapper around window.gtag
+ * Low-level safe wrapper around window.gtag and window.dataLayer.
+ * If gtag.js is still loading asynchronously, events are safely queued in window.dataLayer.
  */
 export function trackEvent(
   eventName: string,
   eventParams?: Record<string, string | number | boolean | undefined | null>
 ) {
-  if (typeof window !== "undefined" && typeof window.gtag === "function") {
-    // Clean undefined/null entries
-    const cleaned = eventParams
-      ? Object.fromEntries(
-          Object.entries(eventParams).filter(
-            ([, v]) => v !== undefined && v !== null
-          )
-        )
-      : undefined;
+  if (typeof window === "undefined") return;
 
+  const cleaned = eventParams
+    ? Object.fromEntries(
+        Object.entries(eventParams).filter(
+          ([, v]) => v !== undefined && v !== null
+        )
+      )
+    : undefined;
+
+  if (typeof window.gtag === "function") {
     window.gtag("event", eventName, cleaned);
+  } else {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: eventName,
+      ...cleaned,
+    });
   }
 }
 
 /**
- * Explicit SPA Pageview tracking
+ * Manual Pageview tracking.
+ * Note: GA4 Enhanced Measurement already tracks history changes automatically.
+ * Only call this if manual override is required.
  */
 export function trackPageView(url: string, title?: string) {
-  if (typeof window !== "undefined" && typeof window.gtag === "function") {
-    const pageTitle = title || (typeof document !== "undefined" ? document.title : "");
-    
-    // Config update
-    window.gtag("config", GA_MEASUREMENT_ID, {
-      page_path: url,
-      page_location: window.location.href,
-      page_title: pageTitle,
-    });
+  if (typeof window === "undefined") return;
+  const pageTitle = title || (typeof document !== "undefined" ? document.title : "");
 
-    // Custom page_view event
-    window.gtag("event", "page_view", {
-      page_path: url,
-      page_location: window.location.href,
-      page_title: pageTitle,
-    });
-  }
+  trackEvent("page_view", {
+    page_path: url,
+    page_location: window.location.href,
+    page_title: pageTitle,
+  });
 }
 
 /**
