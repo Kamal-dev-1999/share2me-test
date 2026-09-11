@@ -2,7 +2,7 @@ name: Deploy Frontend to Cloud Run
 
 on:
   push:
-    branches: [main, gcp-migration, v3.5]
+    branches: [v3.5]
     paths:
       - 'frontend/**'
       - '.github/workflows/deploy-frontend.yml'

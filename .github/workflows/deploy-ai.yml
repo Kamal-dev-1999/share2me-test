@@ -2,7 +2,7 @@ name: Deploy AI Service to Cloud Run
 
 on:
   push:
-    branches: [main, gcp-migration, v3.5]
+    branches: [v3.5]
     paths:
       - 'backend/ml/**'
       - '.github/workflows/deploy-ai.yml'
