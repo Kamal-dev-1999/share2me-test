@@ -53,7 +53,6 @@ COPY --chown=nodeapp:nodejs lib/         ./lib/
 COPY --chown=nodeapp:nodejs p2p/         ./p2p/
 COPY --chown=nodeapp:nodejs g2p/         ./g2p/
 COPY --chown=nodeapp:nodejs routes/      ./routes/
-COPY --chown=nodeapp:nodejs ml/          ./ml/
 
 USER nodeapp
 

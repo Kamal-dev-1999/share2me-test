@@ -67,7 +67,7 @@ jobs:
             --concurrency=4 \
             --timeout=300s \
             --allow-unauthenticated \
-            --startup-cpu-boost \
+            --cpu-boost \
             --set-env-vars="INTERNAL_ML_SECRET=${{ secrets.INTERNAL_ML_SECRET || 'dc89162ed90f970e58c0f77d214ae497ad396fc0afa580e3210312dcf97305fb' }},OMP_NUM_THREADS=2,ONNXRUNTIME_NUM_THREADS=2" \
             --quiet
 
