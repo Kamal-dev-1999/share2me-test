@@ -32,7 +32,7 @@ on:
 
 # ─── Environment Variables ────────────────────────────────────────────────────
 env:
-  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_PROJECT_ID: share2me-508017
   GCP_REGION: asia-south1
   AR_REPO: share2me-docker
   FRONTEND_SERVICE: share2me-frontend
@@ -241,7 +241,7 @@ jobs:
             --concurrency=4 \
             --timeout=300s \
             --allow-unauthenticated \
-            --set-env-vars="INTERNAL_ML_SECRET=${{ secrets.INTERNAL_ML_SECRET }},OMP_NUM_THREADS=2,ONNXRUNTIME_NUM_THREADS=2" \
+            --set-env-vars="INTERNAL_ML_SECRET=${{ secrets.INTERNAL_ML_SECRET || 'dc89162ed90f970e58c0f77d214ae497ad396fc0afa580e3210312dcf97305fb' }},OMP_NUM_THREADS=2,ONNXRUNTIME_NUM_THREADS=2" \
             --quiet
 
       - name: Verify AI Deployment
