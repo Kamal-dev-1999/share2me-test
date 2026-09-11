@@ -131,24 +131,35 @@ export async function POST(request: NextRequest) {
       fetchHeaders["X-Internal-Secret"] = INTERNAL_ML_SECRET;
     }
 
+    const isLocal = ML_SERVICE_URL.includes("127.0.0.1") || ML_SERVICE_URL.includes("localhost");
     let mlRes: Response | null = null;
     try {
       mlRes = await fetch(ML_SERVICE_URL, {
         method: "POST",
         body: forwardFormData,
         headers: fetchHeaders,
+        signal: AbortSignal.timeout(isLocal ? 15000 : 50000),
       });
-    } catch (fetchErr) {
-      console.warn("[Next.js BG-Remover Route] ML service connection error. Triggering recovery/wakeup check...", fetchErr);
-      const recovered = await ensureMlServiceRunning();
-      if (recovered) {
-        mlRes = await fetch(ML_SERVICE_URL, {
-          method: "POST",
-          body: forwardFormData,
-          headers: fetchHeaders,
-        });
+    } catch (fetchErr: any) {
+      if (isLocal) {
+        console.warn("[Next.js BG-Remover Route] Local ML service connection error. Triggering recovery...", fetchErr?.message || fetchErr);
+        const recovered = await ensureMlServiceRunning();
+        if (recovered) {
+          mlRes = await fetch(ML_SERVICE_URL, {
+            method: "POST",
+            body: forwardFormData,
+            headers: fetchHeaders,
+            signal: AbortSignal.timeout(30000),
+          });
+        } else {
+          throw fetchErr;
+        }
       } else {
-        throw fetchErr;
+        console.error("[Next.js BG-Remover Route] Cloud Run ML service fetch error or timeout:", fetchErr?.message || fetchErr);
+        return NextResponse.json(
+          { error: "AI background removal service timed out while waking up from idle. Please click Try Again in a few moments." },
+          { status: 504 }
+        );
       }
     }
 

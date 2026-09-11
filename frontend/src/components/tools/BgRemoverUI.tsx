@@ -149,12 +149,15 @@ export function BgRemoverUI({ tool }: { tool: PdfTool }) {
         } else {
           try {
             const text = await res.text();
-            if (text && text.trim() && !text.toLowerCase().includes("<!doctype html>")) {
+            const lowerText = text ? text.toLowerCase() : "";
+            if (lowerText.includes("timeout") || lowerText.includes("503") || lowerText.includes("varnish")) {
+              message = "AI background removal service timed out while waking up from idle. Please click Try Again in a few moments.";
+            } else if (text && text.trim() && !lowerText.includes("<html") && !lowerText.includes("<!doctype") && !lowerText.includes("<?xml")) {
               message = text;
             } else if (res.status === 404) {
               message = "Background removal API endpoint not found (HTTP 404).";
             } else {
-              message = `Background removal API failed (HTTP ${res.status} ${res.statusText}).`;
+              message = `Background removal API failed (HTTP ${res.status} ${res.statusText}). Please try again.`;
             }
           } catch (e) {
             message = `Background removal API failed (HTTP ${res.status} ${res.statusText}).`;

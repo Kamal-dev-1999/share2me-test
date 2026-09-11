@@ -1,20 +1,36 @@
 import os
 import io
 import time
+import hmac
 import logging
+import threading
 import numpy as np
 from PIL import Image
 from flask import Flask, request, Response, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 import rembg
-
-import threading
+import onnxruntime as ort
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s - %(message)s')
 logger = logging.getLogger("BGRemoverML")
 
 app = Flask(__name__)
 
+# Apply ProxyFix so request.remote_addr and scheme accurately reflect client behind Cloud Run / Cloudflare
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Cap request payload at 25MB to prevent container OOM
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
+
 INTERNAL_ML_SECRET = os.environ.get("INTERNAL_ML_SECRET", "").strip()
+
+# Image dimension safeguards
+MAX_TOTAL_PIXELS = 25_000_000  # 25 Megapixels (e.g. 5000x5000)
+MAX_EDGE_DIMENSION = 4096       # Proportional clamp for runaway resolutions
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({"error": "Uploaded image is too large. Maximum allowed file size is 25MB."}), 413
 
 @app.before_request
 def verify_internal_secret():
@@ -22,20 +38,19 @@ def verify_internal_secret():
     if request.path in ('/health', '/ping', '/'):
         return None
 
-    # Enforce internal secret key authentication if configured
+    # Enforce constant-time internal secret key authentication if configured
     if INTERNAL_ML_SECRET:
         token = request.headers.get("X-Internal-Secret", "").strip()
         auth_header = request.headers.get("Authorization", "").strip()
         if auth_header.startswith("Bearer "):
             token = token or auth_header[7:].strip()
 
-        if not token or token != INTERNAL_ML_SECRET:
+        if not token or not hmac.compare_digest(token, INTERNAL_ML_SECRET):
             logger.warning(f"[Security] Unauthorized attempt to {request.path} from IP {request.remote_addr}")
             return jsonify({"error": "Forbidden: Access restricted to Share2Me backend."}), 403
 
     return None
 
-# High-Speed SOTA Architecture (1024x1024 IS-Net General + BiRefNet Fast)
 MODEL_LICENSE = "Apache 2.0 / MIT (Open Commercial & Self-Hosted Use)"
 DEFAULT_MODEL = "auto"
 
@@ -43,52 +58,71 @@ sessions = {}
 sessions_lock = threading.Lock()
 is_initializing = True
 
+def create_onnx_session_options():
+    """
+    Explicitly pin ONNX Runtime thread pool to match the container's CPU allocation.
+    Prevents host bare-metal oversubscription (e.g. spawning 64 threads on a 4-core container).
+    """
+    opts = ort.SessionOptions()
+    cpu_limit = int(os.environ.get("OMP_NUM_THREADS", "4"))
+    opts.intra_op_num_threads = cpu_limit
+    opts.inter_op_num_threads = 1
+    opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    return opts
+
 def get_session(model_name="isnet-general-use"):
     """
-    Model Session Factory & Cache:
-    Primary High-Speed SOTA Model: 'isnet-general-use' (1024x1024 high resolution, 1.1s execution)
+    Thread-Safe Model Session Factory & Cache with Double-Checked Locking.
     """
+    # Fast path: check without acquiring lock
+    if model_name in sessions:
+        return sessions[model_name]
+
     with sessions_lock:
+        # Re-check under lock
         if model_name in sessions:
             return sessions[model_name]
 
-    # Guard: Only allow models whose ONNX files are physically pre-baked in U2NET_HOME.
-    # Prevents downloading 1GB models (like birefnet) at runtime which causes request timeouts and OOM kills.
-    u2net_home = os.environ.get("U2NET_HOME", os.path.expanduser("~/.u2net"))
-    model_file = f"{model_name}.onnx"
-    model_path = os.path.join(u2net_home, model_file)
-    if not os.path.exists(model_path) and model_name not in ("isnet-general-use", "u2net"):
-        logger.warning(f"[Safe-Guard] Model '{model_name}' ONNX not pre-baked on disk. Routing to pre-baked high-precision 'isnet-general-use'.")
-        return get_session("isnet-general-use")
-
-    try:
-        logger.info(f"Initializing native rembg session for model '{model_name}'...")
-        session_instance = rembg.new_session(model_name)
-        with sessions_lock:
-            sessions[model_name] = session_instance
-        logger.info(f"rembg session for '{model_name}' initialized successfully!")
-        return session_instance
-    except Exception as err:
-        logger.error(f"Failed to load rembg session for '{model_name}': {err}", exc_info=True)
-        if model_name != "isnet-general-use":
+        u2net_home = os.environ.get("U2NET_HOME", os.path.expanduser("~/.u2net"))
+        model_file = f"{model_name}.onnx"
+        model_path = os.path.join(u2net_home, model_file)
+        if not os.path.exists(model_path) and model_name not in ("isnet-general-use", "u2net"):
+            logger.warning(f"[Safe-Guard] Model '{model_name}' ONNX not pre-baked on disk. Routing to pre-baked high-precision 'isnet-general-use'.")
             return get_session("isnet-general-use")
-        return None
+
+        try:
+            threads = os.environ.get("OMP_NUM_THREADS", "4")
+            logger.info(f"Initializing native rembg session for model '{model_name}' (threads={threads})...")
+            sess_opts = create_onnx_session_options()
+            session_instance = rembg.new_session(model_name, session_options=sess_opts)
+            sessions[model_name] = session_instance
+            logger.info(f"rembg session for '{model_name}' initialized successfully!")
+            return session_instance
+        except Exception as err:
+            logger.error(f"Failed to load rembg session for '{model_name}': {err}", exc_info=True)
+            if model_name != "isnet-general-use":
+                return get_session("isnet-general-use")
+            return None
 
 def load_initial_sessions():
+    """
+    Synchronous model pre-loading during container boot.
+    Runs while Cloud Run Startup CPU Boost is active so ONNX models load in ~1.5s from disk.
+    """
     global is_initializing
-    logger.info("Pre-loading primary ML models ('isnet-general-use', 'u2net') in background thread...")
+    logger.info("Pre-loading primary ML models ('isnet-general-use', 'u2net')...")
     try:
         get_session("isnet-general-use")
         get_session("u2net")
     except Exception as e:
-        logger.error(f"Error during background model pre-loading: {e}")
+        logger.error(f"Error during model pre-loading: {e}", exc_info=True)
     finally:
         is_initializing = False
     logger.info("All primary ML models pre-loaded and ready for inference!")
 
-# Start model pre-loading in background thread so Flask binds port 5002 instantly
-init_thread = threading.Thread(target=load_initial_sessions, daemon=True)
-init_thread.start()
+# Pre-load synchronously so Gunicorn --preload warms up memory before binding port 8080
+load_initial_sessions()
 
 def validate_mask_quality(result_img, orig_w, orig_h):
     """
@@ -137,9 +171,9 @@ def validate_mask_quality(result_img, orig_w, orig_h):
 def process_smart_pipeline(orig_img, requested_model="auto", post_process=True):
     """
     High-Speed Multi-Pass Pipeline:
-    1. Runs Primary Fast SOTA Model ('isnet-general-use' - 1.1s execution).
+    1. Runs Primary Fast SOTA Model ('isnet-general-use' - ~1.1s execution).
     2. Validates Mask Quality.
-    3. Triggers Fallback ('u2net' / 'birefnet-general') if primary pass scores low.
+    3. Triggers Fallback ('u2net') if primary pass scores low.
     """
     primary_model_name = "isnet-general-use"
     if requested_model == "anime":
@@ -177,17 +211,18 @@ def health():
     return jsonify({
         "service": "share2me-ai",
         "status": status_str,
-        "version": "2.0.0",
+        "version": "2.1.0",
         "is_initializing": is_initializing,
         "default_model": DEFAULT_MODEL,
         "loaded_models": list(sessions.keys()),
         "available_models": ["auto", "isnet-general-use", "birefnet-general", "birefnet-portrait", "u2net", "isnet-anime"],
         "capabilities": ["background-removal", "multi-model-ready"],
         "cpu_cores": os.cpu_count(),
+        "omp_threads": os.environ.get("OMP_NUM_THREADS", "4"),
         "auth_required": bool(INTERNAL_ML_SECRET),
         "license": MODEL_LICENSE,
         "engine": "Official rembg + IS-Net High-Speed SOTA Architecture",
-        "device": "CPU (Multi-Threaded ONNX Runtime)"
+        "device": "CPU (Pinned ONNX Runtime ThreadPool)"
     })
 
 @app.route('/remove-background', methods=['POST'])
@@ -203,17 +238,26 @@ def remove_background():
     post_process_str = request.form.get('post_process_mask', 'true').lower()
     post_process = post_process_str in ('true', '1', 'yes')
 
-    # If background model initialization is still running, wait up to 30s
-    if is_initializing and init_thread.is_alive():
-        logger.info("Inference requested while models pre-loading. Waiting for initialization thread to finish...")
-        init_thread.join(timeout=30)
-
     try:
         t0 = time.time()
         input_bytes = file.read()
         
-        orig_img = Image.open(io.BytesIO(input_bytes)).convert("RGB")
+        orig_img = Image.open(io.BytesIO(input_bytes))
         orig_w, orig_h = orig_img.size
+
+        # Guard against decompression bomb attacks
+        if orig_w * orig_h > MAX_TOTAL_PIXELS:
+            return jsonify({
+                "error": f"Image dimensions too large ({orig_w}x{orig_h}). Maximum supported resolution is 25 megapixels."
+            }), 400
+
+        # Proportionally constrain huge edge dimensions for optimal inference speed & memory
+        if orig_w > MAX_EDGE_DIMENSION or orig_h > MAX_EDGE_DIMENSION:
+            orig_img.thumbnail((MAX_EDGE_DIMENSION, MAX_EDGE_DIMENSION), Image.Resampling.LANCZOS)
+            orig_w, orig_h = orig_img.size
+            logger.info(f"Scaled image dimensions to {orig_w}x{orig_h} for optimal inference performance.")
+
+        orig_img = orig_img.convert("RGB")
         logger.info(f"BG Removal starting for {file.filename} ({orig_w}x{orig_h}) | requested_model='{requested_model}', post_process={post_process}...")
 
         result_img, selected_model, fallback_triggered, metrics = process_smart_pipeline(

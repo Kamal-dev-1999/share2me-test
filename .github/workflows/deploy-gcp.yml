@@ -233,15 +233,15 @@ jobs:
           gcloud run deploy ${{ env.AI_SERVICE }} \
             --image=${IMAGE}:${{ github.sha }} \
             --region=${{ env.GCP_REGION }} \
-            --cpu=4 \
-            --memory=4Gi \
+            --cpu=2 \
+            --memory=8Gi \
             --execution-environment=gen2 \
             --min-instances=0 \
             --max-instances=5 \
-            --concurrency=12 \
+            --concurrency=4 \
             --timeout=300s \
             --allow-unauthenticated \
-            --set-env-vars="INTERNAL_ML_SECRET=${{ secrets.INTERNAL_ML_SECRET }}" \
+            --set-env-vars="INTERNAL_ML_SECRET=${{ secrets.INTERNAL_ML_SECRET }},OMP_NUM_THREADS=2,ONNXRUNTIME_NUM_THREADS=2" \
             --quiet
 
       - name: Verify AI Deployment
