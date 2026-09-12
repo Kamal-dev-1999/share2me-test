@@ -4,7 +4,7 @@ import G2pDashboard from "@/components/G2pDashboard";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, UserCheck, Send, HardDrive, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { signIn, signOut, useSession, SessionProvider } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { RoleSelectModal } from "@/components/printshop/RoleSelectModal";
 import { getPersona, type UserPersona } from "@/lib/printShop";
 
@@ -12,8 +12,7 @@ function G2PContent() {
   const { data: session, status } = useSession();
   const isLoading = status === "loading";
 
-  // Persona gate — each Google ACCOUNT gets asked Print Shop / Personal / Educator
-  // once.
+  // Persona gate — each Google ACCOUNT gets asked Print Shop / Personal / Educator once.
   const email = session?.user?.email ?? null;
   const [token, setToken] = useState<string | null>(null);
   const [persona, setPersonaState] = useState<UserPersona | null>(null);
@@ -24,8 +23,8 @@ function G2PContent() {
     if (status === "loading") return;
     if (status === "authenticated" && email) {
       fetch("/api/g2p-token", { cache: "no-store" })
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           if (data.token) {
             setToken(data.token);
             return getPersona(email, data.token);
@@ -49,14 +48,25 @@ function G2PContent() {
     }
   }, [email, status]);
 
-  const g2pUser = session?.user
+  interface ExtendedSessionUser {
+    id?: string;
+    email?: string | null;
+    name?: string | null;
+    image?: string | null;
+    shareCode?: string;
+    planType?: string;
+  }
+
+  const sessionUser = session?.user as ExtendedSessionUser | undefined;
+
+  const g2pUser = sessionUser
     ? {
-        userId: (session.user as any).id as string,
-        email: session.user.email as string,
-        username: session.user.name as string,
-        shareCode: (session.user as any).shareCode as string,
-        profilePhoto: session.user.image as string,
-        planType: ((session.user as any).planType as string) || "FREE",
+        userId: sessionUser.id ?? "",
+        email: sessionUser.email ?? "",
+        username: sessionUser.name ?? "",
+        shareCode: sessionUser.shareCode ?? "",
+        profilePhoto: sessionUser.image ?? "",
+        planType: sessionUser.planType || "FREE",
         googleId: "",
         createdAt: new Date().toISOString(),
       }
@@ -83,12 +93,20 @@ function G2PContent() {
       <div className="min-h-screen bg-background text-on-surface font-body p-4 sm:p-6 md:overflow-hidden flex flex-col">
         {/* One-time persona picker after Google sign-in */}
         {personaChecked && needsSelection && (
-          <RoleSelectModal account={email} token={token} onSelected={(p) => {
-            setPersonaState(p);
-            setNeedsSelection(false);
-          }} />
+          <RoleSelectModal
+            account={email}
+            token={token}
+            onSelected={(p) => {
+              setPersonaState(p);
+              setNeedsSelection(false);
+            }}
+          />
         )}
-        <G2pDashboard user={g2pUser} onLogout={() => signOut()} initialPersona={persona || "PERSONAL"} />
+        <G2pDashboard
+          user={g2pUser}
+          onLogout={() => signOut()}
+          initialPersona={persona || "PERSONAL"}
+        />
       </div>
     );
   }
@@ -250,9 +268,7 @@ function G2PContent() {
 export default function G2PPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
-      <SessionProvider>
-        <G2PContent />
-      </SessionProvider>
+      <G2PContent />
     </Suspense>
   );
 }

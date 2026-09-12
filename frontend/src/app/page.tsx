@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import { SideRail } from "@/components/SideRail";
-import { signIn, useSession, SessionProvider } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { getBackendUrl } from "@/lib/backendUrl";
 import {
   FileText, ImageIcon, FileImage, Film, PenTool,
@@ -390,9 +390,7 @@ function HomeContent() {
 export default function Home() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#CDC3E4]" />}>
-      <SessionProvider>
-        <HomeContent />
-      </SessionProvider>
+      <HomeContent />
     </Suspense>
   );
 }
