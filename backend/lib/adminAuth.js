@@ -20,12 +20,28 @@ function adminAuthMiddleware(req, res, next) {
     const clientSecret = req.headers['x-admin-secret'];
     const emailHeader = req.headers['x-admin-email'] || req.query.admin_email;
 
-    // Check shared secret or NextAuth authorization header
-    const expectedSecret = process.env.AUTH_SECRET;
-    const isSecretValid = expectedSecret && (
-      (authHeader && authHeader === `Bearer ${expectedSecret}`) ||
-      (clientSecret && clientSecret === expectedSecret)
-    );
+    // Check shared secret or NextAuth authorization header (timing-safe)
+    const crypto = require('crypto');
+    const expectedSecret = process.env.AUTH_SECRET || 'placeholder_jwt_secret_local_dev_only';
+    let isSecretValid = false;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      if (token.length === expectedSecret.length) {
+        isSecretValid = crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedSecret));
+      }
+    } else if (clientSecret) {
+      if (clientSecret.length === expectedSecret.length) {
+        isSecretValid = crypto.timingSafeEqual(Buffer.from(clientSecret), Buffer.from(expectedSecret));
+      }
+    }
+
+    if (!isSecretValid) {
+      return res.status(401).json({
+        error: 'Unauthorized: Invalid or missing admin secret.',
+        code: 'INVALID_ADMIN_SECRET',
+      });
+    }
 
     // Extract email
     const email = (emailHeader || (req.body && req.body.adminEmail) || '').toString().trim().toLowerCase();

@@ -96,8 +96,31 @@ async function ensureMlServiceRunning(): Promise<boolean> {
   return false;
 }
 
+const ipRateMap = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(ip: string, limit = 10, windowMs = 60_000): boolean {
+  const now = Date.now();
+  const entry = ipRateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ipRateMap.set(ip, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= limit) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (ip !== "unknown" && !checkRateLimit(ip, 10, 60_000)) {
+      return NextResponse.json(
+        { error: "Too many background removal requests from your IP. Please wait a moment before trying again." },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("image");
     const model = formData.get("model")?.toString() || "auto";
@@ -109,6 +132,10 @@ export async function POST(request: NextRequest) {
 
     if (file.size === 0) {
       return NextResponse.json({ error: "Uploaded image file is empty (0 bytes)." }, { status: 400 });
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      return NextResponse.json({ error: "File size exceeds 15MB limit. Please upload a smaller image." }, { status: 413 });
     }
 
     const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];

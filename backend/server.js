@@ -205,7 +205,11 @@ app.get('/api/ice-servers', async (_req, res) => {
   }
 
   res.setHeader('Cache-Control', 'public, max-age=300');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = _req.headers.origin;
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.json({ iceServers });
 });
 
