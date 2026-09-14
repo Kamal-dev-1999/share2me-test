@@ -163,7 +163,7 @@ export const metadata: Metadata = {
   },
   other: {
     'google-adsense-account': 'ca-pub-3981074780272106',
-    'monetag': 'e7a411684746076c8866b84b61029822',
+    'monetag': '693bcd3157f3fb9f70477feb7fae2765',
   },
 };
 
@@ -179,7 +179,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="light" suppressHydrationWarning>
       <head>
-        <meta name="monetag" content="e7a411684746076c8866b84b61029822" />
+        <meta name="monetag" content="693bcd3157f3fb9f70477feb7fae2765" />
         <meta name="google-adsense-account" content="ca-pub-3981074780272106" />
         <script
           async
@@ -191,125 +191,125 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@graph": [
-                {
-                  "@type": "WebSite",
-                  "@id": "https://www.share2me.in/#website",
-                  "url": "https://www.share2me.in",
-                  "name": "Share2Me",
-                  "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
-                  "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": {
-                      "@type": "EntryPoint",
-                      "urlTemplate": "https://www.share2me.in/?q={search_term_string}"
-                    },
-                    "query-input": "required name=search_term_string"
-                  }
-                },
-                {
-                  "@type": "Organization",
-                  "@id": "https://www.share2me.in/#organization",
-                  "name": "Share2Me",
-                  "url": "https://www.share2me.in",
-                  "logo": "https://www.share2me.in/logo.png",
-                  "brand": {
-                    "@type": "Brand",
-                    "name": "Share2Me",
-                    "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"]
-                  },
-                  "sameAs": [
-                    "https://github.com/share2me",
-                    "https://www.linkedin.com/company/share2me"
-                  ]
-                },
-                {
-                  "@type": "WebApplication",
-                  "@id": "https://www.share2me.in/#webapp",
-                  "name": "Share2Me",
-                  "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
-                  "url": "https://www.share2me.in",
-                  "description": "Secure, unlimited P2P file sharing and text sharing directly in your browser. No cloud storage, no sign-ups required.",
-                  "applicationCategory": "UtilitiesApplication",
-                  "operatingSystem": "All",
-                  "offers": {
-                    "@type": "Offer",
-                    "price": "0",
-                    "priceCurrency": "USD"
-                  }
-                },
-                {
-                  "@type": "SoftwareApplication",
-                  "@id": "https://www.share2me.in/#softwareapp",
-                  "name": "Share2Me",
-                  "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
-                  "url": "https://www.share2me.in",
-                  "applicationCategory": "UtilitiesApplication",
-                  "operatingSystem": "All",
-                  "offers": {
-                    "@type": "Offer",
-                    "price": "0",
-                    "priceCurrency": "USD"
-                  },
-                  "featureList": [
-                    "Peer-to-Peer file transfer",
-                    "End-to-End Encryption (AES-GCM-256)",
-                    "Ephemeral key exchange (ECDH P-256)",
-                    "No file size limit",
-                    "Text clipboard sharing",
-                    "Cross-platform WebRTC streaming"
-                  ]
-                },
-                {
-                  "@type": "FAQPage",
-                  "@id": "https://www.share2me.in/#faq",
-                  "mainEntity": [
-                    {
-                      "@type": "Question",
-                      "name": "What is the maximum file size limit on Share2Me?",
-                      "acceptedAnswer": {
-                        "@type": "Answer",
-                        "text": "There are absolutely no file size limits on Share2Me. Because the transfer is established directly peer-to-peer (P2P) between the sender and receiver browsers via WebRTC, the data does not pass through or store on any intermediate cloud server."
-                      }
-                    },
-                    {
-                      "@type": "Question",
-                      "name": "Is my data secure when transferring files and text?",
-                      "acceptedAnswer": {
-                        "@type": "Answer",
-                        "text": "Yes, completely secure. All transfers are end-to-end encrypted using military-grade AES-GCM-256 encryption. The encryption key is derived locally on your device via ephemeral ECDH (P-256) key exchange, meaning the raw key never leaves your browser and cannot be read by anyone, including the signaling server."
-                      }
-                    },
-                    {
-                      "@type": "Question",
-                      "name": "Do both devices need to be online at the same time?",
-                      "acceptedAnswer": {
-                        "@type": "Answer",
-                        "text": "Yes. Because Share2Me uses direct WebRTC peer-to-peer tunnels to transfer data, both the sending device and the receiving device must have the page open and be online concurrently to perform the transfer."
-                      }
-                    },
-                    {
-                      "@type": "Question",
-                      "name": "Can I transfer files between different operating systems?",
-                      "acceptedAnswer": {
-                        "@type": "Answer",
-                        "text": "Absolutely. Share2Me is entirely browser-native and cross-platform. It works seamlessly between iOS, Android, macOS, Windows, Linux, and any other operating system running a modern web browser, without needing any software installations."
-                      }
-                    },
-                    {
-                      "@type": "Question",
-                      "name": "Can I send clipboard text and messages securely?",
-                      "acceptedAnswer": {
-                        "@type": "Answer",
-                        "text": "Yes. Share2Me offers a dedicated Text Transfer mode. Copy-paste any text, passwords, or code snippets, and it will be encrypted and streamed securely through the same WebRTC pipeline, complete with a convenient 'Copy All' button for the receiver."
-                      }
-                    }
-                  ]
-                }
-              ]
-            })
-          }}
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://www.share2me.in/#website",
+          "url": "https://www.share2me.in",
+          "name": "Share2Me",
+          "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://www.share2me.in/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://www.share2me.in/#organization",
+          "name": "Share2Me",
+          "url": "https://www.share2me.in",
+          "logo": "https://www.share2me.in/logo.png",
+          "brand": {
+            "@type": "Brand",
+            "name": "Share2Me",
+            "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"]
+          },
+          "sameAs": [
+            "https://github.com/share2me",
+            "https://www.linkedin.com/company/share2me"
+          ]
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://www.share2me.in/#webapp",
+          "name": "Share2Me",
+          "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
+          "url": "https://www.share2me.in",
+          "description": "Secure, unlimited P2P file sharing and text sharing directly in your browser. No cloud storage, no sign-ups required.",
+          "applicationCategory": "UtilitiesApplication",
+          "operatingSystem": "All",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://www.share2me.in/#softwareapp",
+          "name": "Share2Me",
+          "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
+          "url": "https://www.share2me.in",
+          "applicationCategory": "UtilitiesApplication",
+          "operatingSystem": "All",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "featureList": [
+            "Peer-to-Peer file transfer",
+            "End-to-End Encryption (AES-GCM-256)",
+            "Ephemeral key exchange (ECDH P-256)",
+            "No file size limit",
+            "Text clipboard sharing",
+            "Cross-platform WebRTC streaming"
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://www.share2me.in/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is the maximum file size limit on Share2Me?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "There are absolutely no file size limits on Share2Me. Because the transfer is established directly peer-to-peer (P2P) between the sender and receiver browsers via WebRTC, the data does not pass through or store on any intermediate cloud server."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is my data secure when transferring files and text?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, completely secure. All transfers are end-to-end encrypted using military-grade AES-GCM-256 encryption. The encryption key is derived locally on your device via ephemeral ECDH (P-256) key exchange, meaning the raw key never leaves your browser and cannot be read by anyone, including the signaling server."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Do both devices need to be online at the same time?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Because Share2Me uses direct WebRTC peer-to-peer tunnels to transfer data, both the sending device and the receiving device must have the page open and be online concurrently to perform the transfer."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I transfer files between different operating systems?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Absolutely. Share2Me is entirely browser-native and cross-platform. It works seamlessly between iOS, Android, macOS, Windows, Linux, and any other operating system running a modern web browser, without needing any software installations."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I send clipboard text and messages securely?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Share2Me offers a dedicated Text Transfer mode. Copy-paste any text, passwords, or code snippets, and it will be encrypted and streamed securely through the same WebRTC pipeline, complete with a convenient 'Copy All' button for the receiver."
+              }
+            }
+          ]
+        }
+      ]
+    })
+  }}
         />
       </head>
       <body className="min-h-screen bg-background text-on-surface font-body antialiased" suppressHydrationWarning>
