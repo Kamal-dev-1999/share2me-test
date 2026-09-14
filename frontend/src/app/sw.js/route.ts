@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 const SW_CONTENT = `self.options = {
     "domain": "5gvci.com",
-    "zoneId": 11802740
+    "zoneId": 11803047
 }
 self.lary = ""
 importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
