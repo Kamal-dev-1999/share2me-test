@@ -8,6 +8,8 @@ import { Providers } from "@/components/Providers";
 import { AnalyticsTracker, WebVitals } from "@/components/analytics/AnalyticsTracker";
 import { GA_MEASUREMENT_ID } from "@/lib/analytics";
 
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.share2me.in'),
   title: {
