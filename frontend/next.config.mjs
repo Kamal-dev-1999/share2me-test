@@ -61,6 +61,14 @@ const nextConfig = {
             key: "Cache-Control",
             value: "no-cache, no-store, must-revalidate",
           },
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*",
+          },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, HEAD, OPTIONS",
+          },
         ],
       },
       {
