@@ -189,7 +189,7 @@ export default function RootLayout({
         />
         <script
           src="https://quge5.com/88/tag.min.js"
-          data-zone="280659"
+          data-zone="281066"
           async
           data-cfasync="false"
         />
