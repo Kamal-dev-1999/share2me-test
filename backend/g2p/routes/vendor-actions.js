@@ -24,14 +24,14 @@ router.post('/upsert', async (req, res) => {
   try {
     // Check if exists first by auth_provider_id
     let existing = await query(
-      `SELECT id, share2me_id, email, plan_type FROM vendors WHERE auth_provider_id = $1`,
+      `SELECT id, share2me_id, email, plan_type, subscription_ends_at FROM vendors WHERE auth_provider_id = $1`,
       [providerId]
     );
 
     // If not found by providerId, check by email (handles legacy accounts)
     if (existing.rowCount === 0 && email) {
       existing = await query(
-        `SELECT id, share2me_id, email, plan_type FROM vendors WHERE email = $1`,
+        `SELECT id, share2me_id, email, plan_type, subscription_ends_at FROM vendors WHERE email = $1`,
         [email]
       );
       if (existing.rowCount > 0) {
@@ -44,11 +44,16 @@ router.post('/upsert', async (req, res) => {
     }
 
     if (existing.rowCount > 0) {
-      if (email && !existing.rows[0].email) {
+      const row = existing.rows[0];
+      if (email && !row.email) {
         // Backfill email if it was previously missing
-        await query(`UPDATE vendors SET email = $1 WHERE id = $2`, [email, existing.rows[0].id]);
+        await query(`UPDATE vendors SET email = $1 WHERE id = $2`, [email, row.id]);
+        row.email = email;
       }
-      return res.json(existing.rows[0]);
+      const isExpired = row.subscription_ends_at && new Date(row.subscription_ends_at) < new Date();
+      row.plan_type = (row.plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
+      row.is_pro = row.plan_type === 'PRO';
+      return res.json(row);
     }
 
     // Generate unique 6-char share2me_id (e.g. "A8B2C9")

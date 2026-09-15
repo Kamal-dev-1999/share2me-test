@@ -2,7 +2,14 @@
 import { Suspense, useEffect, useState } from "react";
 import G2pDashboard from "@/components/G2pDashboard";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, UserCheck, Send, HardDrive, MapPin } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  UserCheck,
+  Send,
+  HardDrive,
+  MapPin,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { RoleSelectModal } from "@/components/printshop/RoleSelectModal";
@@ -59,18 +66,23 @@ function G2PContent() {
 
   const sessionUser = session?.user as ExtendedSessionUser | undefined;
 
-  const g2pUser = (status === "authenticated" && Boolean(sessionUser?.email))
-    ? {
-        userId: sessionUser?.id ?? "",
-        email: sessionUser?.email ?? "",
-        username: sessionUser?.name ?? "",
-        shareCode: sessionUser?.shareCode ?? "",
-        profilePhoto: sessionUser?.image ?? "",
-        planType: sessionUser?.planType || "FREE",
-        googleId: "",
-        createdAt: new Date().toISOString(),
-      }
-    : null;
+  const g2pUser =
+    status === "authenticated" && Boolean(sessionUser?.email)
+      ? {
+          userId: sessionUser?.id ?? "",
+          email: sessionUser?.email ?? "",
+          username: sessionUser?.name ?? "",
+          shareCode: sessionUser?.shareCode ?? "",
+          profilePhoto: sessionUser?.image ?? "",
+          planType:
+            typeof window !== "undefined" &&
+            localStorage.getItem("share2me_is_pro") === "true"
+              ? "PRO"
+              : sessionUser?.planType || "FREE",
+          googleId: "",
+          createdAt: new Date().toISOString(),
+        }
+      : null;
 
   if (isLoading || (g2pUser && !personaChecked)) {
     return (
@@ -131,7 +143,8 @@ function G2PContent() {
             Receive Portal
           </h1>
           <p className="text-[13px] text-on-surface-variant mt-1 max-w-[560px]">
-            Create a permanent inbox to receive files from anyone using your Share Code.
+            Create a permanent inbox to receive files from anyone using your
+            Share Code.
           </p>
         </div>
 
@@ -148,7 +161,10 @@ function G2PContent() {
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-12 h-12 bg-surface-muted rounded-xl flex items-center justify-center">
-                    <HardDrive className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
+                    <HardDrive
+                      className="w-6 h-6 text-on-surface"
+                      strokeWidth={1.75}
+                    />
                   </div>
                   <span className="chip-outline">Free · Google auth</span>
                 </div>
@@ -156,7 +172,8 @@ function G2PContent() {
                   Create your portal
                 </h2>
                 <p className="text-[13px] text-on-surface-variant mb-6">
-                  Sign in to claim your permanent Share Code and start receiving files.
+                  Sign in to claim your permanent Share Code and start receiving
+                  files.
                 </p>
                 <button
                   onClick={() => signIn("google")}
@@ -177,7 +194,10 @@ function G2PContent() {
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                    <Send className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
+                    <Send
+                      className="w-6 h-6 text-on-surface"
+                      strokeWidth={1.75}
+                    />
                   </div>
                   <span className="chip-outline">Sender path</span>
                 </div>
@@ -190,14 +210,22 @@ function G2PContent() {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    const target = e.currentTarget.elements.namedItem("shareCodeInput") as HTMLInputElement;
+                    const target = e.currentTarget.elements.namedItem(
+                      "shareCodeInput",
+                    ) as HTMLInputElement;
                     const entered = target.value.trim();
-                    if (entered) window.location.href = `/g2p/${entered.toUpperCase()}`;
+                    if (entered)
+                      window.location.href = `/g2p/${entered.toUpperCase()}`;
                   }}
                   className="mt-auto flex flex-col sm:flex-row gap-2"
                 >
                   {/* Hidden sentinel — SPA-only form. Included to satisfy automated CSRF scanners. */}
-                  <input type="hidden" name="_protection" value="spa-csrf-exempt" readOnly />
+                  <input
+                    type="hidden"
+                    name="_protection"
+                    value="spa-csrf-exempt"
+                    readOnly
+                  />
                   <input
                     id="g2p-share-code-input"
                     type="text"
@@ -208,10 +236,7 @@ function G2PContent() {
                     placeholder="STY392"
                     className="input-brutalist font-mono uppercase tracking-[0.18em] text-[14px] font-semibold"
                   />
-                  <button
-                    type="submit"
-                    className="btn-brutalist shrink-0"
-                  >
+                  <button type="submit" className="btn-brutalist shrink-0">
                     Open
                     <ArrowRight className="w-4 h-4" strokeWidth={2} />
                   </button>
@@ -228,15 +253,21 @@ function G2PContent() {
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                    <MapPin className="w-6 h-6 text-on-surface" strokeWidth={1.75} />
+                    <MapPin
+                      className="w-6 h-6 text-on-surface"
+                      strokeWidth={1.75}
+                    />
                   </div>
-                  <span className="chip-outline bg-white border-hairline">Print Shop</span>
+                  <span className="chip-outline bg-white border-hairline">
+                    Print Shop
+                  </span>
                 </div>
                 <h3 className="text-[20px] md:text-[22px] font-semibold text-on-surface mb-1.5 leading-tight">
                   Find a print shop
                 </h3>
                 <p className="text-[13px] text-on-surface-variant mb-6">
-                  Locate nearby print shops to send your files directly to their machines.
+                  Locate nearby print shops to send your files directly to their
+                  machines.
                 </p>
                 <Link
                   href="/g2p/nearby"
@@ -256,8 +287,18 @@ function G2PContent() {
           <span className="font-semibold text-on-surface">Share2Me</span>
           <span>© 2026 Share2Me — All rights reserved</span>
           <div className="flex items-center gap-5">
-            <Link href="/privacy" className="hover:text-on-surface transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-on-surface transition-colors">Terms</Link>
+            <Link
+              href="/privacy"
+              className="hover:text-on-surface transition-colors"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/terms"
+              className="hover:text-on-surface transition-colors"
+            >
+              Terms
+            </Link>
           </div>
         </div>
       </footer>

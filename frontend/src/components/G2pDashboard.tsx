@@ -1,13 +1,47 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Copy, Check, Search, Download, Trash2, Calendar,
-  ArrowUpDown, FileText, FileImage, Film,
-  FolderArchive, LogOut, Volume2, VolumeX,
-  Inbox, QrCode, ChevronDown, Eye, Settings, X, HardDrive, ArrowRight, BarChart, User, Loader2,
-  CloudDownload, Share2, Activity, Bell, BellOff, CheckCircle2,
-  FileCode, FileSpreadsheet, FileAudio, FileQuestion,
-  Printer, IndianRupee, LayoutDashboard, Crown, Sparkles, ShieldCheck
+  Copy,
+  Check,
+  Search,
+  Download,
+  Trash2,
+  Calendar,
+  ArrowUpDown,
+  FileText,
+  FileImage,
+  Film,
+  FolderArchive,
+  LogOut,
+  Volume2,
+  VolumeX,
+  Inbox,
+  QrCode,
+  ChevronDown,
+  Eye,
+  Settings,
+  X,
+  HardDrive,
+  ArrowRight,
+  BarChart,
+  User,
+  Loader2,
+  CloudDownload,
+  Share2,
+  Activity,
+  Bell,
+  BellOff,
+  CheckCircle2,
+  FileCode,
+  FileSpreadsheet,
+  FileAudio,
+  FileQuestion,
+  Printer,
+  IndianRupee,
+  LayoutDashboard,
+  Crown,
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
@@ -16,11 +50,19 @@ import { PrintShopPanel } from "@/components/printshop/PrintShopPanel";
 import { PaymentsPanel } from "@/components/printshop/PaymentsPanel";
 import { PrintJobNotifier } from "@/components/printshop/PrintJobNotifier";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell
-} from 'recharts';
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { getBackendUrl } from "@/lib/backendUrl";
-
+import { useSession } from "next-auth/react";
 
 interface UserProfile {
   userId: string;
@@ -49,7 +91,8 @@ interface UploadRecord {
   uploadedAt: string;
 }
 
-type TabMode = "inbox" | "share" | "settings" | "analytics" | "printshop" | "payments";
+type TabMode =
+  "inbox" | "share" | "settings" | "analytics" | "printshop" | "payments";
 
 const EXPRESS_BACKEND_URL = getBackendUrl();
 
@@ -62,26 +105,44 @@ function getIconMetadata(mimeType: string, filename: string) {
   if (name.match(/\.(doc|docx)$/) || mimeType.includes("word")) {
     return { Icon: FileText, grad: "grad-word", label: "DOC" };
   }
-  if (name.match(/\.(xls|xlsx|csv)$/) || mimeType.includes("excel") || mimeType.includes("spreadsheet")) {
+  if (
+    name.match(/\.(xls|xlsx|csv)$/) ||
+    mimeType.includes("excel") ||
+    mimeType.includes("spreadsheet")
+  ) {
     return { Icon: FileSpreadsheet, grad: "grad-excel", label: "XLS" };
   }
   if (name.match(/\.(ppt|pptx)$/) || mimeType.includes("presentation")) {
     return { Icon: FileText, grad: "grad-ppt", label: "PPT" };
   }
-  if (name.match(/\.(png|jpg|jpeg|gif|webp|svg)$/) || mimeType.startsWith("image/")) {
-    const ext = name.split('.').pop()?.toUpperCase().substring(0, 3) || "IMG";
+  if (
+    name.match(/\.(png|jpg|jpeg|gif|webp|svg)$/) ||
+    mimeType.startsWith("image/")
+  ) {
+    const ext = name.split(".").pop()?.toUpperCase().substring(0, 3) || "IMG";
     return { Icon: FileImage, grad: "grad-image", label: ext };
   }
-  if (name.match(/\.(mp4|mov|avi|mkv|webm)$/) || mimeType.startsWith("video/")) {
+  if (
+    name.match(/\.(mp4|mov|avi|mkv|webm)$/) ||
+    mimeType.startsWith("video/")
+  ) {
     return { Icon: Film, grad: "grad-video", label: "VID" };
   }
   if (name.match(/\.(mp3|wav|ogg)$/) || mimeType.startsWith("audio/")) {
     return { Icon: FileAudio, grad: "grad-audio", label: "AUD" };
   }
-  if (name.match(/\.(zip|rar|7z|tar|gz)$/) || mimeType.includes("zip") || mimeType.includes("compressed")) {
+  if (
+    name.match(/\.(zip|rar|7z|tar|gz)$/) ||
+    mimeType.includes("zip") ||
+    mimeType.includes("compressed")
+  ) {
     return { Icon: FolderArchive, grad: "grad-archive", label: "ZIP" };
   }
-  if (name.match(/\.(js|ts|html|css|json|jsx|tsx|py|cpp|c|go|rs)$/) || mimeType.includes("json") || mimeType.includes("javascript")) {
+  if (
+    name.match(/\.(js|ts|html|css|json|jsx|tsx|py|cpp|c|go|rs)$/) ||
+    mimeType.includes("json") ||
+    mimeType.includes("javascript")
+  ) {
     return { Icon: FileCode, grad: "grad-code", label: "CODE" };
   }
 
@@ -102,20 +163,23 @@ function formatSize(bytes: number) {
 function UploadRecordRow({
   record,
   onDelete,
-  onAction
+  onAction,
 }: {
   record: UploadRecord;
   onDelete: (id: string) => void;
-  onAction: (file: UploadedFile, action: 'preview' | 'download') => Promise<void>;
+  onAction: (
+    file: UploadedFile,
+    action: "preview" | "download",
+  ) => Promise<void>;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleDownloadAll = async (e: React.MouseEvent) => {
     e.stopPropagation();
     for (let i = 0; i < record.files.length; i++) {
-      await onAction(record.files[i], 'download');
+      await onAction(record.files[i], "download");
       if (i < record.files.length - 1) {
-        await new Promise(res => setTimeout(res, 600)); // 600ms delay to prevent browser blocking
+        await new Promise((res) => setTimeout(res, 600)); // 600ms delay to prevent browser blocking
       }
     }
   };
@@ -134,29 +198,48 @@ function UploadRecordRow({
             {record.senderName.charAt(0).toUpperCase()}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="font-bold text-[#111827] truncate font-display">{record.senderName}</span>
+            <span className="font-bold text-[#111827] truncate font-display">
+              {record.senderName}
+            </span>
             {/* Mobile: date tucks under the name instead of its own column */}
             <span className="md:hidden text-[10px] text-[#111827]/60 font-mono">
-              {new Date(record.uploadedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+              {new Date(record.uploadedAt).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
             </span>
           </div>
         </div>
 
-        <div className="hidden md:block text-[#111827]/70 truncate italic text-xs">{record.message || "—"}</div>
+        <div className="hidden md:block text-[#111827]/70 truncate italic text-xs">
+          {record.message || "—"}
+        </div>
 
         <div>
           <span className="px-2.5 py-1 rounded-full bg-[#111827]/5 border border-[#111827]/10 text-xs font-bold text-[#111827] whitespace-nowrap">
-            {record.files.length} file{record.files.length > 1 ? 's' : ''}
+            {record.files.length} file{record.files.length > 1 ? "s" : ""}
           </span>
         </div>
 
-        <div className="hidden md:block text-[#111827]/70 font-mono text-xs">{formatSize(totalSize)}</div>
-
-        <div className="hidden md:block text-[#111827]/70 text-xs font-mono">
-          {new Date(record.uploadedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+        <div className="hidden md:block text-[#111827]/70 font-mono text-xs">
+          {formatSize(totalSize)}
         </div>
 
-        <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+        <div className="hidden md:block text-[#111827]/70 text-xs font-mono">
+          {new Date(record.uploadedAt).toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </div>
+
+        <div
+          className="flex items-center justify-end gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             onClick={handleDownloadAll}
             title="Download All"
@@ -172,7 +255,9 @@ function UploadRecordRow({
             <Trash2 className="w-4 h-4" />
           </button>
           <button className="w-8 h-8 flex items-center justify-center text-[#111827]/50 hover:text-[#111827] transition-colors">
-            <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
+            />
           </button>
         </div>
       </div>
@@ -188,39 +273,67 @@ function UploadRecordRow({
           >
             <div className="p-4 space-y-2">
               {record.files.map((file, idx) => {
-                const { Icon, grad, label } = getIconMetadata(file.type, file.name);
+                const { Icon, grad, label } = getIconMetadata(
+                  file.type,
+                  file.name,
+                );
                 return (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/40 border border-white/60 hover:bg-white/60 transition-colors">
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 rounded-xl bg-white/40 border border-white/60 hover:bg-white/60 transition-colors"
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative w-12 h-12 rounded-xl bg-white/60 flex flex-col items-center shrink-0 shadow-sm border border-white/80 overflow-hidden group/icon">
                         <div className="flex-1 flex items-center justify-center w-full pt-0.5">
                           <Icon
                             className="relative z-10 w-5 h-5 transition-transform duration-300 group-hover/icon:scale-110 group-hover/icon:-translate-y-0.5"
-                            style={{ stroke: `url(#${grad})`, filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.15))" }}
+                            style={{
+                              stroke: `url(#${grad})`,
+                              filter:
+                                "drop-shadow(0px 2px 3px rgba(0,0,0,0.15))",
+                            }}
                             strokeWidth={2.5}
                           />
                         </div>
                         <div className="w-full h-3.5 bg-[#111827]/[0.03] flex items-center justify-center backdrop-blur-md border-t border-white/60 rounded-b-xl">
-                          <span className="text-[8px] font-black text-[#111827]/60 font-mono tracking-wider translate-y-[0.5px]">{label}</span>
+                          <span className="text-[8px] font-black text-[#111827]/60 font-mono tracking-wider translate-y-[0.5px]">
+                            {label}
+                          </span>
                         </div>
                       </div>
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-[#111827] truncate">{file.name}</span>
-                          {file.status === 'downloaded' && (
+                          <span className="text-sm font-bold text-[#111827] truncate">
+                            {file.name}
+                          </span>
+                          {file.status === "downloaded" && (
                             <span title="Viewed / Downloaded">
                               <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
                             </span>
                           )}
                         </div>
-                        <span className="text-xs text-[#111827]/60 font-mono mt-0.5">{formatSize(file.size)}</span>
+                        <span className="text-xs text-[#111827]/60 font-mono mt-0.5">
+                          {formatSize(file.size)}
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); onAction(file, 'preview'); }} className="w-8 h-8 rounded-lg bg-white/50 flex items-center justify-center hover:bg-white text-[#111827] shadow-sm">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAction(file, "preview");
+                        }}
+                        className="w-8 h-8 rounded-lg bg-white/50 flex items-center justify-center hover:bg-white text-[#111827] shadow-sm"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); onAction(file, 'download'); }} className="w-8 h-8 rounded-lg bg-[#111827] flex items-center justify-center hover:bg-black text-white shadow-sm">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAction(file, "download");
+                        }}
+                        className="w-8 h-8 rounded-lg bg-[#111827] flex items-center justify-center hover:bg-black text-white shadow-sm"
+                      >
                         <Download className="w-4 h-4" />
                       </button>
                     </div>
@@ -264,16 +377,30 @@ export default function G2pDashboard({
   const [website, setWebsite] = useState("");
   const [bio, setBio] = useState("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
-  const [profileUpdateStatus, setProfileUpdateStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [profileUpdateStatus, setProfileUpdateStatus] = useState<{
+    ok: boolean;
+    msg: string;
+  } | null>(null);
 
   const [persona, setPersona] = useState<string>(initialPersona);
   useEffect(() => {
     if (initialPersona) setPersona(initialPersona);
   }, [initialPersona]);
 
+  const { update: updateSession } = useSession();
   const [personaSelected, setPersonaSelected] = useState<boolean | null>(null);
-  const [planType, setPlanType] = useState<string>(user.planType || "FREE");
-  const isPro = planType ? ["PRO", "PREMIUM"].includes(planType.toUpperCase()) : false;
+  const [planType, setPlanType] = useState<string>(() => {
+    if (
+      typeof window !== "undefined" &&
+      localStorage.getItem("share2me_is_pro") === "true"
+    ) {
+      return "PRO";
+    }
+    return user.planType || "FREE";
+  });
+  const isPro = planType
+    ? ["PRO", "PREMIUM"].includes(planType.toUpperCase())
+    : false;
   const [subscriptionDetails, setSubscriptionDetails] = useState<{
     status: string;
     endsAt: string | null;
@@ -284,11 +411,14 @@ export default function G2pDashboard({
     daysRemaining: 0,
   });
   const [isUpdatingPersona, setIsUpdatingPersona] = useState(false);
-  const [personaUpdateStatus, setPersonaUpdateStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [personaUpdateStatus, setPersonaUpdateStatus] = useState<{
+    ok: boolean;
+    msg: string;
+  } | null>(null);
   const [isPersonaDropdownOpen, setIsPersonaDropdownOpen] = useState(false);
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
-  const [analyticsFilter, setAnalyticsFilter] = useState('7d');
+  const [analyticsFilter, setAnalyticsFilter] = useState("7d");
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
 
   // QR Customization State
@@ -302,7 +432,9 @@ export default function G2pDashboard({
       if (typeof window === "undefined") return resolve(false);
       if ((window as any).Razorpay) return resolve(true);
 
-      const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+      const existingScript = document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+      );
       if (existingScript) {
         if ((window as any).Razorpay) return resolve(true);
         existingScript.addEventListener("load", () => resolve(true));
@@ -329,23 +461,32 @@ export default function G2pDashboard({
     try {
       const isScriptLoaded = await loadRazorpayScript();
       if (!isScriptLoaded) {
-        alert("Failed to load Razorpay payment gateway. Please check your internet connection.");
+        alert(
+          "Failed to load Razorpay payment gateway. Please check your internet connection.",
+        );
         setIsCheckoutLoading(false);
         return;
       }
 
       // 1. Create order on backend
-      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/billing/subscription/create-order`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const res = await fetch(
+        `${EXPRESS_BACKEND_URL}/g2p/billing/subscription/create-order`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       const data = await res.json();
       if (!res.ok || !data.orderId) {
-        alert(data.message || data.error || "Could not initialize payment order. Please try again.");
+        alert(
+          data.message ||
+            data.error ||
+            "Could not initialize payment order. Please try again.",
+        );
         setIsCheckoutLoading(false);
         return;
       }
@@ -375,35 +516,53 @@ export default function G2pDashboard({
           setIsCheckoutLoading(true);
           try {
             // 3. Cryptographically verify signature on backend
-            const verifyRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/billing/subscription/verify-payment`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
+            const verifyRes = await fetch(
+              `${EXPRESS_BACKEND_URL}/g2p/billing/subscription/verify-payment`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
               },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            });
+            );
 
             const verifyData = await verifyRes.json();
             if (verifyRes.ok && verifyData.success) {
               setPlanType("PRO");
+              if (typeof window !== "undefined") {
+                localStorage.setItem("share2me_is_pro", "true");
+              }
+              try {
+                await updateSession?.({ planType: "PRO" });
+              } catch (e) {}
               setSubscriptionDetails({
                 status: "active",
                 endsAt: verifyData.subscription_ends_at,
                 daysRemaining: verifyData.days_remaining || 30,
               });
-              alert("🎉 Payment Successful! Welcome to Share2Me Pro! Your 30-day plan is now active.");
+              alert(
+                "🎉 Payment Successful! Welcome to Share2Me Pro! Your 30-day plan is now active.",
+              );
               setIsUpgradeModalOpen(false);
+              // Cleanly reload to ensure all in-memory ad scripts and listeners are completely removed
+              window.location.reload();
             } else {
-              alert(verifyData.message || "Payment verification failed. Please contact support if payment was debited.");
+              alert(
+                verifyData.message ||
+                  "Payment verification failed. Please contact support if payment was debited.",
+              );
             }
           } catch (err: any) {
             console.error("Verification error:", err);
-            alert("Error verifying payment signature. Please check your dashboard in a moment.");
+            alert(
+              "Error verifying payment signature. Please check your dashboard in a moment.",
+            );
           } finally {
             setIsCheckoutLoading(false);
           }
@@ -412,7 +571,9 @@ export default function G2pDashboard({
 
       const rzp = new (window as any).Razorpay(options);
       rzp.on("payment.failed", (response: any) => {
-        alert(`Payment failed: ${response.error?.description || "Transaction declined"}`);
+        alert(
+          `Payment failed: ${response.error?.description || "Transaction declined"}`,
+        );
         setIsCheckoutLoading(false);
       });
       rzp.open();
@@ -430,9 +591,9 @@ export default function G2pDashboard({
 
   // Load from LocalStorage on mount
   useEffect(() => {
-    const savedFg = localStorage.getItem('g2p_qrFgColor');
-    const savedBg = localStorage.getItem('g2p_qrBgColor');
-    const savedLogo = localStorage.getItem('g2p_qrLogoUrl');
+    const savedFg = localStorage.getItem("g2p_qrFgColor");
+    const savedBg = localStorage.getItem("g2p_qrBgColor");
+    const savedLogo = localStorage.getItem("g2p_qrLogoUrl");
     if (savedFg) setQrFgColor(savedFg);
     if (savedBg) setQrBgColor(savedBg);
     if (savedLogo) {
@@ -442,9 +603,9 @@ export default function G2pDashboard({
   }, []);
 
   const saveQrSettings = () => {
-    localStorage.setItem('g2p_qrFgColor', qrFgColor);
-    localStorage.setItem('g2p_qrBgColor', qrBgColor);
-    localStorage.setItem('g2p_qrLogoUrl', qrLogoUrl);
+    localStorage.setItem("g2p_qrFgColor", qrFgColor);
+    localStorage.setItem("g2p_qrBgColor", qrBgColor);
+    localStorage.setItem("g2p_qrLogoUrl", qrLogoUrl);
     setIsSettingsOpen(false);
   };
 
@@ -462,7 +623,11 @@ export default function G2pDashboard({
     if (!soundEnabled) return;
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        audioContextRef.current = new (
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext
+        )();
       }
       const ctx = audioContextRef.current;
       const osc = ctx.createOscillator();
@@ -480,39 +645,48 @@ export default function G2pDashboard({
     }
   }, [soundEnabled]);
 
-  const loadUploads = useCallback(async (authToken: string) => {
-    try {
-      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/requests`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUploads(prev => {
-          if (prev.length > 0 && data.length > prev.length) playChime();
-          return data;
+  const loadUploads = useCallback(
+    async (authToken: string) => {
+      try {
+        const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/requests`, {
+          headers: { Authorization: `Bearer ${authToken}` },
         });
+        if (res.ok) {
+          const data = await res.json();
+          setUploads((prev) => {
+            if (prev.length > 0 && data.length > prev.length) playChime();
+            return data;
+          });
+        }
+      } catch (e) {
+        console.error("Failed to load uploads", e);
       }
-    } catch (e) {
-      console.error("Failed to load uploads", e);
-    }
-  }, [playChime]);
+    },
+    [playChime],
+  );
 
-  const loadAnalytics = useCallback(async (authToken: string, filter: string) => {
-    setIsAnalyticsLoading(true);
-    try {
-      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/analytics?filter=${filter}`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAnalyticsData(data);
+  const loadAnalytics = useCallback(
+    async (authToken: string, filter: string) => {
+      setIsAnalyticsLoading(true);
+      try {
+        const res = await fetch(
+          `${EXPRESS_BACKEND_URL}/g2p/vendor/analytics?filter=${filter}`,
+          {
+            headers: { Authorization: `Bearer ${authToken}` },
+          },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setAnalyticsData(data);
+        }
+      } catch (e) {
+        console.error("Failed to load analytics", e);
+      } finally {
+        setIsAnalyticsLoading(false);
       }
-    } catch (e) {
-      console.error("Failed to load analytics", e);
-    } finally {
-      setIsAnalyticsLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handleUpdateProfile = async () => {
     if (!token || !displayName.trim()) return;
@@ -523,23 +697,29 @@ export default function G2pDashboard({
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: displayName.trim(),
           phone: phone.trim(),
           company: company.trim(),
           website: website.trim(),
-          bio: bio.trim()
-        })
+          bio: bio.trim(),
+        }),
       });
       if (res.ok) {
-        setProfileUpdateStatus({ ok: true, msg: "Profile updated successfully!" });
+        setProfileUpdateStatus({
+          ok: true,
+          msg: "Profile updated successfully!",
+        });
         user.username = displayName.trim();
         setTimeout(() => setProfileUpdateStatus(null), 3000);
       } else {
         const data = await res.json();
-        setProfileUpdateStatus({ ok: false, msg: data.error || "Failed to update profile." });
+        setProfileUpdateStatus({
+          ok: false,
+          msg: data.error || "Failed to update profile.",
+        });
       }
     } catch (e) {
       console.error("Failed to update profile", e);
@@ -558,18 +738,24 @@ export default function G2pDashboard({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ persona: newPersona })
+        body: JSON.stringify({ persona: newPersona }),
       });
       if (res.ok) {
         setPersona(newPersona);
         setPersonaSelected(true);
-        setPersonaUpdateStatus({ ok: true, msg: "User Type updated successfully!" });
+        setPersonaUpdateStatus({
+          ok: true,
+          msg: "User Type updated successfully!",
+        });
         setTimeout(() => setPersonaUpdateStatus(null), 3000);
       } else {
         const data = await res.json();
-        setPersonaUpdateStatus({ ok: false, msg: data.error || "Failed to update user type." });
+        setPersonaUpdateStatus({
+          ok: false,
+          msg: data.error || "Failed to update user type.",
+        });
       }
     } catch (err) {
       console.error(err);
@@ -579,41 +765,51 @@ export default function G2pDashboard({
     }
   };
 
-  const connectSocket = useCallback((authToken: string) => {
-    const socket = io(EXPRESS_BACKEND_URL, {
-      transports: ["websocket", "polling"],
-    });
+  const connectSocket = useCallback(
+    (authToken: string) => {
+      const socket = io(EXPRESS_BACKEND_URL, {
+        transports: ["websocket", "polling"],
+      });
 
-    socket.on("connect", () => {
-      socket.emit("g2p:join_vendor_room", { vendorId: user.userId, authToken });
-    });
+      socket.on("connect", () => {
+        socket.emit("g2p:join_vendor_room", {
+          vendorId: user.userId,
+          authToken,
+        });
+      });
 
-    socket.on("g2p:new_submission", () => {
-      loadUploads(authToken);
-      playChime();
-    });
+      socket.on("g2p:new_submission", () => {
+        loadUploads(authToken);
+        playChime();
+      });
 
-    socket.on("g2p:request_removed", ({ requestId }) => {
-      setUploads(prev => prev.filter(u => u.uploadId !== requestId));
-    });
+      socket.on("g2p:request_removed", ({ requestId }) => {
+        setUploads((prev) => prev.filter((u) => u.uploadId !== requestId));
+      });
 
-    socket.on("g2p:file_downloaded", ({ fileId }) => {
-      setUploads(prev => prev.map(u => ({
-        ...u,
-        files: u.files.map(f => f.id === fileId ? { ...f, status: 'downloaded' } : f)
-      })));
-    });
+      socket.on("g2p:file_downloaded", ({ fileId }) => {
+        setUploads((prev) =>
+          prev.map((u) => ({
+            ...u,
+            files: u.files.map((f) =>
+              f.id === fileId ? { ...f, status: "downloaded" } : f,
+            ),
+          })),
+        );
+      });
 
-    socketRef.current = socket;
-  }, [user.userId, loadUploads, playChime]);
+      socketRef.current = socket;
+    },
+    [user.userId, loadUploads, playChime],
+  );
 
   useEffect(() => {
     let mounted = true;
 
     // Fetch token for API and Sockets
     fetch("/api/g2p-token", { cache: "no-store" })
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (!mounted) return;
         if (data.token) {
           setToken(data.token);
@@ -623,10 +819,10 @@ export default function G2pDashboard({
           // Fetch current vendor profile details to ensure shareCode is always present
           fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/me`, {
             headers: { Authorization: `Bearer ${data.token}` },
-            cache: 'no-store'
+            cache: "no-store",
           })
-            .then(res => res.ok ? res.json() : null)
-            .then(profile => {
+            .then((res) => (res.ok ? res.json() : null))
+            .then((profile) => {
               if (mounted && profile) {
                 if (profile.share2me_id) setVendorCode(profile.share2me_id);
                 if (profile.name) setDisplayName(profile.name);
@@ -635,9 +831,21 @@ export default function G2pDashboard({
                 if (profile.website) setWebsite(profile.website);
                 if (profile.bio) setBio(profile.bio);
                 if (profile.persona) setPersona(profile.persona);
-                if (profile.plan_type) setPlanType(profile.plan_type);
+                if (profile.plan_type) {
+                  setPlanType(profile.plan_type);
+                  if (typeof window !== "undefined") {
+                    if (String(profile.plan_type).toUpperCase() === "PRO") {
+                      localStorage.setItem("share2me_is_pro", "true");
+                    } else {
+                      localStorage.removeItem("share2me_is_pro");
+                    }
+                  }
+                }
                 setPersonaSelected(profile.persona_selected);
-                if (profile.subscription_status || profile.subscription_ends_at) {
+                if (
+                  profile.subscription_status ||
+                  profile.subscription_ends_at
+                ) {
                   setSubscriptionDetails({
                     status: profile.subscription_status || "none",
                     endsAt: profile.subscription_ends_at || null,
@@ -646,10 +854,12 @@ export default function G2pDashboard({
                 }
               }
             })
-            .catch(err => console.error("Failed to load vendor profile:", err));
+            .catch((err) =>
+              console.error("Failed to load vendor profile:", err),
+            );
         }
       })
-      .catch(err => console.error("Failed to get token:", err));
+      .catch((err) => console.error("Failed to get token:", err));
 
     return () => {
       mounted = false;
@@ -658,7 +868,7 @@ export default function G2pDashboard({
   }, [connectSocket, loadUploads]);
 
   useEffect(() => {
-    if (activeTab === 'analytics' && token) {
+    if (activeTab === "analytics" && token) {
       loadAnalytics(token, analyticsFilter);
     }
   }, [activeTab, token, analyticsFilter, loadAnalytics]);
@@ -666,29 +876,38 @@ export default function G2pDashboard({
   const handleDeleteUpload = async (uploadId: string) => {
     if (!token) return;
     try {
-      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/requests/${uploadId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(
+        `${EXPRESS_BACKEND_URL}/g2p/vendor/requests/${uploadId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (res.ok) {
-        setUploads(prev => prev.filter(u => u.uploadId !== uploadId));
+        setUploads((prev) => prev.filter((u) => u.uploadId !== uploadId));
       }
     } catch (e) {
       console.error("Failed to delete", e);
     }
   };
 
-  const handleAction = async (file: UploadedFile, action: 'preview' | 'download' = 'download') => {
+  const handleAction = async (
+    file: UploadedFile,
+    action: "preview" | "download" = "download",
+  ) => {
     if (!token) return;
     try {
-      const res = await fetch(`${EXPRESS_BACKEND_URL}/g2p/vendor/files/${file.id}/download`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+      const res = await fetch(
+        `${EXPRESS_BACKEND_URL}/g2p/vendor/files/${file.id}/download`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action }),
         },
-        body: JSON.stringify({ action })
-      });
+      );
       if (!res.ok) throw new Error(`${action} failed`);
       const data = await res.json();
 
@@ -696,7 +915,7 @@ export default function G2pDashboard({
       link.href = data.url;
 
       // If download, the backend already set ResponseContentDisposition=attachment.
-      if (action === 'download') {
+      if (action === "download") {
         link.download = file.name;
       } else {
         link.target = "_blank";
@@ -711,16 +930,17 @@ export default function G2pDashboard({
     }
   };
 
-  const shareLink = typeof window !== "undefined"
-    ? `${window.location.origin}/g2p/${activeShareCode}`
-    : `https://www.share2me.in/g2p/${activeShareCode}`;
+  const shareLink =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/g2p/${activeShareCode}`
+      : `https://www.share2me.in/g2p/${activeShareCode}`;
 
-  const cleanFg = qrFgColor.replace('#', '');
-  const cleanBg = qrBgColor.replace('#', '');
+  const cleanFg = qrFgColor.replace("#", "");
+  const cleanBg = qrBgColor.replace("#", "");
 
   // Only append centerImageUrl if it looks somewhat like a valid URL
   const isValidLogo = debouncedLogoUrl.startsWith("http");
-  const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(shareLink)}&size=300&margin=1&dark=${cleanFg}&light=${cleanBg}${isValidLogo ? `&centerImageUrl=${encodeURIComponent(debouncedLogoUrl)}` : ''}`;
+  const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(shareLink)}&size=300&margin=1&dark=${cleanFg}&light=${cleanBg}${isValidLogo ? `&centerImageUrl=${encodeURIComponent(debouncedLogoUrl)}` : ""}`;
 
   const copyToClipboard = () => {
     if (!activeShareCode) return;
@@ -730,7 +950,12 @@ export default function G2pDashboard({
   };
 
   const processedUploads = uploads
-    .filter(u => u.senderName.toLowerCase().includes(searchQuery.toLowerCase()) || (u.message && u.message.toLowerCase().includes(searchQuery.toLowerCase())))
+    .filter(
+      (u) =>
+        u.senderName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.message &&
+          u.message.toLowerCase().includes(searchQuery.toLowerCase())),
+    )
     .sort((a, b) => {
       const timeA = new Date(a.uploadedAt).getTime();
       const timeB = new Date(b.uploadedAt).getTime();
@@ -742,878 +967,1580 @@ export default function G2pDashboard({
   // Auto-route Print Shop vendors to their primary tab on persona change
   useEffect(() => {
     if (isShopkeeper) {
-      setActiveTab(prev =>
-        prev === "inbox" || prev === "analytics" ? "printshop" : prev
+      setActiveTab((prev) =>
+        prev === "inbox" || prev === "analytics" ? "printshop" : prev,
       );
     } else {
-      setActiveTab(prev =>
-        prev === "printshop" || prev === "payments" ? "inbox" : prev
+      setActiveTab((prev) =>
+        prev === "printshop" || prev === "payments" ? "inbox" : prev,
       );
     }
   }, [isShopkeeper]);
 
   return (
     <div className="flex flex-col md:flex-row w-full md:h-[calc(100vh-3rem)] text-[#111827] font-sans gap-4 md:gap-6">
-
-    {/* SVG Defs for gradient icons */}
-    <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
-      <defs>
-        <linearGradient id="g2p-dash" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop stopColor="#38bdf8" offset="0%" />
-          <stop stopColor="#3b82f6" offset="100%" />
-        </linearGradient>
-        <linearGradient id="g2p-share" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop stopColor="#fde047" offset="0%" />
-          <stop stopColor="#f59e0b" offset="100%" />
-        </linearGradient>
-        <linearGradient id="g2p-settings" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop stopColor="#c084fc" offset="0%" />
-          <stop stopColor="#9333ea" offset="100%" />
-        </linearGradient>
-        <linearGradient id="grad-pdf" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#ef4444" offset="0%" /><stop stopColor="#b91c1c" offset="100%" /></linearGradient>
-        <linearGradient id="grad-word" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#3b82f6" offset="0%" /><stop stopColor="#1d4ed8" offset="100%" /></linearGradient>
-        <linearGradient id="grad-excel" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#22c55e" offset="0%" /><stop stopColor="#15803d" offset="100%" /></linearGradient>
-        <linearGradient id="grad-ppt" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#f97316" offset="0%" /><stop stopColor="#c2410c" offset="100%" /></linearGradient>
-        <linearGradient id="grad-image" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#a855f7" offset="0%" /><stop stopColor="#7e22ce" offset="100%" /></linearGradient>
-        <linearGradient id="grad-video" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#ec4899" offset="0%" /><stop stopColor="#be185d" offset="100%" /></linearGradient>
-        <linearGradient id="grad-audio" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#eab308" offset="0%" /><stop stopColor="#a16207" offset="100%" /></linearGradient>
-        <linearGradient id="grad-archive" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#f59e0b" offset="0%" /><stop stopColor="#b45309" offset="100%" /></linearGradient>
-        <linearGradient id="grad-code" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#06b6d4" offset="0%" /><stop stopColor="#0369a1" offset="100%" /></linearGradient>
-        <linearGradient id="grad-default" x1="0%" y1="0%" x2="100%" y2="100%"><stop stopColor="#9ca3af" offset="0%" /><stop stopColor="#4b5563" offset="100%" /></linearGradient>
-        <linearGradient id="g2p-analytics" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop stopColor="#f472b6" offset="0%" />
-          <stop stopColor="#ec4899" offset="100%" />
-        </linearGradient>
-        <linearGradient id="g2p-alerts" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop stopColor="#f87171" offset="0%" />
-          <stop stopColor="#ef4444" offset="100%" />
-        </linearGradient>
-      </defs>
-    </svg>
-
-    {/* Live payment toasts for shopkeeper on any tab */}
-    {isShopkeeper && <PrintJobNotifier soundEnabled={soundEnabled} token={token} />}
-
-    {/* SIDEBAR */}
-    <aside className="w-full md:w-[280px] shrink-0 flex flex-col gap-3 md:gap-6">
-      {/* Profile Info */}
-      <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
-        <img src={user.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} alt="Profile" className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/30" />
-        <div className="flex flex-col min-w-0">
-          <span className="font-bold text-[15px] truncate text-[#111827] leading-tight">{displayName}</span>
-          <span className="text-[13px] text-[#111827]/60">Admin</span>
-        </div>
-        <button onClick={onLogout} aria-label="Log out" title="Log out" className="ml-auto shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-[#111827]/50 hover:text-red-600 hover:bg-red-500/10 transition-colors">
-          <LogOut className="w-[18px] h-[18px]" strokeWidth={2.25} />
-        </button>
-      </div>
-
-      {/* MOBILE — persona-aware tab pill */}
-      <div className="flex md:hidden items-center justify-around gap-1 p-2 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
-        {(
-          isShopkeeper
-            ? [
-              { tab: "printshop" as TabMode, icon: LayoutDashboard, grad: "g2p-dash", label: "Print Orders" },
-              { tab: "share" as TabMode, icon: Share2, grad: "g2p-share", label: "Share Portal" },
-              { tab: "payments" as TabMode, icon: IndianRupee, grad: "g2p-analytics", label: "Payments" },
-              { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings", label: "Settings" },
-            ]
-            : [
-              { tab: "inbox" as TabMode, icon: CloudDownload, grad: "g2p-dash", label: "Dashboard" },
-              { tab: "share" as TabMode, icon: Share2, grad: "g2p-share", label: "Share Portal" },
-              { tab: "settings" as TabMode, icon: Settings, grad: "g2p-settings", label: "Settings" },
-              { tab: "analytics" as TabMode, icon: Activity, grad: "g2p-analytics", label: "Analytics" },
-            ]
-        ).map(({ tab, icon: TabIcon, grad, label }) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            aria-label={label}
-            className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all ${activeTab === tab
-              ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)]"
-              : "hover:bg-white/40"
-              }`}
+      {/* SVG Defs for gradient icons */}
+      <svg
+        width="0"
+        height="0"
+        className="absolute pointer-events-none"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id="g2p-dash" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#38bdf8" offset="0%" />
+            <stop stopColor="#3b82f6" offset="100%" />
+          </linearGradient>
+          <linearGradient id="g2p-share" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#fde047" offset="0%" />
+            <stop stopColor="#f59e0b" offset="100%" />
+          </linearGradient>
+          <linearGradient id="g2p-settings" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#c084fc" offset="0%" />
+            <stop stopColor="#9333ea" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-pdf" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#ef4444" offset="0%" />
+            <stop stopColor="#b91c1c" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-word" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#3b82f6" offset="0%" />
+            <stop stopColor="#1d4ed8" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-excel" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#22c55e" offset="0%" />
+            <stop stopColor="#15803d" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-ppt" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#f97316" offset="0%" />
+            <stop stopColor="#c2410c" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-image" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#a855f7" offset="0%" />
+            <stop stopColor="#7e22ce" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-video" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#ec4899" offset="0%" />
+            <stop stopColor="#be185d" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-audio" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#eab308" offset="0%" />
+            <stop stopColor="#a16207" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-archive" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#f59e0b" offset="0%" />
+            <stop stopColor="#b45309" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-code" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#06b6d4" offset="0%" />
+            <stop stopColor="#0369a1" offset="100%" />
+          </linearGradient>
+          <linearGradient id="grad-default" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#9ca3af" offset="0%" />
+            <stop stopColor="#4b5563" offset="100%" />
+          </linearGradient>
+          <linearGradient
+            id="g2p-analytics"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
           >
-            <TabIcon
-              className="w-5 h-5"
-              style={activeTab === tab ? { stroke: `url(#${grad})`, filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-              strokeWidth={activeTab === tab ? 2.5 : 2}
-            />
-            {tab === "inbox" && uploads.length > 0 && activeTab !== "inbox" && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            )}
-          </button>
-        ))}
-        <div className="w-px h-6 bg-white/40 mx-0.5" />
-        <button onClick={() => setSoundEnabled(!soundEnabled)} aria-label="Toggle alerts" className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all">
-          {soundEnabled ? (
-            <Bell className="w-5 h-5" style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }} strokeWidth={2.5} />
-          ) : (
-            <BellOff className="w-5 h-5" strokeWidth={2} />
-          )}
-        </button>
-        <button
-          onClick={() => setIsUpgradeModalOpen(true)}
-          aria-label={isPro ? "Pro plan active" : "Upgrade to Pro"}
-          className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all relative"
-        >
-          {isPro ? (
-            <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1e1b4b] to-[#312e81] border border-emerald-400/40 text-amber-300 flex items-center justify-center shadow-sm">
-              <Crown className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 border border-white" />
-            </span>
-          ) : (
-            <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5" />
-            </span>
-          )}
-        </button>
-      </div>
+            <stop stopColor="#f472b6" offset="0%" />
+            <stop stopColor="#ec4899" offset="100%" />
+          </linearGradient>
+          <linearGradient id="g2p-alerts" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop stopColor="#f87171" offset="0%" />
+            <stop stopColor="#ef4444" offset="100%" />
+          </linearGradient>
+        </defs>
+      </svg>
 
-      {/* Primary Action Button (desktop) — persona-aware */}
-      {isShopkeeper ? (
-        <button
-          onClick={() => setActiveTab("printshop")}
-          className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${activeTab === "printshop"
-            ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-            : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
-            }`}
-        >
-          <LayoutDashboard
-            className="w-5 h-5 transition-transform duration-300"
-            style={activeTab === "printshop" ? { stroke: "url(#g2p-dash)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-            strokeWidth={activeTab === "printshop" ? 2.5 : 2}
-          />
-          <span>Print Orders</span>
-        </button>
-      ) : (
-        <button
-          onClick={() => setActiveTab("inbox")}
-          className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${activeTab === "inbox"
-            ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-            : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
-            }`}
-        >
-          <CloudDownload
-            className="w-5 h-5 transition-transform duration-300"
-            style={activeTab === "inbox" ? { stroke: "url(#g2p-dash)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined}
-            strokeWidth={activeTab === "inbox" ? 2.5 : 2}
-          />
-          <span>Dashboard</span>
-          {uploads.length > 0 && activeTab !== "inbox" && (
-            <span className="ml-auto w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></span>
-          )}
-        </button>
+      {/* Live payment toasts for shopkeeper on any tab */}
+      {isShopkeeper && (
+        <PrintJobNotifier soundEnabled={soundEnabled} token={token} />
       )}
 
-      {/* 4-Grid Secondary Menu (desktop) — persona-aware */}
-      <div className="hidden md:grid grid-cols-2 gap-3 sm:gap-4">
-        {/* Share Portal — always */}
-        <button
-          onClick={() => setActiveTab("share")}
-          className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "share"
-            ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-            : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-            }`}
-        >
-          <Share2 className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={activeTab === "share" ? { stroke: "url(#g2p-share)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined} strokeWidth={activeTab === "share" ? 2.5 : 2} />
-          <span className="text-[13px] font-bold">Share Portal</span>
-        </button>
-
-        {/* Settings — always */}
-        <button
-          onClick={() => setActiveTab("settings")}
-          className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "settings"
-            ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-            : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-            }`}
-        >
-          <Settings className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={activeTab === "settings" ? { stroke: "url(#g2p-settings)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined} strokeWidth={activeTab === "settings" ? 2.5 : 2} />
-          <span className="text-[13px] font-bold">Settings</span>
-        </button>
-
-        {/* Analytics — Personal/Educator only */}
-        {!isShopkeeper && (
+      {/* SIDEBAR */}
+      <aside className="w-full md:w-[280px] shrink-0 flex flex-col gap-3 md:gap-6">
+        {/* Profile Info */}
+        <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+          <img
+            src={
+              user.profilePhoto ||
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`
+            }
+            alt="Profile"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/30"
+          />
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-[15px] truncate text-[#111827] leading-tight">
+              {displayName}
+            </span>
+            <span className="text-[13px] text-[#111827]/60">Admin</span>
+          </div>
           <button
-            onClick={() => setActiveTab("analytics")}
-            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "analytics"
-              ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-              : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-              }`}
+            onClick={onLogout}
+            aria-label="Log out"
+            title="Log out"
+            className="ml-auto shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-[#111827]/50 hover:text-red-600 hover:bg-red-500/10 transition-colors"
           >
-            <Activity className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={activeTab === "analytics" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined} strokeWidth={activeTab === "analytics" ? 2.5 : 2} />
-            <span className="text-[13px] font-bold">Analytics</span>
+            <LogOut className="w-[18px] h-[18px]" strokeWidth={2.25} />
           </button>
-        )}
+        </div>
 
-        {/* Payments — Print Shop only */}
-        {isShopkeeper && (
+        {/* MOBILE — persona-aware tab pill */}
+        <div className="flex md:hidden items-center justify-around gap-1 p-2 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+          {(isShopkeeper
+            ? [
+                {
+                  tab: "printshop" as TabMode,
+                  icon: LayoutDashboard,
+                  grad: "g2p-dash",
+                  label: "Print Orders",
+                },
+                {
+                  tab: "share" as TabMode,
+                  icon: Share2,
+                  grad: "g2p-share",
+                  label: "Share Portal",
+                },
+                {
+                  tab: "payments" as TabMode,
+                  icon: IndianRupee,
+                  grad: "g2p-analytics",
+                  label: "Payments",
+                },
+                {
+                  tab: "settings" as TabMode,
+                  icon: Settings,
+                  grad: "g2p-settings",
+                  label: "Settings",
+                },
+              ]
+            : [
+                {
+                  tab: "inbox" as TabMode,
+                  icon: CloudDownload,
+                  grad: "g2p-dash",
+                  label: "Dashboard",
+                },
+                {
+                  tab: "share" as TabMode,
+                  icon: Share2,
+                  grad: "g2p-share",
+                  label: "Share Portal",
+                },
+                {
+                  tab: "settings" as TabMode,
+                  icon: Settings,
+                  grad: "g2p-settings",
+                  label: "Settings",
+                },
+                {
+                  tab: "analytics" as TabMode,
+                  icon: Activity,
+                  grad: "g2p-analytics",
+                  label: "Analytics",
+                },
+              ]
+          ).map(({ tab, icon: TabIcon, grad, label }) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              aria-label={label}
+              className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
+                activeTab === tab
+                  ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)]"
+                  : "hover:bg-white/40"
+              }`}
+            >
+              <TabIcon
+                className="w-5 h-5"
+                style={
+                  activeTab === tab
+                    ? {
+                        stroke: `url(#${grad})`,
+                        filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                      }
+                    : undefined
+                }
+                strokeWidth={activeTab === tab ? 2.5 : 2}
+              />
+              {tab === "inbox" &&
+                uploads.length > 0 &&
+                activeTab !== "inbox" && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+                )}
+            </button>
+          ))}
+          <div className="w-px h-6 bg-white/40 mx-0.5" />
           <button
-            onClick={() => setActiveTab("payments")}
-            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${activeTab === "payments"
-              ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
-              : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
-              }`}
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            aria-label="Toggle alerts"
+            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all"
           >
-            <IndianRupee className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={activeTab === "payments" ? { stroke: "url(#g2p-analytics)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" } : undefined} strokeWidth={activeTab === "payments" ? 2.5 : 2} />
-            <span className="text-[13px] font-bold">Payments</span>
+            {soundEnabled ? (
+              <Bell
+                className="w-5 h-5"
+                style={{
+                  stroke: "url(#g2p-alerts)",
+                  filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                }}
+                strokeWidth={2.5}
+              />
+            ) : (
+              <BellOff className="w-5 h-5" strokeWidth={2} />
+            )}
           </button>
-        )}
-
-        {/* Alerts toggle — always */}
-        <button
-          onClick={() => setSoundEnabled(!soundEnabled)}
-          className="flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] bg-white/20 hover:bg-white/40 border-white/30 text-[#111827] group"
-        >
-          {soundEnabled ? (
-            <Bell className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" style={{ stroke: "url(#g2p-alerts)", filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))" }} strokeWidth={2.5} />
-          ) : (
-            <BellOff className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-          )}
-          <span className="text-[13px] font-bold">Alerts</span>
-        </button>
-      </div>
-
-      {/* Pro Plan Banner / Pro Member Status */}
-      <div className="mt-auto hidden md:block">
-        {isPro ? (
           <button
             onClick={() => setIsUpgradeModalOpen(true)}
-            className="w-full text-left bg-gradient-to-br from-[#1e1b4b]/95 via-[#2e1065]/90 to-[#0f172a]/95 text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(30,27,75,0.4)] border border-emerald-500/30 flex flex-col group hover:scale-[1.02] transition-all duration-300"
+            aria-label={isPro ? "Pro plan active" : "Upgrade to Pro"}
+            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-white/40 transition-all relative"
           >
-            <div className="absolute -top-6 -right-6 w-28 h-28 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between gap-2 mb-2 relative z-10">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 bg-emerald-500/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-emerald-400/40 shrink-0">
-                  <Crown className="w-5 h-5 text-amber-300 drop-shadow-[0_1px_4px_rgba(251,191,36,0.5)]" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-[17px] tracking-tight text-white leading-tight">Pro Member</h4>
-                </div>
-              </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-400/40 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Active
+            {isPro ? (
+              <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1e1b4b] to-[#312e81] border border-emerald-400/40 text-amber-300 flex items-center justify-center shadow-sm">
+                <Crown className="w-4 h-4" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 border border-white" />
               </span>
-            </div>
-            <p className="text-xs text-white/80 mb-3.5 leading-relaxed relative z-10">
-              Permanent Share Code, zero ads &amp; extended retention enabled.
-            </p>
-            <div className="bg-white/10 backdrop-blur-md text-emerald-300 px-3.5 py-2 text-xs rounded-xl border border-emerald-400/30 font-bold flex items-center justify-between group-hover:bg-emerald-500/20 transition-colors relative z-10 shadow-inner">
-              <span className="flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-emerald-400" /> Plan Active
+            ) : (
+              <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5" />
               </span>
-              <span className="text-[11px] text-white/70 font-semibold group-hover:text-white flex items-center gap-1">
-                View Perks <ArrowRight className="w-3.5 h-3.5" />
-              </span>
-            </div>
+            )}
+          </button>
+        </div>
+
+        {/* Primary Action Button (desktop) — persona-aware */}
+        {isShopkeeper ? (
+          <button
+            onClick={() => setActiveTab("printshop")}
+            className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${
+              activeTab === "printshop"
+                ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
+            }`}
+          >
+            <LayoutDashboard
+              className="w-5 h-5 transition-transform duration-300"
+              style={
+                activeTab === "printshop"
+                  ? {
+                      stroke: "url(#g2p-dash)",
+                      filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                    }
+                  : undefined
+              }
+              strokeWidth={activeTab === "printshop" ? 2.5 : 2}
+            />
+            <span>Print Orders</span>
           </button>
         ) : (
           <button
-            onClick={() => setIsUpgradeModalOpen(true)}
-            className="w-full text-left bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.25)] flex flex-col group hover:scale-[1.02] transition-transform"
+            onClick={() => setActiveTab("inbox")}
+            className={`w-full hidden md:flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] ${
+              activeTab === "inbox"
+                ? "bg-white/70 shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                : "bg-white/20 hover:bg-white/40 text-[#111827] border border-white/30"
+            }`}
           >
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none" />
-            <div className="flex items-center gap-3 mb-2 relative z-10">
-              <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-white/30 shrink-0">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <h4 className="font-bold text-[19px] tracking-tight text-white leading-none">Pro Plan</h4>
-            </div>
-            <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">
-              Permanent Share Code, 10 GB storage &amp; up to 7-day retention.
-            </p>
-            <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
-              ₹1/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
-            </div>
+            <CloudDownload
+              className="w-5 h-5 transition-transform duration-300"
+              style={
+                activeTab === "inbox"
+                  ? {
+                      stroke: "url(#g2p-dash)",
+                      filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                    }
+                  : undefined
+              }
+              strokeWidth={activeTab === "inbox" ? 2.5 : 2}
+            />
+            <span>Dashboard</span>
+            {uploads.length > 0 && activeTab !== "inbox" && (
+              <span className="ml-auto w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></span>
+            )}
           </button>
         )}
-      </div>
 
-    </aside>
-
-    {/* MAIN CONTENT AREA */}
-    <main className="flex-1 min-w-0 md:bg-white/20 md:backdrop-blur-[32px] md:border md:border-white/30 md:rounded-[32px] p-0 md:p-6 md:shadow-[0_8px_32px_rgba(0,0,0,0.08)] md:overflow-hidden flex flex-col">
-      <AnimatePresence mode="wait">
-
-        {/* --- INBOX VIEW --- */}
-        {activeTab === "inbox" && (
-          <motion.div
-            key="inbox"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col gap-4 md:gap-6 md:h-full md:min-h-0"
+        {/* 4-Grid Secondary Menu (desktop) — persona-aware */}
+        <div className="hidden md:grid grid-cols-2 gap-3 sm:gap-4">
+          {/* Share Portal — always */}
+          <button
+            onClick={() => setActiveTab("share")}
+            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${
+              activeTab === "share"
+                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
+            }`}
           >
-            <div className="hidden md:grid md:grid-cols-3 gap-4 sm:gap-6">
-              <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-[#111827]/70 font-display">Active Requests</span>
-                  <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center"><Inbox className="w-4 h-4 text-[#111827]" /></div>
-                </div>
-                <div className="text-3xl font-black text-[#111827]">{uploads.length}</div>
-              </div>
-              <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-[#111827]/70 font-display">Files Received</span>
-                  <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center"><FileText className="w-4 h-4 text-[#111827]" /></div>
-                </div>
-                <div className="text-3xl font-black text-[#111827]">{uploads.reduce((acc, u) => acc + u.files.length, 0)}</div>
-              </div>
-              <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-[#111827]/70 font-display">Storage Used</span>
-                  <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center"><HardDrive className="w-4 h-4 text-[#111827]" /></div>
-                </div>
-                <div className="text-3xl font-black text-[#111827]">{formatSize(uploads.reduce((acc, u) => acc + u.files.reduce((sum, f) => sum + f.size, 0), 0))}</div>
-              </div>
-            </div>
+            <Share2
+              className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
+              style={
+                activeTab === "share"
+                  ? {
+                      stroke: "url(#g2p-share)",
+                      filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                    }
+                  : undefined
+              }
+              strokeWidth={activeTab === "share" ? 2.5 : 2}
+            />
+            <span className="text-[13px] font-bold">Share Portal</span>
+          </button>
 
-            <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col flex-1 min-h-[calc(100dvh-190px)] md:min-h-0 overflow-hidden">
-              <div className="p-4 sm:p-6 border-b border-white/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
-                <h2 className="text-lg font-bold text-[#111827] font-display">Uploads</h2>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <div className="relative w-full sm:w-64">
-                    <Search className="w-4 h-4 text-[#111827]/50 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input type="text" placeholder="Search sender or message..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-white/50 border border-white/60 rounded-full pl-9 pr-4 py-2 text-sm text-[#111827] placeholder-[#111827]/50 focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all shadow-sm" />
-                  </div>
-                  <button onClick={() => setSortOrder(prev => prev === "latest" ? "oldest" : "latest")} className="bg-white/50 border border-white/60 hover:bg-white/70 text-sm font-bold text-[#111827] px-4 py-2 rounded-full transition-colors flex items-center gap-2 shrink-0 shadow-sm">
-                    <ArrowUpDown className="w-4 h-4" />
-                    <span className="hidden sm:inline font-display">{sortOrder === "latest" ? "Latest" : "Oldest"}</span>
-                  </button>
-                </div>
-              </div>
-              <div className="flex flex-col flex-1 md:overflow-x-auto md:min-h-0">
-                <div className="md:min-w-[800px] flex flex-col flex-1 md:min-h-0">
-                  <div className="hidden md:grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-center p-4 border-b border-white/30 bg-[#111827]/5 text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">
-                    <div>Sender</div><div>Message</div><div>Files</div><div>Total Size</div><div>Date</div><div className="text-right pr-2">Actions</div>
-                  </div>
-                  <div className="flex flex-col flex-1 bg-white/20 md:overflow-y-auto md:min-h-0 md:relative">
-                    <AnimatePresence mode="popLayout">
-                      {processedUploads.map((record) => (
-                        <UploadRecordRow key={record.uploadId} record={record} onDelete={handleDeleteUpload} onAction={handleAction} />
-                      ))}
-                    </AnimatePresence>
-                    {processedUploads.length === 0 && (
-                      <div className="flex flex-col flex-1 items-center justify-center text-center p-6 md:h-full md:absolute md:inset-0">
-                        <div className="w-16 h-16 rounded-2xl bg-white/50 border border-white/60 flex items-center justify-center mb-4 shadow-sm">
-                          <Inbox className="w-8 h-8 text-[#111827]/40" />
-                        </div>
-                        <h3 className="text-lg font-bold text-[#111827] mb-2 font-display">Your inbox is empty</h3>
-                        <p className="text-sm text-[#111827]/60 max-w-sm">No one has sent you files yet. Share your portal code with others so they can drop files securely into your inbox.</p>
-                        <button onClick={() => setActiveTab("share")} className="mt-6 inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors shadow-[0_8px_20px_rgba(0,0,0,0.18)]">
-                          View your Share Portal <ArrowRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* --- SHARE PORTAL VIEW --- */}
-        {activeTab === "share" && (
-          <motion.div
-            key="share"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col items-center justify-center gap-6 md:h-full md:min-h-0 md:overflow-y-auto p-4 sm:p-12"
+          {/* Settings — always */}
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${
+              activeTab === "settings"
+                ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
+            }`}
           >
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#111827] font-display">Your Share Portal</h2>
-              <p className="text-sm text-[#111827]/60 mt-2 max-w-sm">Scan the QR or share the code — uploads land in your inbox even while you&apos;re offline.</p>
-            </div>
-            <div className="bg-white/50 rounded-[32px] border border-white/60 p-6 shadow-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrImageUrl} alt="QR Code" className="w-56 h-56 rounded-2xl border border-white/60" />
-            </div>
-            <div className="w-full max-w-sm flex items-center bg-white/50 border border-white/60 rounded-2xl p-2 pl-6 shadow-sm">
-              <span className="flex-1 text-lg font-bold tracking-[0.2em] text-[#111827] uppercase font-mono">{user.shareCode || activeShareCode || "LOADING..."}</span>
-              <button onClick={copyToClipboard} disabled={!user.shareCode && !activeShareCode} className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 disabled:opacity-50 shadow-sm">
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-          </motion.div>
-        )}
+            <Settings
+              className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
+              style={
+                activeTab === "settings"
+                  ? {
+                      stroke: "url(#g2p-settings)",
+                      filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                    }
+                  : undefined
+              }
+              strokeWidth={activeTab === "settings" ? 2.5 : 2}
+            />
+            <span className="text-[13px] font-bold">Settings</span>
+          </button>
 
-        {/* --- SETTINGS VIEW --- */}
-        {activeTab === "settings" && (
-          <motion.div
-            key="settings"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="md:h-full md:min-h-0 flex flex-col gap-5 overflow-y-auto p-4 md:p-0 md:pr-2"
+          {/* Analytics — Personal/Educator only */}
+          {!isShopkeeper && (
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${
+                activeTab === "analytics"
+                  ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                  : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
+              }`}
+            >
+              <Activity
+                className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
+                style={
+                  activeTab === "analytics"
+                    ? {
+                        stroke: "url(#g2p-analytics)",
+                        filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                      }
+                    : undefined
+                }
+                strokeWidth={activeTab === "analytics" ? 2.5 : 2}
+              />
+              <span className="text-[13px] font-bold">Analytics</span>
+            </button>
+          )}
+
+          {/* Payments — Print Shop only */}
+          {isShopkeeper && (
+            <button
+              onClick={() => setActiveTab("payments")}
+              className={`flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] group ${
+                activeTab === "payments"
+                  ? "bg-white/70 border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.05),_inset_0_1px_0_rgba(255,255,255,0.8)] text-[#111827]"
+                  : "bg-white/20 hover:bg-white/40 border-white/30 text-[#111827]"
+              }`}
+            >
+              <IndianRupee
+                className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
+                style={
+                  activeTab === "payments"
+                    ? {
+                        stroke: "url(#g2p-analytics)",
+                        filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                      }
+                    : undefined
+                }
+                strokeWidth={activeTab === "payments" ? 2.5 : 2}
+              />
+              <span className="text-[13px] font-bold">Payments</span>
+            </button>
+          )}
+
+          {/* Alerts toggle — always */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className="flex flex-col items-center justify-center gap-2.5 p-4 sm:p-5 rounded-2xl border transition-all shadow-[0_4px_16px_rgba(0,0,0,0.04)] bg-white/20 hover:bg-white/40 border-white/30 text-[#111827] group"
           >
-            <div>
-              <h2 className="text-2xl font-bold text-[#111827] font-display">Settings</h2>
-              <p className="text-sm text-[#111827]/60">Manage your account, payments, preferences and portal in one place.</p>
-            </div>
+            {soundEnabled ? (
+              <Bell
+                className="w-5 h-5 transition-transform duration-300 group-hover:scale-110"
+                style={{
+                  stroke: "url(#g2p-alerts)",
+                  filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.2))",
+                }}
+                strokeWidth={2.5}
+              />
+            ) : (
+              <BellOff className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+            )}
+            <span className="text-[13px] font-bold">Alerts</span>
+          </button>
+        </div>
 
-            {/* Business & Account */}
-            <section>
-              <h3 className="text-[11px] font-bold text-[#111827]/45 uppercase tracking-[0.14em] mb-2">Business &amp; Account</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                {/* Profile */}
-                <div className="bg-white/50 border border-white/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                  <h4 className="font-bold text-[14px] text-[#111827]">Profile</h4>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">Display Name</label>
-                    <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Enter your name" className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors" />
+        {/* Pro Plan Banner / Pro Member Status */}
+        <div className="mt-auto hidden md:block">
+          {isPro ? (
+            <button
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="w-full text-left bg-gradient-to-br from-[#1e1b4b]/95 via-[#2e1065]/90 to-[#0f172a]/95 text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(30,27,75,0.4)] border border-emerald-500/30 flex flex-col group hover:scale-[1.02] transition-all duration-300"
+            >
+              <div className="absolute -top-6 -right-6 w-28 h-28 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center justify-between gap-2 mb-2 relative z-10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 bg-emerald-500/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-emerald-400/40 shrink-0">
+                    <Crown className="w-5 h-5 text-amber-300 drop-shadow-[0_1px_4px_rgba(251,191,36,0.5)]" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">Phone</label>
-                      <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">Company</label>
-                      <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company name" className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">Website</label>
-                    <input type="text" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">Bio</label>
-                    <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A short description..." rows={2} className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors resize-none" />
-                  </div>
-                  <div className="flex items-center gap-3 pt-1">
-                    <button onClick={handleUpdateProfile} disabled={isUpdatingProfile || !displayName.trim()} className="bg-[#111827] text-white hover:bg-black px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50">
-                      {isUpdatingProfile ? "Saving\u2026" : "Save Profile"}
-                    </button>
-                    {profileUpdateStatus && (
-                      <p className={`text-xs font-medium ${profileUpdateStatus.ok ? "text-green-600" : "text-red-500"}`}>{profileUpdateStatus.msg}</p>
-                    )}
+                  <div>
+                    <h4 className="font-bold text-[17px] tracking-tight text-white leading-tight">
+                      Pro Member
+                    </h4>
                   </div>
                 </div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-400/40 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Active
+                </span>
+              </div>
+              <p className="text-xs text-white/80 mb-3.5 leading-relaxed relative z-10">
+                Permanent Share Code, zero ads &amp; extended retention enabled.
+              </p>
+              <div className="bg-white/10 backdrop-blur-md text-emerald-300 px-3.5 py-2 text-xs rounded-xl border border-emerald-400/30 font-bold flex items-center justify-between group-hover:bg-emerald-500/20 transition-colors relative z-10 shadow-inner">
+                <span className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-400" /> Plan Active
+                </span>
+                <span className="text-[11px] text-white/70 font-semibold group-hover:text-white flex items-center gap-1">
+                  View Perks <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="w-full text-left bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.25)] flex flex-col group hover:scale-[1.02] transition-transform"
+            >
+              <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none" />
+              <div className="flex items-center gap-3 mb-2 relative z-10">
+                <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-white/30 shrink-0">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <h4 className="font-bold text-[19px] tracking-tight text-white leading-none">
+                  Pro Plan
+                </h4>
+              </div>
+              <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">
+                Permanent Share Code, 10 GB storage &amp; up to 7-day retention.
+              </p>
+              <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
+                ₹1/month{" "}
+                <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
+          )}
+        </div>
+      </aside>
 
-                {/* Account type + portal QR */}
-                <div className="bg-white/50 border border-white/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 min-w-0 md:bg-white/20 md:backdrop-blur-[32px] md:border md:border-white/30 md:rounded-[32px] p-0 md:p-6 md:shadow-[0_8px_32px_rgba(0,0,0,0.08)] md:overflow-hidden flex flex-col">
+        <AnimatePresence mode="wait">
+          {/* --- INBOX VIEW --- */}
+          {activeTab === "inbox" && (
+            <motion.div
+              key="inbox"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-4 md:gap-6 md:h-full md:min-h-0"
+            >
+              <div className="hidden md:grid md:grid-cols-3 gap-4 sm:gap-6">
+                <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-[14px] text-[#111827]">Account Type &amp; Plan</h4>
-                    {isPro ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <Crown className="w-3.5 h-3.5 text-amber-500" /> Pro Active
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => setIsUpgradeModalOpen(true)}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-0.5 rounded-full transition-colors"
-                      >
-                        <Sparkles className="w-3 h-3 text-purple-600" /> Upgrade to Pro
-                      </button>
+                    <span className="text-sm font-bold text-[#111827]/70 font-display">
+                      Active Requests
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center">
+                      <Inbox className="w-4 h-4 text-[#111827]" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-black text-[#111827]">
+                    {uploads.length}
+                  </div>
+                </div>
+                <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-[#111827]/70 font-display">
+                      Files Received
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-[#111827]" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-black text-[#111827]">
+                    {uploads.reduce((acc, u) => acc + u.files.length, 0)}
+                  </div>
+                </div>
+                <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-[#111827]/70 font-display">
+                      Storage Used
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center">
+                      <HardDrive className="w-4 h-4 text-[#111827]" />
+                    </div>
+                  </div>
+                  <div className="text-3xl font-black text-[#111827]">
+                    {formatSize(
+                      uploads.reduce(
+                        (acc, u) =>
+                          acc + u.files.reduce((sum, f) => sum + f.size, 0),
+                        0,
+                      ),
                     )}
                   </div>
-                  <div className="relative">
-                    <button suppressHydrationWarning onClick={() => setIsPersonaDropdownOpen(!isPersonaDropdownOpen)} className="w-full bg-white/40 border border-white/60 hover:bg-white/60 rounded-xl px-3 py-2 text-sm text-[#111827] flex justify-between items-center transition-colors text-left">
-                      <span className="font-medium">
-                        {persona === "PERSONAL" && "Personal (50MB Limit)"}
-                        {persona === "EDUCATOR" && "Educator (200MB Limit)"}
-                        {persona === "PRINT_SHOP" && "Business / Print Shop (500MB Limit)"}
-                      </span>
-                      <motion.div animate={{ rotate: isPersonaDropdownOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                        <svg className="w-4 h-4 text-[#111827]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                      </motion.div>
-                    </button>
-                    <AnimatePresence>
-                      {isPersonaDropdownOpen && (
-                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="absolute top-full left-0 w-full mt-2 bg-white/90 backdrop-blur-xl border border-white/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
-                          {[
-                            { value: "PERSONAL", label: "Personal (50MB Limit)" },
-                            { value: "EDUCATOR", label: "Educator (200MB Limit)" },
-                            { value: "PRINT_SHOP", label: "Business / Print Shop (500MB Limit)" }
-                          ].map(opt => (
-                            <button key={opt.value} onClick={() => { setPersona(opt.value); setIsPersonaDropdownOpen(false); }} className={`w-full text-left px-3 py-2.5 text-sm hover:bg-black/5 transition-colors ${persona === opt.value ? 'bg-[#111827]/5 font-bold text-[#111827]' : 'text-[#111827]/80'}`}>
-                              {opt.label}
-                            </button>
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => handleUpdatePersona(persona)} disabled={isUpdatingPersona} className="bg-[#111827] text-white hover:bg-black px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50">
-                      {isUpdatingPersona ? "Updating\u2026" : "Update"}
-                    </button>
-                    {personaUpdateStatus && (
-                      <p className={`text-xs font-medium ${personaUpdateStatus.ok ? "text-green-600" : "text-red-500"}`}>{personaUpdateStatus.msg}</p>
-                    )}
-                  </div>
-                  <p className="text-xs text-[#111827]/55 leading-relaxed">Your account type sets your maximum file size on the Free tier. Changes apply immediately.</p>
+                </div>
+              </div>
 
-                  {/* Portal QR appearance */}
-                  <div className="border-t border-[#111827]/10 pt-3 mt-1 flex flex-col gap-3">
-                    <div>
-                      <h4 className="font-bold text-[14px] text-[#111827]">Portal QR Appearance</h4>
-                      <p className="text-[11px] text-[#111827]/50">Styles the QR of your <b>share portal</b> (not the payment QR).</p>
+              <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col flex-1 min-h-[calc(100dvh-190px)] md:min-h-0 overflow-hidden">
+                <div className="p-4 sm:p-6 border-b border-white/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
+                  <h2 className="text-lg font-bold text-[#111827] font-display">
+                    Uploads
+                  </h2>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative w-full sm:w-64">
+                      <Search className="w-4 h-4 text-[#111827]/50 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search sender or message..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-white/50 border border-white/60 rounded-full pl-9 pr-4 py-2 text-sm text-[#111827] placeholder-[#111827]/50 focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all shadow-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={() =>
+                        setSortOrder((prev) =>
+                          prev === "latest" ? "oldest" : "latest",
+                        )
+                      }
+                      className="bg-white/50 border border-white/60 hover:bg-white/70 text-sm font-bold text-[#111827] px-4 py-2 rounded-full transition-colors flex items-center gap-2 shrink-0 shadow-sm"
+                    >
+                      <ArrowUpDown className="w-4 h-4" />
+                      <span className="hidden sm:inline font-display">
+                        {sortOrder === "latest" ? "Latest" : "Oldest"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-col flex-1 md:overflow-x-auto md:min-h-0">
+                  <div className="md:min-w-[800px] flex flex-col flex-1 md:min-h-0">
+                    <div className="hidden md:grid grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-4 items-center p-4 border-b border-white/30 bg-[#111827]/5 text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">
+                      <div>Sender</div>
+                      <div>Message</div>
+                      <div>Files</div>
+                      <div>Total Size</div>
+                      <div>Date</div>
+                      <div className="text-right pr-2">Actions</div>
+                    </div>
+                    <div className="flex flex-col flex-1 bg-white/20 md:overflow-y-auto md:min-h-0 md:relative">
+                      <AnimatePresence mode="popLayout">
+                        {processedUploads.map((record) => (
+                          <UploadRecordRow
+                            key={record.uploadId}
+                            record={record}
+                            onDelete={handleDeleteUpload}
+                            onAction={handleAction}
+                          />
+                        ))}
+                      </AnimatePresence>
+                      {processedUploads.length === 0 && (
+                        <div className="flex flex-col flex-1 items-center justify-center text-center p-6 md:h-full md:absolute md:inset-0">
+                          <div className="w-16 h-16 rounded-2xl bg-white/50 border border-white/60 flex items-center justify-center mb-4 shadow-sm">
+                            <Inbox className="w-8 h-8 text-[#111827]/40" />
+                          </div>
+                          <h3 className="text-lg font-bold text-[#111827] mb-2 font-display">
+                            Your inbox is empty
+                          </h3>
+                          <p className="text-sm text-[#111827]/60 max-w-sm">
+                            No one has sent you files yet. Share your portal
+                            code with others so they can drop files securely
+                            into your inbox.
+                          </p>
+                          <button
+                            onClick={() => setActiveTab("share")}
+                            className="mt-6 inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[#111827] text-white text-[13px] font-semibold hover:bg-black transition-colors shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
+                          >
+                            View your Share Portal{" "}
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* --- SHARE PORTAL VIEW --- */}
+          {activeTab === "share" && (
+            <motion.div
+              key="share"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col items-center justify-center gap-6 md:h-full md:min-h-0 md:overflow-y-auto p-4 sm:p-12"
+            >
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-[#111827] font-display">
+                  Your Share Portal
+                </h2>
+                <p className="text-sm text-[#111827]/60 mt-2 max-w-sm">
+                  Scan the QR or share the code — uploads land in your inbox
+                  even while you&apos;re offline.
+                </p>
+              </div>
+              <div className="bg-white/50 rounded-[32px] border border-white/60 p-6 shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrImageUrl}
+                  alt="QR Code"
+                  className="w-56 h-56 rounded-2xl border border-white/60"
+                />
+              </div>
+              <div className="w-full max-w-sm flex items-center bg-white/50 border border-white/60 rounded-2xl p-2 pl-6 shadow-sm">
+                <span className="flex-1 text-lg font-bold tracking-[0.2em] text-[#111827] uppercase font-mono">
+                  {user.shareCode || activeShareCode || "LOADING..."}
+                </span>
+                <button
+                  onClick={copyToClipboard}
+                  disabled={!user.shareCode && !activeShareCode}
+                  className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 disabled:opacity-50 shadow-sm"
+                >
+                  {copied ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* --- SETTINGS VIEW --- */}
+          {activeTab === "settings" && (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="md:h-full md:min-h-0 flex flex-col gap-5 overflow-y-auto p-4 md:p-0 md:pr-2"
+            >
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827] font-display">
+                  Settings
+                </h2>
+                <p className="text-sm text-[#111827]/60">
+                  Manage your account, payments, preferences and portal in one
+                  place.
+                </p>
+              </div>
+
+              {/* Business & Account */}
+              <section>
+                <h3 className="text-[11px] font-bold text-[#111827]/45 uppercase tracking-[0.14em] mb-2">
+                  Business &amp; Account
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                  {/* Profile */}
+                  <div className="bg-white/50 border border-white/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                    <h4 className="font-bold text-[14px] text-[#111827]">
+                      Profile
+                    </h4>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
+                        Display Name
+                      </label>
+                      <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">Foreground</label>
-                        <div className="flex items-center gap-2 bg-white/40 border border-white/60 rounded-xl p-1.5">
-                          <input type="color" aria-label="QR foreground color" value={qrFgColor} onChange={(e) => setQrFgColor(e.target.value)} className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0" />
-                          <span className="text-[11px] text-[#111827]/60 font-mono">{qrFgColor.toUpperCase()}</span>
-                        </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
+                          Phone
+                        </label>
+                        <input
+                          type="text"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Phone number"
+                          className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
+                        />
                       </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">Background</label>
-                        <div className="flex items-center gap-2 bg-white/40 border border-white/60 rounded-xl p-1.5">
-                          <input type="color" aria-label="QR background color" value={qrBgColor} onChange={(e) => setQrBgColor(e.target.value)} className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0" />
-                          <span className="text-[11px] text-[#111827]/60 font-mono">{qrBgColor.toUpperCase()}</span>
-                        </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
+                          Company
+                        </label>
+                        <input
+                          type="text"
+                          value={company}
+                          onChange={(e) => setCompany(e.target.value)}
+                          placeholder="Company name"
+                          className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
+                        />
                       </div>
                     </div>
-                    <div>
-                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">Center Logo URL</label>
-                      <div className="flex items-center gap-2">
-                        <input type="text" value={qrLogoUrl} onChange={(e) => setQrLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" className="flex-1 bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors" />
-                        {qrLogoUrl && /^https?:\/\//.test(qrLogoUrl) && (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img key={qrLogoUrl} src={qrLogoUrl} alt="Logo preview" className="w-9 h-9 rounded-lg border border-white/70 bg-white object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                        )}
-                      </div>
-                      {qrLogoUrl && !/^https?:\/\//.test(qrLogoUrl) && (
-                        <p className="text-[11px] text-red-500 font-medium mt-1">Enter a full URL starting with http:// or https://</p>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
+                        Website
+                      </label>
+                      <input
+                        type="text"
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        placeholder="https://..."
+                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
+                        Bio
+                      </label>
+                      <textarea
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder="A short description..."
+                        rows={2}
+                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors resize-none"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 pt-1">
+                      <button
+                        onClick={handleUpdateProfile}
+                        disabled={isUpdatingProfile || !displayName.trim()}
+                        className="bg-[#111827] text-white hover:bg-black px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50"
+                      >
+                        {isUpdatingProfile ? "Saving\u2026" : "Save Profile"}
+                      </button>
+                      {profileUpdateStatus && (
+                        <p
+                          className={`text-xs font-medium ${profileUpdateStatus.ok ? "text-green-600" : "text-red-500"}`}
+                        >
+                          {profileUpdateStatus.msg}
+                        </p>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Account type + portal QR */}
+                  <div className="bg-white/50 border border-white/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-[14px] text-[#111827]">
+                        Account Type &amp; Plan
+                      </h4>
+                      {isPro ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Crown className="w-3.5 h-3.5 text-amber-500" /> Pro
+                          Active
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setIsUpgradeModalOpen(true)}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-0.5 rounded-full transition-colors"
+                        >
+                          <Sparkles className="w-3 h-3 text-purple-600" />{" "}
+                          Upgrade to Pro
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <button
+                        suppressHydrationWarning
+                        onClick={() =>
+                          setIsPersonaDropdownOpen(!isPersonaDropdownOpen)
+                        }
+                        className="w-full bg-white/40 border border-white/60 hover:bg-white/60 rounded-xl px-3 py-2 text-sm text-[#111827] flex justify-between items-center transition-colors text-left"
+                      >
+                        <span className="font-medium">
+                          {persona === "PERSONAL" && "Personal (50MB Limit)"}
+                          {persona === "EDUCATOR" && "Educator (200MB Limit)"}
+                          {persona === "PRINT_SHOP" &&
+                            "Business / Print Shop (500MB Limit)"}
+                        </span>
+                        <motion.div
+                          animate={{ rotate: isPersonaDropdownOpen ? 180 : 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <svg
+                            className="w-4 h-4 text-[#111827]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </motion.div>
+                      </button>
+                      <AnimatePresence>
+                        {isPersonaDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="absolute top-full left-0 w-full mt-2 bg-white/90 backdrop-blur-xl border border-white/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
+                          >
+                            {[
+                              {
+                                value: "PERSONAL",
+                                label: "Personal (50MB Limit)",
+                              },
+                              {
+                                value: "EDUCATOR",
+                                label: "Educator (200MB Limit)",
+                              },
+                              {
+                                value: "PRINT_SHOP",
+                                label: "Business / Print Shop (500MB Limit)",
+                              },
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                onClick={() => {
+                                  setPersona(opt.value);
+                                  setIsPersonaDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-black/5 transition-colors ${persona === opt.value ? "bg-[#111827]/5 font-bold text-[#111827]" : "text-[#111827]/80"}`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => { saveQrSettings(); setQrSaved(true); setTimeout(() => setQrSaved(false), 2200); }}
-                        disabled={!!qrLogoUrl && !/^https?:\/\//.test(qrLogoUrl)}
-                        className="bg-[#111827] hover:bg-black text-white px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50"
+                        onClick={() => handleUpdatePersona(persona)}
+                        disabled={isUpdatingPersona}
+                        className="bg-[#111827] text-white hover:bg-black px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50"
                       >
-                        Save QR Style
+                        {isUpdatingPersona ? "Updating\u2026" : "Update"}
                       </button>
-                      {qrSaved && <p className="text-xs font-medium text-green-600">Saved!</p>}
+                      {personaUpdateStatus && (
+                        <p
+                          className={`text-xs font-medium ${personaUpdateStatus.ok ? "text-green-600" : "text-red-500"}`}
+                        >
+                          {personaUpdateStatus.msg}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#111827]/55 leading-relaxed">
+                      Your account type sets your maximum file size on the Free
+                      tier. Changes apply immediately.
+                    </p>
+
+                    {/* Portal QR appearance */}
+                    <div className="border-t border-[#111827]/10 pt-3 mt-1 flex flex-col gap-3">
+                      <div>
+                        <h4 className="font-bold text-[14px] text-[#111827]">
+                          Portal QR Appearance
+                        </h4>
+                        <p className="text-[11px] text-[#111827]/50">
+                          Styles the QR of your <b>share portal</b> (not the
+                          payment QR).
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">
+                            Foreground
+                          </label>
+                          <div className="flex items-center gap-2 bg-white/40 border border-white/60 rounded-xl p-1.5">
+                            <input
+                              type="color"
+                              aria-label="QR foreground color"
+                              value={qrFgColor}
+                              onChange={(e) => setQrFgColor(e.target.value)}
+                              className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0"
+                            />
+                            <span className="text-[11px] text-[#111827]/60 font-mono">
+                              {qrFgColor.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">
+                            Background
+                          </label>
+                          <div className="flex items-center gap-2 bg-white/40 border border-white/60 rounded-xl p-1.5">
+                            <input
+                              type="color"
+                              aria-label="QR background color"
+                              value={qrBgColor}
+                              onChange={(e) => setQrBgColor(e.target.value)}
+                              className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0"
+                            />
+                            <span className="text-[11px] text-[#111827]/60 font-mono">
+                              {qrBgColor.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">
+                          Center Logo URL
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={qrLogoUrl}
+                            onChange={(e) => setQrLogoUrl(e.target.value)}
+                            placeholder="https://example.com/logo.png"
+                            className="flex-1 bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
+                          />
+                          {qrLogoUrl && /^https?:\/\//.test(qrLogoUrl) && (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              key={qrLogoUrl}
+                              src={qrLogoUrl}
+                              alt="Logo preview"
+                              className="w-9 h-9 rounded-lg border border-white/70 bg-white object-contain shrink-0"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                            />
+                          )}
+                        </div>
+                        {qrLogoUrl && !/^https?:\/\//.test(qrLogoUrl) && (
+                          <p className="text-[11px] text-red-500 font-medium mt-1">
+                            Enter a full URL starting with http:// or https://
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => {
+                            saveQrSettings();
+                            setQrSaved(true);
+                            setTimeout(() => setQrSaved(false), 2200);
+                          }}
+                          disabled={
+                            !!qrLogoUrl && !/^https?:\/\//.test(qrLogoUrl)
+                          }
+                          className="bg-[#111827] hover:bg-black text-white px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50"
+                        >
+                          Save QR Style
+                        </button>
+                        {qrSaved && (
+                          <p className="text-xs font-medium text-green-600">
+                            Saved!
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
-
-            {/* Payments & Printing (shopkeeper only) */}
-            {isShopkeeper && (
-              <section>
-                <h3 className="text-[11px] font-bold text-[#111827]/45 uppercase tracking-[0.14em] mb-2">Payments &amp; Printing</h3>
-                <PrintingSettings token={token} />
               </section>
-            )}
-          </motion.div>
-        )}
 
-        {/* --- PRINT ORDERS VIEW (shopkeeper only) --- */}
-        {activeTab === "printshop" && isShopkeeper && (
-          <motion.div
-            key="printshop"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col gap-5 md:h-full md:min-h-0 p-4 md:p-0 md:pr-2 overflow-y-auto"
-          >
-            <div>
-              <h2 className="text-2xl font-bold text-[#111827] font-display">Print Orders</h2>
-              <p className="text-sm text-[#111827]/60">Incoming print jobs, payment status and revenue from your shop QR code.</p>
-            </div>
-            <PrintShopPanel token={token} />
-          </motion.div>
-        )}
+              {/* Payments & Printing (shopkeeper only) */}
+              {isShopkeeper && (
+                <section>
+                  <h3 className="text-[11px] font-bold text-[#111827]/45 uppercase tracking-[0.14em] mb-2">
+                    Payments &amp; Printing
+                  </h3>
+                  <PrintingSettings token={token} />
+                </section>
+              )}
+            </motion.div>
+          )}
 
-        {/* --- PAYMENTS VIEW (shopkeeper only) --- */}
-        {activeTab === "payments" && isShopkeeper && (
-          <motion.div
-            key="payments"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col gap-5 md:h-full md:min-h-0 p-4 md:p-0 md:pr-2 overflow-y-auto"
-          >
-            <div>
-              <h2 className="text-2xl font-bold text-[#111827] font-display">Payments</h2>
-              <p className="text-sm text-[#111827]/60">Every print payment received through your shop QR.</p>
-            </div>
-            <PaymentsPanel token={token} />
-          </motion.div>
-        )}
-
-        {/* --- ANALYTICS VIEW (Personal/Educator only) --- */}
-        {activeTab === "analytics" && (
-          <motion.div
-            key="analytics"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col gap-5 md:h-full md:min-h-0 p-4 md:p-0 md:pr-2 overflow-y-auto"
-          >
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h2 className="text-2xl font-bold text-[#111827] font-display">Analytics Overview</h2>
-                <div className="flex items-center gap-1 bg-white/40 border border-white/60 p-1 rounded-full shadow-sm">
-                  {['7d', '30d', 'all'].map(f => (
-                    <button key={f} onClick={() => setAnalyticsFilter(f)} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${analyticsFilter === f ? 'bg-[#111827] text-white' : 'text-[#111827]/60 hover:text-[#111827]'}`}>
-                      {f === '7d' ? '7 Days' : f === '30d' ? '30 Days' : 'All Time'}
-                    </button>
-                  ))}
-                </div>
+          {/* --- PRINT ORDERS VIEW (shopkeeper only) --- */}
+          {activeTab === "printshop" && isShopkeeper && (
+            <motion.div
+              key="printshop"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-5 md:h-full md:min-h-0 p-4 md:p-0 md:pr-2 overflow-y-auto"
+            >
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827] font-display">
+                  Print Orders
+                </h2>
+                <p className="text-sm text-[#111827]/60">
+                  Incoming print jobs, payment status and revenue from your shop
+                  QR code.
+                </p>
               </div>
-              <p className="text-sm text-[#111827]/60">Real-time metrics and historical data for your portal.</p>
-            </div>
+              <PrintShopPanel token={token} />
+            </motion.div>
+          )}
 
-            {isAnalyticsLoading || !analyticsData ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-12">
-                <div className="w-8 h-8 rounded-full border-2 border-[#111827] border-t-transparent animate-spin" />
-                <p className="mt-4 text-sm font-bold text-[#111827]/60 font-mono tracking-widest uppercase">Loading Analytics...</p>
+          {/* --- PAYMENTS VIEW (shopkeeper only) --- */}
+          {activeTab === "payments" && isShopkeeper && (
+            <motion.div
+              key="payments"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-5 md:h-full md:min-h-0 p-4 md:p-0 md:pr-2 overflow-y-auto"
+            >
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827] font-display">
+                  Payments
+                </h2>
+                <p className="text-sm text-[#111827]/60">
+                  Every print payment received through your shop QR.
+                </p>
               </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold text-[#111827]">Storage Capacity</h3>
-                      <p className="text-xs text-[#111827]/60 mt-1 font-mono uppercase tracking-wider">{analyticsData.overview.planType} PLAN</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-black text-[#111827]">{formatSize(analyticsData.overview.storageUsed || 0)}</span>
-                      <span className="text-sm font-bold text-[#111827]/60 ml-2">/ {formatSize(analyticsData.overview.storageLimit || 1073741824)}</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-white/40 border border-white/60 rounded-full h-4 overflow-hidden relative">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, ((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) * 100)}%` }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className={`h-full rounded-full ${((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) > 0.9 ? 'bg-red-500' : 'bg-gradient-to-r from-[#c084fc] to-[#9333ea]'}`}
-                    />
-                  </div>
-                  {analyticsData.overview.planType === 'FREE' && ((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) > 0.8 && (
-                    <div className="flex justify-between items-center mt-2 bg-[#111827]/5 rounded-xl p-3 border border-[#111827]/10">
-                      <span className="text-xs font-bold text-[#111827]">Running low on space?</span>
-                      <button onClick={() => { setActiveTab('settings'); setIsUpgradeModalOpen(true); }} className="text-xs font-bold text-white bg-[#111827] hover:bg-black px-4 py-2 rounded-lg transition-colors">Upgrade to PRO</button>
-                    </div>
-                  )}
-                </div>
+              <PaymentsPanel token={token} />
+            </motion.div>
+          )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
-                    <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Total Bandwidth</span>
-                    <span className="text-3xl font-black text-[#111827]">{formatSize(analyticsData.overview.totalBandwidth)}</span>
-                  </div>
-                  <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
-                    <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">Total Files</span>
-                    <span className="text-3xl font-black text-[#111827]">{analyticsData.overview.totalFiles}</span>
+          {/* --- ANALYTICS VIEW (Personal/Educator only) --- */}
+          {activeTab === "analytics" && (
+            <motion.div
+              key="analytics"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-5 md:h-full md:min-h-0 p-4 md:p-0 md:pr-2 overflow-y-auto"
+            >
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h2 className="text-2xl font-bold text-[#111827] font-display">
+                    Analytics Overview
+                  </h2>
+                  <div className="flex items-center gap-1 bg-white/40 border border-white/60 p-1 rounded-full shadow-sm">
+                    {["7d", "30d", "all"].map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setAnalyticsFilter(f)}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${analyticsFilter === f ? "bg-[#111827] text-white" : "text-[#111827]/60 hover:text-[#111827]"}`}
+                      >
+                        {f === "7d"
+                          ? "7 Days"
+                          : f === "30d"
+                            ? "30 Days"
+                            : "All Time"}
+                      </button>
+                    ))}
                   </div>
                 </div>
+                <p className="text-sm text-[#111827]/60">
+                  Real-time metrics and historical data for your portal.
+                </p>
+              </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[300px]">
-                  <div className="lg:col-span-2 bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col">
-                    <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">Uploads Over Time {analyticsFilter === '7d' ? '(Last 7 Days)' : analyticsFilter === '30d' ? '(Last 30 Days)' : '(All Time)'}</h3>
-                    <div className="flex-1 min-h-[250px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={analyticsData.timeSeries}>
-                          <defs>
-                            <linearGradient id="colorUploads" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#c084fc" stopOpacity={0.8} />
-                              <stop offset="95%" stopColor="#c084fc" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(17,24,39,0.1)" vertical={false} />
-                          <XAxis dataKey="date" tickFormatter={(str) => str ? new Date(str as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} stroke="rgba(17,24,39,0.4)" fontSize={12} tickMargin={10} />
-                          <YAxis stroke="rgba(17,24,39,0.4)" fontSize={12} allowDecimals={false} />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.6)', backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', color: '#111827', fontWeight: 'bold' }} labelFormatter={(label) => label ? new Date(label as string).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : ''} />
-                          <Area type="monotone" dataKey="uploads" stroke="#9333ea" strokeWidth={3} fillOpacity={1} fill="url(#colorUploads)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
+              {isAnalyticsLoading || !analyticsData ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-12">
+                  <div className="w-8 h-8 rounded-full border-2 border-[#111827] border-t-transparent animate-spin" />
+                  <p className="mt-4 text-sm font-bold text-[#111827]/60 font-mono tracking-widest uppercase">
+                    Loading Analytics...
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  <div className="bg-white/50 border border-white/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-bold text-[#111827]">
+                          Storage Capacity
+                        </h3>
+                        <p className="text-xs text-[#111827]/60 mt-1 font-mono uppercase tracking-wider">
+                          {analyticsData.overview.planType} PLAN
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-[#111827]">
+                          {formatSize(analyticsData.overview.storageUsed || 0)}
+                        </span>
+                        <span className="text-sm font-bold text-[#111827]/60 ml-2">
+                          /{" "}
+                          {formatSize(
+                            analyticsData.overview.storageLimit || 1073741824,
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-white/40 border border-white/60 rounded-full h-4 overflow-hidden relative">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{
+                          width: `${Math.min(100, ((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) * 100)}%`,
+                        }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        className={`h-full rounded-full ${(analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824) > 0.9 ? "bg-red-500" : "bg-gradient-to-r from-[#c084fc] to-[#9333ea]"}`}
+                      />
+                    </div>
+                    {analyticsData.overview.planType === "FREE" &&
+                      (analyticsData.overview.storageUsed || 0) /
+                        (analyticsData.overview.storageLimit || 1073741824) >
+                        0.8 && (
+                        <div className="flex justify-between items-center mt-2 bg-[#111827]/5 rounded-xl p-3 border border-[#111827]/10">
+                          <span className="text-xs font-bold text-[#111827]">
+                            Running low on space?
+                          </span>
+                          <button
+                            onClick={() => {
+                              setActiveTab("settings");
+                              setIsUpgradeModalOpen(true);
+                            }}
+                            className="text-xs font-bold text-white bg-[#111827] hover:bg-black px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Upgrade to PRO
+                          </button>
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
+                      <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">
+                        Total Bandwidth
+                      </span>
+                      <span className="text-3xl font-black text-[#111827]">
+                        {formatSize(analyticsData.overview.totalBandwidth)}
+                      </span>
+                    </div>
+                    <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col gap-2">
+                      <span className="text-xs font-bold text-[#111827]/60 uppercase tracking-wider font-mono">
+                        Total Files
+                      </span>
+                      <span className="text-3xl font-black text-[#111827]">
+                        {analyticsData.overview.totalFiles}
+                      </span>
                     </div>
                   </div>
-                  <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col">
-                    <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">File Types</h3>
-                    <div className="flex-1 min-h-[250px] flex items-center justify-center">
-                      {analyticsData.fileTypes.length === 0 ? (
-                        <span className="text-sm text-[#111827]/50 font-medium">No data available</span>
-                      ) : (
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[300px]">
+                    <div className="lg:col-span-2 bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col">
+                      <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">
+                        Uploads Over Time{" "}
+                        {analyticsFilter === "7d"
+                          ? "(Last 7 Days)"
+                          : analyticsFilter === "30d"
+                            ? "(Last 30 Days)"
+                            : "(All Time)"}
+                      </h3>
+                      <div className="flex-1 min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie data={analyticsData.fileTypes} dataKey="count" nameKey="file_type" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                              {analyticsData.fileTypes.map((entry: any, index: number) => {
-                                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
-                                return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
-                              })}
-                            </Pie>
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.6)', backgroundColor: 'rgba(255,255,255,0.9)', color: '#111827', fontWeight: 'bold' }} />
-                          </PieChart>
+                          <AreaChart data={analyticsData.timeSeries}>
+                            <defs>
+                              <linearGradient
+                                id="colorUploads"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                              >
+                                <stop
+                                  offset="5%"
+                                  stopColor="#c084fc"
+                                  stopOpacity={0.8}
+                                />
+                                <stop
+                                  offset="95%"
+                                  stopColor="#c084fc"
+                                  stopOpacity={0}
+                                />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="rgba(17,24,39,0.1)"
+                              vertical={false}
+                            />
+                            <XAxis
+                              dataKey="date"
+                              tickFormatter={(str) =>
+                                str
+                                  ? new Date(str as string).toLocaleDateString(
+                                      "en-US",
+                                      { month: "short", day: "numeric" },
+                                    )
+                                  : ""
+                              }
+                              stroke="rgba(17,24,39,0.4)"
+                              fontSize={12}
+                              tickMargin={10}
+                            />
+                            <YAxis
+                              stroke="rgba(17,24,39,0.4)"
+                              fontSize={12}
+                              allowDecimals={false}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                borderRadius: "12px",
+                                border: "1px solid rgba(255,255,255,0.6)",
+                                backgroundColor: "rgba(255,255,255,0.9)",
+                                backdropFilter: "blur(10px)",
+                                color: "#111827",
+                                fontWeight: "bold",
+                              }}
+                              labelFormatter={(label) =>
+                                label
+                                  ? new Date(
+                                      label as string,
+                                    ).toLocaleDateString("en-US", {
+                                      weekday: "long",
+                                      month: "short",
+                                      day: "numeric",
+                                    })
+                                  : ""
+                              }
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="uploads"
+                              stroke="#9333ea"
+                              strokeWidth={3}
+                              fillOpacity={1}
+                              fill="url(#colorUploads)"
+                            />
+                          </AreaChart>
                         </ResponsiveContainer>
+                      </div>
+                    </div>
+                    <div className="bg-white/50 border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col">
+                      <h3 className="text-sm font-bold text-[#111827] mb-4 font-display">
+                        File Types
+                      </h3>
+                      <div className="flex-1 min-h-[250px] flex items-center justify-center">
+                        {analyticsData.fileTypes.length === 0 ? (
+                          <span className="text-sm text-[#111827]/50 font-medium">
+                            No data available
+                          </span>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={analyticsData.fileTypes}
+                                dataKey="count"
+                                nameKey="file_type"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={5}
+                              >
+                                {analyticsData.fileTypes.map(
+                                  (entry: any, index: number) => {
+                                    const colors = [
+                                      "#3b82f6",
+                                      "#10b981",
+                                      "#f59e0b",
+                                      "#ec4899",
+                                      "#8b5cf6",
+                                    ];
+                                    return (
+                                      <Cell
+                                        key={`cell-${index}`}
+                                        fill={colors[index % colors.length]}
+                                      />
+                                    );
+                                  },
+                                )}
+                              </Pie>
+                              <Tooltip
+                                contentStyle={{
+                                  borderRadius: "12px",
+                                  border: "1px solid rgba(255,255,255,0.6)",
+                                  backgroundColor: "rgba(255,255,255,0.9)",
+                                  color: "#111827",
+                                  fontWeight: "bold",
+                                }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/50 border border-white/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-white/60">
+                      <h3 className="text-sm font-bold text-[#111827] font-display">
+                        Recent Activity
+                      </h3>
+                    </div>
+                    <div className="flex flex-col max-h-[300px] overflow-y-auto">
+                      {analyticsData.recentActivity.length === 0 ? (
+                        <div className="p-8 text-center text-sm text-[#111827]/50">
+                          No recent activity found.
+                        </div>
+                      ) : (
+                        analyticsData.recentActivity.map((event: any) => (
+                          <div
+                            key={event.id}
+                            className="flex items-center gap-4 p-4 border-b border-white/30 last:border-0 hover:bg-white/40 transition-colors"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-[#111827]/5 flex items-center justify-center shrink-0">
+                              {event.event_type === "upload_received" ? (
+                                <CloudDownload className="w-4 h-4 text-[#111827]" />
+                              ) : (
+                                <Eye className="w-4 h-4 text-[#111827]" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col">
+                              <span className="text-sm font-bold text-[#111827] truncate">
+                                {event.sender_name}{" "}
+                                <span className="text-[#111827]/60 font-medium">
+                                  {event.event_type === "upload_received"
+                                    ? "sent a file"
+                                    : "viewed/downloaded a file"}
+                                </span>
+                              </span>
+                              <span
+                                className="text-xs text-[#111827]/60 font-mono mt-0.5 truncate max-w-xs"
+                                title={event.file_name || event.file_type}
+                              >
+                                {event.file_name || event.file_type} •{" "}
+                                {formatSize(
+                                  parseInt(event.file_size_bytes, 10),
+                                )}
+                              </span>
+                            </div>
+                            <div className="text-xs text-[#111827]/50 font-mono shrink-0">
+                              {new Date(event.created_at).toLocaleTimeString(
+                                [],
+                                { hour: "2-digit", minute: "2-digit" },
+                              )}
+                            </div>
+                          </div>
+                        ))
                       )}
                     </div>
                   </div>
                 </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
 
-                <div className="bg-white/50 border border-white/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                  <div className="p-4 border-b border-white/60">
-                    <h3 className="text-sm font-bold text-[#111827] font-display">Recent Activity</h3>
-                  </div>
-                  <div className="flex flex-col max-h-[300px] overflow-y-auto">
-                    {analyticsData.recentActivity.length === 0 ? (
-                      <div className="p-8 text-center text-sm text-[#111827]/50">No recent activity found.</div>
-                    ) : (
-                      analyticsData.recentActivity.map((event: any) => (
-                        <div key={event.id} className="flex items-center gap-4 p-4 border-b border-white/30 last:border-0 hover:bg-white/40 transition-colors">
-                          <div className="w-10 h-10 rounded-full bg-[#111827]/5 flex items-center justify-center shrink-0">
-                            {event.event_type === 'upload_received' ? <CloudDownload className="w-4 h-4 text-[#111827]" /> : <Eye className="w-4 h-4 text-[#111827]" />}
-                          </div>
-                          <div className="flex-1 min-w-0 flex flex-col">
-                            <span className="text-sm font-bold text-[#111827] truncate">
-                              {event.sender_name} <span className="text-[#111827]/60 font-medium">{event.event_type === 'upload_received' ? 'sent a file' : 'viewed/downloaded a file'}</span>
-                            </span>
-                            <span className="text-xs text-[#111827]/60 font-mono mt-0.5 truncate max-w-xs" title={event.file_name || event.file_type}>
-                              {event.file_name || event.file_type} • {formatSize(parseInt(event.file_size_bytes, 10))}
-                            </span>
-                          </div>
-                          <div className="text-xs text-[#111827]/50 font-mono shrink-0">
-                            {new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
+      {/* --- PRO PLAN / SUBSCRIPTION MODAL --- */}
+      <AnimatePresence>
+        {isUpgradeModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 md:p-8"
+          >
+            <div className="w-full max-w-4xl relative flex flex-col items-center">
+              <button
+                onClick={() => setIsUpgradeModalOpen(false)}
+                className="absolute -top-12 right-0 md:top-0 md:-right-12 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-md"
+              >
+                <X className="w-6 h-6" />
+              </button>
 
-      </AnimatePresence>
-    </main>
-
-    {/* --- PRO PLAN / SUBSCRIPTION MODAL --- */}
-    <AnimatePresence>
-      {isUpgradeModalOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 md:p-8"
-        >
-          <div className="w-full max-w-4xl relative flex flex-col items-center">
-            <button onClick={() => setIsUpgradeModalOpen(false)} className="absolute -top-12 right-0 md:top-0 md:-right-12 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-md">
-              <X className="w-6 h-6" />
-            </button>
-
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold mb-3 shadow-sm">
-                {isPro ? (
-                  <>
-                    <Crown className="w-3.5 h-3.5 text-amber-300" />
-                    <span>PRO MEMBERSHIP ACTIVE</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5 text-[#c084fc]" />
-                    <span>UPGRADE YOUR ACCOUNT</span>
-                  </>
-                )}
-              </div>
-              <h2 className="text-3xl md:text-4xl font-display font-bold text-white">
-                {isPro ? "Your Subscription & Perks" : "Upgrade Plan"}
-              </h2>
-              <p className="text-sm text-white/70 mt-2 max-w-md mx-auto">
-                {isPro
-                  ? "You are currently on the Pro plan. All premium capabilities and priority speeds are fully active."
-                  : "Unlock permanent custom Share Codes, zero ads, and extended file retention."}
-              </p>
-            </div>
-
-            <div className="flex flex-col md:flex-row items-stretch gap-6 w-full max-w-3xl">
-              {/* Basic Plan */}
-              <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="flex-1 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[32px] p-8 shadow-2xl flex flex-col relative overflow-hidden">
-                <div className="absolute top-6 right-6">
-                  <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-white/50" />
-                  </div>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Free</h3>
-                <div className="mb-6"><span className="text-4xl font-bold text-white">₹0</span><span className="text-white/60 ml-1">/forever</span></div>
-                <button disabled className="w-full py-3 px-4 rounded-xl bg-white/10 text-white/50 font-bold mb-8 cursor-not-allowed">
-                  {isPro ? "Basic Features Included" : "Current Plan"}
-                </button>
-                <div className="flex flex-col gap-4 mt-auto">
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed"><strong>1 GB</strong> storage capacity limit.</span></div>
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed"><strong>2 Hours</strong> maximum file retention.</span></div>
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed">Standard 50 MB single file upload cap.</span></div>
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-white/60 shrink-0" /><span className="text-sm text-white/80 leading-relaxed">Standard 6-character random Share Code.</span></div>
-                </div>
-              </motion.div>
-
-              {/* Premium / Pro Plan */}
-              <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ delay: 0.1 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className={`flex-1 backdrop-blur-2xl rounded-[32px] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden group ${isPro ? "bg-gradient-to-br from-[#1e1b4b]/95 via-[#2e1065]/90 to-[#0f172a]/95 border-2 border-emerald-400/80 shadow-[0_0_50px_rgba(52,211,153,0.25)]" : "bg-white/15 border border-white/30"}`}>
-                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#c084fc]/30 to-[#9333ea]/30 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-                <div className="flex items-center justify-between mb-2 relative z-10">
-                  <h3 className="text-xl font-bold text-white">Pro Plan</h3>
-                  {isPro && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm">
-                      <Check className="w-3.5 h-3.5" /> Active ({subscriptionDetails.daysRemaining > 0 ? `${subscriptionDetails.daysRemaining} days left` : 'Active'})
-                    </span>
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold mb-3 shadow-sm">
+                  {isPro ? (
+                    <>
+                      <Crown className="w-3.5 h-3.5 text-amber-300" />
+                      <span>PRO MEMBERSHIP ACTIVE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-[#c084fc]" />
+                      <span>UPGRADE YOUR ACCOUNT</span>
+                    </>
                   )}
                 </div>
-                <div className="mb-6 relative z-10">
-                  <span className="text-4xl font-bold text-white">₹1</span>
-                  <span className="text-white/60 ml-1">/30 days</span>
-                </div>
+                <h2 className="text-3xl md:text-4xl font-display font-bold text-white">
+                  {isPro ? "Your Subscription & Perks" : "Upgrade Plan"}
+                </h2>
+                <p className="text-sm text-white/70 mt-2 max-w-md mx-auto">
+                  {isPro
+                    ? "You are currently on the Pro plan. All premium capabilities and priority speeds are fully active."
+                    : "Unlock permanent custom Share Codes, zero ads, and extended file retention."}
+                </p>
+              </div>
 
-                {isPro ? (
-                  <div className="flex flex-col gap-2 mb-8 relative z-10">
-                    <div className="w-full py-3 px-4 rounded-xl font-bold bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 flex items-center justify-center gap-2 cursor-default shadow-sm text-sm">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      {subscriptionDetails.endsAt ? `Active until ${new Date(subscriptionDetails.endsAt).toLocaleDateString()}` : "Pro Plan Active"}
+              <div className="flex flex-col md:flex-row items-stretch gap-6 w-full max-w-3xl">
+                {/* Basic Plan */}
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                  className="flex-1 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[32px] p-8 shadow-2xl flex flex-col relative overflow-hidden"
+                >
+                  <div className="absolute top-6 right-6">
+                    <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                      <div className="w-2.5 h-2.5 rounded-full bg-white/50" />
                     </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Free</h3>
+                  <div className="mb-6">
+                    <span className="text-4xl font-bold text-white">₹0</span>
+                    <span className="text-white/60 ml-1">/forever</span>
+                  </div>
+                  <button
+                    disabled
+                    className="w-full py-3 px-4 rounded-xl bg-white/10 text-white/50 font-bold mb-8 cursor-not-allowed"
+                  >
+                    {isPro ? "Basic Features Included" : "Current Plan"}
+                  </button>
+                  <div className="flex flex-col gap-4 mt-auto">
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-white/60 shrink-0" />
+                      <span className="text-sm text-white/80 leading-relaxed">
+                        <strong>1 GB</strong> storage capacity limit.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-white/60 shrink-0" />
+                      <span className="text-sm text-white/80 leading-relaxed">
+                        <strong>2 Hours</strong> maximum file retention.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-white/60 shrink-0" />
+                      <span className="text-sm text-white/80 leading-relaxed">
+                        Standard 50 MB single file upload cap.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-white/60 shrink-0" />
+                      <span className="text-sm text-white/80 leading-relaxed">
+                        Standard 6-character random Share Code.
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Premium / Pro Plan */}
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                  className={`flex-1 backdrop-blur-2xl rounded-[32px] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.3)] flex flex-col relative overflow-hidden group ${isPro ? "bg-gradient-to-br from-[#1e1b4b]/95 via-[#2e1065]/90 to-[#0f172a]/95 border-2 border-emerald-400/80 shadow-[0_0_50px_rgba(52,211,153,0.25)]" : "bg-white/15 border border-white/30"}`}
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#c084fc]/30 to-[#9333ea]/30 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+                  <div className="flex items-center justify-between mb-2 relative z-10">
+                    <h3 className="text-xl font-bold text-white">Pro Plan</h3>
+                    {isPro && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm">
+                        <Check className="w-3.5 h-3.5" /> Active (
+                        {subscriptionDetails.daysRemaining > 0
+                          ? `${subscriptionDetails.daysRemaining} days left`
+                          : "Active"}
+                        )
+                      </span>
+                    )}
+                  </div>
+                  <div className="mb-6 relative z-10">
+                    <span className="text-4xl font-bold text-white">₹1</span>
+                    <span className="text-white/60 ml-1">/30 days</span>
+                  </div>
+
+                  {isPro ? (
+                    <div className="flex flex-col gap-2 mb-8 relative z-10">
+                      <div className="w-full py-3 px-4 rounded-xl font-bold bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 flex items-center justify-center gap-2 cursor-default shadow-sm text-sm">
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        {subscriptionDetails.endsAt
+                          ? `Active until ${new Date(subscriptionDetails.endsAt).toLocaleDateString()}`
+                          : "Pro Plan Active"}
+                      </div>
+                      <button
+                        onClick={handleUpgradeCheckout}
+                        disabled={isCheckoutLoading}
+                        className="w-full py-2.5 px-4 rounded-xl font-medium text-xs bg-white/10 hover:bg-white/20 text-white transition-all border border-white/20 flex items-center justify-center gap-2"
+                      >
+                        {isCheckoutLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          "Extend Plan (+30 Days for ₹1)"
+                        )}
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       onClick={handleUpgradeCheckout}
                       disabled={isCheckoutLoading}
-                      className="w-full py-2.5 px-4 rounded-xl font-medium text-xs bg-white/10 hover:bg-white/20 text-white transition-all border border-white/20 flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.25)] disabled:opacity-50 relative z-10 flex items-center justify-center gap-2"
                     >
-                      {isCheckoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Extend Plan (+30 Days for ₹1)"}
+                      {isCheckoutLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                          Initializing Razorpay...
+                        </>
+                      ) : (
+                        "Upgrade with Razorpay — ₹1"
+                      )}
                     </button>
+                  )}
+
+                  <div className="flex flex-col gap-4 mt-auto relative z-10">
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <span className="text-sm text-white/90 leading-relaxed">
+                        <strong>10 GB Storage</strong> for peak customer rush.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <span className="text-sm text-white/90 leading-relaxed">
+                        <strong>Up to 7 Days Retention</strong> (configurable 2h
+                        to 7 days).
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <span className="text-sm text-white/90 leading-relaxed">
+                        <strong>500 MB Uploads</strong> for thesis, CAD drawings
+                        &amp; books.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <span className="text-sm text-white/90 leading-relaxed">
+                        Permanent custom Share Code &amp; shop branding.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <span className="text-sm text-white/90 leading-relaxed">
+                        100% ad-free student upload interface.
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={handleUpgradeCheckout}
-                    disabled={isCheckoutLoading}
-                    className="w-full py-3.5 px-4 rounded-xl font-bold bg-gradient-to-r from-[#c084fc] to-[#9333ea] text-white mb-8 hover:opacity-90 transition-opacity shadow-[0_8px_16px_rgba(192,132,252,0.25)] disabled:opacity-50 relative z-10 flex items-center justify-center gap-2"
-                  >
-                    {isCheckoutLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Initializing Razorpay...
-                      </>
-                    ) : (
-                      "Upgrade with Razorpay — ₹1"
-                    )}
-                  </button>
-                )}
-
-                <div className="flex flex-col gap-4 mt-auto relative z-10">
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed"><strong>10 GB Storage</strong> for peak customer rush.</span></div>
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed"><strong>Up to 7 Days Retention</strong> (configurable 2h to 7 days).</span></div>
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed"><strong>500 MB Uploads</strong> for thesis, CAD drawings &amp; books.</span></div>
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed">Permanent custom Share Code &amp; shop branding.</span></div>
-                  <div className="flex items-start gap-3"><Check className="w-5 h-5 text-emerald-400 shrink-0" /><span className="text-sm text-white/90 leading-relaxed">100% ad-free student upload interface.</span></div>
-                </div>
-              </motion.div>
+                </motion.div>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-
-  </div>
-);
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
