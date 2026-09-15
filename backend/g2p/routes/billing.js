@@ -193,7 +193,7 @@ router.post('/subscription/create-order', async (req, res) => {
       return res.status(404).json({ error: 'vendor_not_found' });
     }
     const vendor = vRes.rows[0];
-    const amountPaise = 49900; // ₹499 in paise
+    const amountPaise = 100; // Temporary ₹1 in paise for testing (was 49900)
 
     const rzp = getRazorpay();
     const receipt = `pro_${req.vendorId.substring(0, 8)}_${Date.now()}`;
@@ -214,7 +214,7 @@ router.post('/subscription/create-order', async (req, res) => {
     await query(`
       INSERT INTO vendor_subscriptions (
         vendor_id, plan_id, amount, currency, razorpay_order_id, status
-      ) VALUES ($1, 'pro_monthly', 499.00, 'INR', $2, 'created')
+      ) VALUES ($1, 'pro_monthly', 1.00, 'INR', $2, 'created')
     `, [req.vendorId, order.id]);
 
     res.json({

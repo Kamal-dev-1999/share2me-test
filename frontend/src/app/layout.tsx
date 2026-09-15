@@ -5,6 +5,7 @@ import "./globals.css";
 
 import { SideRail } from "@/components/SideRail";
 import { Providers } from "@/components/Providers";
+import { AdManager } from "@/components/ads/AdManager";
 import { AnalyticsTracker, WebVitals } from "@/components/analytics/AnalyticsTracker";
 import { GA_MEASUREMENT_ID } from "@/lib/analytics";
 
@@ -183,17 +184,6 @@ export default function RootLayout({
         <meta name="monetag" content="693bcd3157f3fb9f70477feb7fae2765" />
         <meta name="google-adsense-account" content="ca-pub-3981074780272106" />
         <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3981074780272106"
-          crossOrigin="anonymous"
-        />
-        <script
-          src="https://quge5.com/88/tag.min.js"
-          data-zone="281066"
-          async
-          data-cfasync="false"
-        />
-        <script
           suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -338,7 +328,10 @@ export default function RootLayout({
           </defs>
         </svg>
         <SideRail />
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <AdManager />
+        </Providers>
         <AnalyticsTracker />
         <WebVitals />
         <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />

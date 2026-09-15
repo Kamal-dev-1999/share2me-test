@@ -34,7 +34,8 @@ export default function G2PErrorBoundary({
       <div className="card-brutalist p-8 max-w-md w-full flex flex-col items-center gap-4">
         <h2 className="text-xl font-semibold">Unable to load Receive Portal</h2>
         <p className="text-sm text-on-surface-variant">
-          Share2Me was recently updated. Please refresh to load the latest components.
+          Share2Me was recently updated. Please refresh to load the latest
+          components.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
           <button

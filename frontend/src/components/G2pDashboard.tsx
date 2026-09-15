@@ -1024,7 +1024,7 @@ export default function G2pDashboard({
               Permanent Share Code, 10 GB storage &amp; up to 7-day retention.
             </p>
             <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
-              ₹499/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
+              ₹1/month <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
             </div>
           </button>
         )}
@@ -1566,7 +1566,7 @@ export default function G2pDashboard({
                   )}
                 </div>
                 <div className="mb-6 relative z-10">
-                  <span className="text-4xl font-bold text-white">₹499</span>
+                  <span className="text-4xl font-bold text-white">₹1</span>
                   <span className="text-white/60 ml-1">/30 days</span>
                 </div>
 
@@ -1581,7 +1581,7 @@ export default function G2pDashboard({
                       disabled={isCheckoutLoading}
                       className="w-full py-2.5 px-4 rounded-xl font-medium text-xs bg-white/10 hover:bg-white/20 text-white transition-all border border-white/20 flex items-center justify-center gap-2"
                     >
-                      {isCheckoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Extend Plan (+30 Days for ₹499)"}
+                      {isCheckoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Extend Plan (+30 Days for ₹1)"}
                     </button>
                   </div>
                 ) : (
@@ -1595,7 +1595,7 @@ export default function G2pDashboard({
                         <Loader2 className="w-4 h-4 animate-spin" /> Initializing Razorpay...
                       </>
                     ) : (
-                      "Upgrade with Razorpay — ₹499"
+                      "Upgrade with Razorpay — ₹1"
                     )}
                   </button>
                 )}
