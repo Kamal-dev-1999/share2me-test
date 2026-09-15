@@ -163,7 +163,7 @@ export const metadata: Metadata = {
   },
   other: {
     'google-adsense-account': 'ca-pub-3981074780272106',
-    'monetag': '693bcd3157f3fb9f70477feb7fae2765',
+    'monetag': 'e7a411684746076c8866b84b61029822',
   },
 };
 
@@ -179,6 +179,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="light" suppressHydrationWarning>
       <head>
+        <meta name="monetag" content="e7a411684746076c8866b84b61029822" />
         <meta name="monetag" content="693bcd3157f3fb9f70477feb7fae2765" />
         <meta name="google-adsense-account" content="ca-pub-3981074780272106" />
         <script

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: "Receive Portal & Permanent Inbox",
   description: "Claim your permanent Share Code and receive secure file uploads from anyone directly into your personal inbox.",

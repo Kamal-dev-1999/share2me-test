@@ -59,14 +59,14 @@ function G2PContent() {
 
   const sessionUser = session?.user as ExtendedSessionUser | undefined;
 
-  const g2pUser = sessionUser
+  const g2pUser = (status === "authenticated" && Boolean(sessionUser?.email))
     ? {
-        userId: sessionUser.id ?? "",
-        email: sessionUser.email ?? "",
-        username: sessionUser.name ?? "",
-        shareCode: sessionUser.shareCode ?? "",
-        profilePhoto: sessionUser.image ?? "",
-        planType: sessionUser.planType || "FREE",
+        userId: sessionUser?.id ?? "",
+        email: sessionUser?.email ?? "",
+        username: sessionUser?.name ?? "",
+        shareCode: sessionUser?.shareCode ?? "",
+        profilePhoto: sessionUser?.image ?? "",
+        planType: sessionUser?.planType || "FREE",
         googleId: "",
         createdAt: new Date().toISOString(),
       }
