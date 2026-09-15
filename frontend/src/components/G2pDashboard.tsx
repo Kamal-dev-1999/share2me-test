@@ -424,6 +424,7 @@ export default function G2pDashboard({
   // QR Customization State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [proSuccessModal, setProSuccessModal] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   // Load Razorpay Standard Checkout SDK
@@ -546,12 +547,12 @@ export default function G2pDashboard({
                 endsAt: verifyData.subscription_ends_at,
                 daysRemaining: verifyData.days_remaining || 30,
               });
-              alert(
-                "🎉 Payment Successful! Welcome to Share2Me Pro! Your 30-day plan is now active.",
-              );
               setIsUpgradeModalOpen(false);
-              // Cleanly reload to ensure all in-memory ad scripts and listeners are completely removed
-              window.location.reload();
+              setProSuccessModal(true);
+              // Gracefully reload after animation so all in-memory ad scripts and listeners are completely removed
+              setTimeout(() => {
+                window.location.reload();
+              }, 4000);
             } else {
               alert(
                 verifyData.message ||
@@ -2538,6 +2539,115 @@ export default function G2pDashboard({
                 </motion.div>
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- PRO SUCCESS CELEBRATION MODAL --- */}
+      <AnimatePresence>
+        {proSuccessModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-2xl p-4 sm:p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 25 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.85, opacity: 0, y: 25 }}
+              transition={{ type: "spring", damping: 24, stiffness: 320 }}
+              className="relative w-full max-w-lg rounded-3xl bg-gradient-to-b from-[#1c1936] via-[#121124] to-[#0a0a14] border border-purple-500/40 p-6 sm:p-8 text-center shadow-[0_20px_70px_rgba(168,85,247,0.4)] overflow-hidden"
+            >
+              {/* Background ambient lighting */}
+              <div className="absolute -top-20 -left-20 w-48 h-48 bg-purple-600/30 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Icon Badge */}
+              <div className="relative mx-auto w-20 h-20 mb-5 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-purple-600 to-emerald-400 blur-lg opacity-70 animate-pulse" />
+                <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#9333ea] to-[#4f46e5] flex items-center justify-center shadow-xl border border-white/30">
+                  <Crown className="w-10 h-10 text-amber-300 drop-shadow-[0_4px_12px_rgba(252,211,77,0.5)] animate-bounce" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 shadow-lg border-2 border-[#1c1936]">
+                  <CheckCircle2 className="w-5 h-5 text-white" />
+                </div>
+              </div>
+
+              {/* Title & Badge */}
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold mb-3 tracking-wider uppercase">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                Payment Verified &amp; Active
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">
+                Welcome to Share2Me PRO!
+              </h3>
+              <p className="text-xs sm:text-sm text-white/75 mb-6 max-w-sm mx-auto leading-relaxed">
+                Your 30-day Pro Vendor membership is now active. All premium
+                perks and ad-free privileges are unlocked.
+              </p>
+
+              {/* Feature Grid */}
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3 mb-6 text-left">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex items-start gap-2.5">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs font-bold text-white">
+                      100% Ad-Free
+                    </div>
+                    <div className="text-[11px] text-white/60">
+                      Zero redirects &amp; popunders
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex items-start gap-2.5">
+                  <HardDrive className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs font-bold text-white">
+                      10 GB Cloud Storage
+                    </div>
+                    <div className="text-[11px] text-white/60">
+                      10x storage upgrade
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex items-start gap-2.5">
+                  <Calendar className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs font-bold text-white">
+                      7-Day Retention
+                    </div>
+                    <div className="text-[11px] text-white/60">
+                      Configurable file retention
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex items-start gap-2.5">
+                  <Sparkles className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs font-bold text-white">
+                      Permanent Code
+                    </div>
+                    <div className="text-[11px] text-white/60">
+                      Dedicated shop branding
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full py-3.5 px-6 rounded-2xl font-bold text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 transition-all shadow-[0_10px_30px_rgba(147,51,234,0.4)] flex items-center justify-center gap-2 group cursor-pointer"
+              >
+                <span>Launch Pro Dashboard</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              <p className="text-[11px] text-white/40 mt-3 font-mono">
+                Auto-refreshing dashboard in a few seconds...
+              </p>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
