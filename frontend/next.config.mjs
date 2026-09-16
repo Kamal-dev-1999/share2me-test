@@ -145,6 +145,16 @@ const nextConfig = {
     ];
   },
 
+  async redirects() {
+    return [
+      {
+        source: "/price",
+        destination: "/pricing",
+        permanent: true,
+      },
+    ];
+  },
+
   async rewrites() {
     const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
     return [
