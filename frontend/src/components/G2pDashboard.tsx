@@ -63,6 +63,7 @@ import {
 } from "recharts";
 import { getBackendUrl } from "@/lib/backendUrl";
 import { useSession } from "next-auth/react";
+import confetti from "canvas-confetti";
 
 interface UserProfile {
   userId: string;
@@ -426,6 +427,70 @@ export default function G2pDashboard({
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [proSuccessModal, setProSuccessModal] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+
+  // High-energy celebration effects (confetti cannon + vibration)
+  const triggerCelebration = useCallback(() => {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      try {
+        navigator.vibrate([100, 50, 100, 50, 200]);
+      } catch (e) {}
+    }
+
+    try {
+      // 1. Immediate center cannon explosion
+      confetti({
+        particleCount: 90,
+        spread: 75,
+        origin: { y: 0.6 },
+        colors: ["#9333ea", "#c084fc", "#10b981", "#fbbf24", "#ffffff"],
+        zIndex: 99999,
+      });
+
+      // 2. Left side cannon burst
+      setTimeout(() => {
+        confetti({
+          particleCount: 55,
+          angle: 60,
+          spread: 60,
+          origin: { x: 0.1, y: 0.65 },
+          colors: ["#9333ea", "#a855f7", "#38bdf8", "#fbbf24"],
+          zIndex: 99999,
+        });
+      }, 250);
+
+      // 3. Right side cannon burst
+      setTimeout(() => {
+        confetti({
+          particleCount: 55,
+          angle: 120,
+          spread: 60,
+          origin: { x: 0.9, y: 0.65 },
+          colors: ["#10b981", "#34d399", "#fbbf24", "#ffffff"],
+          zIndex: 99999,
+        });
+      }, 450);
+
+      // 4. Golden luxury star cascade
+      setTimeout(() => {
+        confetti({
+          particleCount: 45,
+          spread: 100,
+          origin: { y: 0.15 },
+          shapes: ["star", "circle"],
+          colors: ["#fbbf24", "#f59e0b", "#a855f7", "#ffffff"],
+          zIndex: 99999,
+        });
+      }, 750);
+    } catch (e) {
+      console.warn("Celebration animation non-critical:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (proSuccessModal) {
+      triggerCelebration();
+    }
+  }, [proSuccessModal, triggerCelebration]);
 
   // Load Razorpay Standard Checkout SDK
   const loadRazorpayScript = (): Promise<boolean> => {
@@ -1441,7 +1506,7 @@ export default function G2pDashboard({
                 Permanent Share Code, 10 GB storage &amp; up to 7-day retention.
               </p>
               <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
-                ₹1/month{" "}
+                ₹499/month{" "}
                 <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
               </div>
             </button>
@@ -2461,7 +2526,7 @@ export default function G2pDashboard({
                     )}
                   </div>
                   <div className="mb-6 relative z-10">
-                    <span className="text-4xl font-bold text-white">₹1</span>
+                    <span className="text-4xl font-bold text-white">₹499</span>
                     <span className="text-white/60 ml-1">/30 days</span>
                   </div>
 
@@ -2481,7 +2546,7 @@ export default function G2pDashboard({
                         {isCheckoutLoading ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          "Extend Plan (+30 Days for ₹1)"
+                          "Extend Plan (+30 Days for ₹499)"
                         )}
                       </button>
                     </div>
@@ -2497,7 +2562,7 @@ export default function G2pDashboard({
                           Initializing Razorpay...
                         </>
                       ) : (
-                        "Upgrade with Razorpay — ₹1"
+                        "Upgrade with Razorpay — ₹499"
                       )}
                     </button>
                   )}
@@ -2563,15 +2628,39 @@ export default function G2pDashboard({
               <div className="absolute -top-20 -left-20 w-48 h-48 bg-purple-600/30 rounded-full blur-3xl pointer-events-none" />
               <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
 
-              {/* Icon Badge */}
-              <div className="relative mx-auto w-20 h-20 mb-5 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-purple-600 to-emerald-400 blur-lg opacity-70 animate-pulse" />
-                <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#9333ea] to-[#4f46e5] flex items-center justify-center shadow-xl border border-white/30">
-                  <Crown className="w-10 h-10 text-amber-300 drop-shadow-[0_4px_12px_rgba(252,211,77,0.5)] animate-bounce" />
-                </div>
-                <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 shadow-lg border-2 border-[#1c1936]">
+              {/* Icon Badge with animated celebration rings */}
+              <div className="relative mx-auto w-24 h-24 mb-5 flex items-center justify-center">
+                {/* Expanding shockwave rings */}
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0.9 }}
+                  animate={{ scale: [1, 1.8, 2.2], opacity: [0.9, 0.4, 0] }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }}
+                  className="absolute inset-0 rounded-full border-2 border-purple-400/50 pointer-events-none"
+                />
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0.9 }}
+                  animate={{ scale: [1, 1.8, 2.2], opacity: [0.9, 0.4, 0] }}
+                  transition={{ duration: 2.2, delay: 0.7, repeat: Infinity, ease: "easeOut" }}
+                  className="absolute inset-0 rounded-full border-2 border-emerald-400/50 pointer-events-none"
+                />
+
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-purple-600 via-indigo-500 to-emerald-400 blur-xl opacity-80 animate-pulse" />
+                <motion.div
+                  initial={{ scale: 0.5, rotate: -20 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", damping: 12, stiffness: 200 }}
+                  className="relative w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#9333ea] to-[#4f46e5] flex items-center justify-center shadow-2xl border border-white/40"
+                >
+                  <Crown className="w-10 h-10 text-amber-300 drop-shadow-[0_4px_16px_rgba(252,211,77,0.6)] animate-bounce" />
+                </motion.div>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3, type: "spring", damping: 10, stiffness: 300 }}
+                  className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg border-2 border-[#1c1936]"
+                >
                   <CheckCircle2 className="w-5 h-5 text-white" />
-                </div>
+                </motion.div>
               </div>
 
               {/* Title & Badge */}
@@ -2633,6 +2722,16 @@ export default function G2pDashboard({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Animated Progress Bar counting down to reload */}
+              <div className="w-full bg-white/10 rounded-full h-1.5 mb-3 overflow-hidden">
+                <motion.div
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 4.5, ease: "linear" }}
+                  className="h-full bg-gradient-to-r from-purple-500 via-emerald-400 to-amber-400 rounded-full"
+                />
               </div>
 
               {/* Action Button */}
