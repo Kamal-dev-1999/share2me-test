@@ -259,7 +259,7 @@ let sessionChunkSize = CHUNK_SIZE_TABLE.default;
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useTransfer(socket: Socket) {
+export function useTransfer(socket: Socket | null) {
 
   // ── Sender state ────────────────────────────────────────────────────────────
   const [senderPhase,    setSenderPhase]    = useState<TransferPhase>("idle");
@@ -394,7 +394,7 @@ export function useTransfer(socket: Socket) {
         const answer = await rcv.current.pc.createAnswer();
         await rcv.current.pc.setLocalDescription(answer);
         const answerMsg = { otc: rcv.current.otc, type: "answer", data: answer };
-        socket.emit("signal", answerMsg);
+        socket?.emit("signal", answerMsg);
         await handleSignal(answerMsg);
         setReceiverStatus("Answer sent. Waiting for data…");
         setReceiverPhase("connecting");
@@ -452,7 +452,7 @@ export function useTransfer(socket: Socket) {
     }
 
     if (r.nackTimer) { clearTimeout(r.nackTimer); r.nackTimer = null; }
-    if (r.otc) socket.emit("transfer_complete", { otc: r.otc });
+    if (r.otc && socket) socket.emit("transfer_complete", { otc: r.otc });
   }, [socket]);
 
   const scheduleNackCheck = useCallback((finalCheck = false) => {
@@ -485,7 +485,7 @@ export function useTransfer(socket: Socket) {
       }
 
       if (missing.length) {
-        socket.emit("nack", {
+        socket?.emit("nack", {
           otc:         r.otc,
           transferId:  r.transferId || r.otc,
           total,
@@ -723,7 +723,7 @@ export function useTransfer(socket: Socket) {
       setSenderStatus("Metadata ready. Waiting for receiver…");
       setSenderPhase("ready");
 
-      if (snd.current.otc) {
+      if (snd.current.otc && socket) {
         socket.emit("sender_ready", { otc: snd.current.otc, metadata: meta });
       }
 
@@ -782,7 +782,7 @@ export function useTransfer(socket: Socket) {
         iv:          msg.iv,
         senderPubKey: msg.senderPubKey,
       };
-      socket.emit("wrapped_key", wkPayload);
+      socket?.emit("wrapped_key", wkPayload);
       handleWrappedKey(wkPayload);
       setSenderStatus("AES key wrapped and sent.");
     }
@@ -804,7 +804,7 @@ export function useTransfer(socket: Socket) {
           transferId:      rcv.current.transferId || rcv.current.otc,
           receiverPubKey:  msg.publicKey,
         };
-        socket.emit("receiver_pub", rpPayload);
+        socket?.emit("receiver_pub", rpPayload);
         handleReceiverPub(rpPayload);
         setReceiverStatus("Public key sent. Waiting for wrapped AES key…");
       }
@@ -870,7 +870,7 @@ export function useTransfer(socket: Socket) {
 
     rcv.current.pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit("signal", { otc: rcv.current.otc, type: "ice", data: event.candidate });
+        socket?.emit("signal", { otc: rcv.current.otc, type: "ice", data: event.candidate });
         if (snd.current.pc) {
           snd.current.pc.addIceCandidate(event.candidate).catch(() => { /* ignore */ });
         }
@@ -885,6 +885,7 @@ export function useTransfer(socket: Socket) {
   const importMetadataRef = useRef<(json: string) => void>(() => { });
 
   useEffect(() => {
+    if (!socket) return;
     socket.on("signal",    (msg) => handleSignal(msg).catch(console.error));
     socket.on("receiver_pub", handleReceiverPub);
     socket.on("wrapped_key",  handleWrappedKey);
@@ -941,6 +942,12 @@ export function useTransfer(socket: Socket) {
     snd.current.streamPaused    = false;
     sndIceQueue.current         = [];
 
+    if (!socket) {
+      setSenderStatus("Connecting to server. Please try again in a moment.");
+      setSenderPhase("error");
+      return;
+    }
+
     socket.emit("create_room", (res: { otc?: string; error?: string }) => {
       if (!res?.otc) {
         setSenderStatus("Failed to create room. Please try again.");
@@ -982,6 +989,12 @@ export function useTransfer(socket: Socket) {
     snd.current.streamingIndex  = 0;
     snd.current.streamPaused    = false;
     sndIceQueue.current         = [];
+
+    if (!socket) {
+      setSenderStatus("Connecting to server. Please try again in a moment.");
+      setSenderPhase("error");
+      return;
+    }
 
     socket.emit("create_room", (res: { otc?: string; error?: string }) => {
       if (!res?.otc) {
@@ -1046,7 +1059,7 @@ export function useTransfer(socket: Socket) {
 
     s.pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit("signal", { otc: s.otc, type: "ice", data: event.candidate });
+        socket?.emit("signal", { otc: s.otc, type: "ice", data: event.candidate });
         if (rcv.current.pc) {
           rcv.current.pc.addIceCandidate(event.candidate).catch(() => { /* ignore */ });
         }
@@ -1056,7 +1069,7 @@ export function useTransfer(socket: Socket) {
     const offer = await s.pc.createOffer();
     await s.pc.setLocalDescription(offer);
     const offerMsg = { otc: s.otc!, type: "offer", data: offer };
-    socket.emit("signal", offerMsg);
+    socket?.emit("signal", offerMsg);
     await handleSignal(offerMsg);
     setSenderStatus("Offer sent. Waiting for answer…");
   }, [socket, startStream, handleSignal]);
@@ -1071,6 +1084,12 @@ export function useTransfer(socket: Socket) {
     await setupReceiverPeer();
 
     return new Promise((resolve, reject) => {
+      if (!socket) {
+        setReceiverStatus("Connecting to server. Please try again in a moment.");
+        setReceiverPhase("error");
+        reject(new Error("Socket not connected"));
+        return;
+      }
       socket.emit("join_room", { otc }, (res: { ok?: boolean; error?: string }) => {
         if (res?.error) {
           setReceiverStatus(`Join error: ${res.error}`);

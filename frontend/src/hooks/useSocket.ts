@@ -1,16 +1,19 @@
 /**
  * useSocket — singleton Socket.io client hook.
- * Returns the socket instance; reconnects automatically.
+ * Returns the socket instance on the client; reconnects automatically.
+ * Strictly guards against SSR execution to prevent server-side socket leaks.
  */
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-
 import { getBackendUrl } from "@/lib/backendUrl";
 
 let _socket: Socket | null = null;
 
-function getSocket(): Socket {
+function getSocket(): Socket | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
   if (!_socket) {
     const url = getBackendUrl();
     _socket = io(url, { transports: ["websocket"] });
@@ -18,11 +21,22 @@ function getSocket(): Socket {
   return _socket;
 }
 
-export function useSocket() {
-  const socketRef = useRef<Socket>(getSocket());
+export function useSocket(): Socket | null {
+  const [socket, setSocket] = useState<Socket | null>(() => {
+    if (typeof window !== "undefined") {
+      return getSocket();
+    }
+    return null;
+  });
+
   useEffect(() => {
-    // Don't disconnect on unmount — the socket is shared across the app.
-    return () => {};
-  }, []);
-  return socketRef.current;
+    if (typeof window !== "undefined") {
+      const s = getSocket();
+      if (s && s !== socket) {
+        setSocket(s);
+      }
+    }
+  }, [socket]);
+
+  return socket;
 }
