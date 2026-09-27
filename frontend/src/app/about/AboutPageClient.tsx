@@ -235,6 +235,98 @@ export default function AboutPageClient() {
                 </div>
               </div>
             </motion.div>
+
+            {/* Card 3: Ansh Vishwakarma */}
+            <motion.div 
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="bg-gradient-to-br from-background-card to-background-elevated rounded-[40px] border border-border overflow-hidden relative shadow-2xl group"
+            >
+              <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[#00D2FF]/10 rounded-full blur-[80px] -translate-y-1/3 translate-x-1/3 opacity-50" />
+              <div className="p-8 sm:p-12 flex flex-col sm:flex-row gap-8 items-center relative z-10">
+                <motion.div 
+                  whileHover={{ scale: 1.05, rotate: -2 }}
+                  className="w-32 h-32 rounded-[32px] bg-gradient-to-br from-background-elevated to-background border border-border flex items-center justify-center shrink-0 shadow-[0_15px_30px_rgba(0,0,0,0.4)] relative cursor-default"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-tr from-[#00D2FF]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[32px]" />
+                  <span className="text-5xl font-display font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40 group-hover:from-[#00D2FF] group-hover:to-white transition-all duration-500">A</span>
+                </motion.div>
+                
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background/50 backdrop-blur-sm mb-4">
+                    <Code2 className="w-3.5 h-3.5 text-[#00D2FF]" />
+                    <span className="text-[11px] font-bold text-text-secondary tracking-widest uppercase">Developer</span>
+                  </div>
+                  <h3 className="text-3xl font-display font-bold text-text-primary mb-3">Ansh Vishwakarma</h3>
+                  <p className="text-[14px] text-text-secondary leading-relaxed mb-6">
+                    A backend engineer and AI specialist who engineered the G2P platform backend, skilled in developing AI agent solutions, cloud infrastructure, and automating complex end-to-end workflows.
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
+                    <a href="https://github.com/Botcode43" target="_blank" rel="noopener noreferrer" aria-label="Ansh Vishwakarma GitHub" className="w-10 h-10 rounded-full bg-background-elevated border border-border flex items-center justify-center text-text-secondary hover:text-text-primary hover:border-[#00D2FF] hover:bg-[#00D2FF]/10 transition-all duration-300 shadow-md hover:-translate-y-1">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                      </svg>
+                    </a>
+                    <a href="https://www.linkedin.com/in/ansh-vishwakarma-5652602b1/" target="_blank" rel="noopener noreferrer" aria-label="Ansh Vishwakarma LinkedIn" className="w-10 h-10 rounded-full bg-background-elevated border border-border flex items-center justify-center text-text-secondary hover:text-[#00D2FF] hover:border-[#00D2FF] hover:bg-[#00D2FF]/10 transition-all duration-300 shadow-md hover:-translate-y-1">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                        <rect x="2" y="9" width="4" height="12"></rect>
+                        <circle cx="4" cy="4" r="2"></circle>
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Card 4: Aditya Vishwakarma */}
+            <motion.div 
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.25 }}
+              className="bg-gradient-to-br from-background-card to-background-elevated rounded-[40px] border border-border overflow-hidden relative shadow-2xl group"
+            >
+              <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-status-success/10 rounded-full blur-[80px] -translate-y-1/3 translate-x-1/3 opacity-50" />
+              <div className="p-8 sm:p-12 flex flex-col sm:flex-row gap-8 items-center relative z-10">
+                <motion.div 
+                  whileHover={{ scale: 1.05, rotate: 2 }}
+                  className="w-32 h-32 rounded-[32px] bg-gradient-to-br from-background-elevated to-background border border-border flex items-center justify-center shrink-0 shadow-[0_15px_30px_rgba(0,0,0,0.4)] relative cursor-default"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-tr from-status-success/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[32px]" />
+                  <span className="text-5xl font-display font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40 group-hover:from-status-success group-hover:to-white transition-all duration-500">A</span>
+                </motion.div>
+                
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background/50 backdrop-blur-sm mb-4">
+                    <Code2 className="w-3.5 h-3.5 text-status-success" />
+                    <span className="text-[11px] font-bold text-text-secondary tracking-widest uppercase">Developer</span>
+                  </div>
+                  <h3 className="text-3xl font-display font-bold text-text-primary mb-3">Aditya Vishwakarma</h3>
+                  <p className="text-[14px] text-text-secondary leading-relaxed mb-6">
+                    A developer and UI/UX specialist dedicated to crafting intuitive, fluid user interfaces, refined design systems, and delightful digital user experiences across the platform.
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
+                    <a href="https://github.com/AdiVishwakarma" target="_blank" rel="noopener noreferrer" aria-label="Aditya Vishwakarma GitHub" className="w-10 h-10 rounded-full bg-background-elevated border border-border flex items-center justify-center text-text-secondary hover:text-text-primary hover:border-status-success hover:bg-status-success/10 transition-all duration-300 shadow-md hover:-translate-y-1">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                      </svg>
+                    </a>
+                    <a href="https://www.linkedin.com/in/aditya-vishwakarma-1a4a38290" target="_blank" rel="noopener noreferrer" aria-label="Aditya Vishwakarma LinkedIn" className="w-10 h-10 rounded-full bg-background-elevated border border-border flex items-center justify-center text-text-secondary hover:text-status-success hover:border-status-success hover:bg-status-success/10 transition-all duration-300 shadow-md hover:-translate-y-1">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                        <rect x="2" y="9" width="4" height="12"></rect>
+                        <circle cx="4" cy="4" r="2"></circle>
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </section>
 
