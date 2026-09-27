@@ -201,7 +201,7 @@ const TOOL_HANDLERS = {
     complete(requestId, bytes.buffer, 'organized.pdf');
   },
 
-  // ── CROP PDF ──────────────────────────────────────────────────────────────
+  // ── CROP PDF ────────────────────hi──────────────────────────────────────────
   // config: { left, top, right, bottom } — margins to remove in points (1pt = 1/72 inch)
   'crop-pdf': async (requestId, buffers, config) => {
     progress(requestId, 5, 'Loading document…');
@@ -251,10 +251,10 @@ const TOOL_HANDLERS = {
 
       let x, y;
       switch (position) {
-        case 'bottom-right':  x = width - textWidth - 36; y = 24; break;
-        case 'top-center':    x = (width - textWidth) / 2; y = height - 36; break;
+        case 'bottom-right': x = width - textWidth - 36; y = 24; break;
+        case 'top-center': x = (width - textWidth) / 2; y = height - 36; break;
         case 'bottom-center':
-        default:              x = (width - textWidth) / 2; y = 24;
+        default: x = (width - textWidth) / 2; y = 24;
       }
 
       page.drawText(label, { x, y, size: fontSize, font, color: rgb(0, 0, 0) });
@@ -411,7 +411,7 @@ const TOOL_HANDLERS = {
 // Message Router — dispatches incoming messages to the correct handler
 // ─────────────────────────────────────────────────────────────────────────────
 
-self.onmessage = async function(event) {
+self.onmessage = async function (event) {
   const { type, requestId, slug, buffers, config } = event.data;
 
   if (type !== 'PROCESS') return;

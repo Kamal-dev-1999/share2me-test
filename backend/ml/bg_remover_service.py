@@ -16,7 +16,7 @@ logger = logging.getLogger("BGRemoverML")
 
 app = Flask(__name__)
 
-# Apply ProxyFix so request.remote_addr and scheme accurately reflect client behind Cloud Run / Cloudflare
+# hh Apply ProxyFix so request.remote_addr and scheme accurately reflect client behind Cloud Run / Cloudflare
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Cap request payload at 25MB to prevent container OOM
