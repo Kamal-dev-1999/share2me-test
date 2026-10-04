@@ -1,9 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 import confetti from "canvas-confetti";
 
-interface ConfettiButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ConfettiButtonProps extends HTMLMotionProps<"button"> {
   children: React.ReactNode;
 }
 

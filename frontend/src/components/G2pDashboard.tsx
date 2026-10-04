@@ -46,6 +46,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { io, Socket } from "socket.io-client";
 import { PrintingSettings } from "@/components/printshop/PrintingSettings";
+import { UserSettingsHub } from "@/components/settings/UserSettingsHub";
 import { PrintShopPanel } from "@/components/printshop/PrintShopPanel";
 import { PaymentsPanel } from "@/components/printshop/PaymentsPanel";
 import { PrintJobNotifier } from "@/components/printshop/PrintJobNotifier";
@@ -1047,11 +1048,11 @@ export default function G2pDashboard({
   // Auto-route Print Shop vendors to their primary tab on persona change
   useEffect(() => {
     if (isShopkeeper) {
-      setActiveTab((prev) =>
+      setActiveTabState((prev) =>
         prev === "inbox" || prev === "analytics" ? "printshop" : prev,
       );
     } else {
-      setActiveTab((prev) =>
+      setActiveTabState((prev) =>
         prev === "printshop" || prev === "payments" ? "inbox" : prev,
       );
     }
@@ -1721,334 +1722,42 @@ export default function G2pDashboard({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="md:h-full md:min-h-0 flex flex-col gap-5 overflow-y-auto p-4 md:p-0 md:pr-2"
+              className="md:h-full md:min-h-0 flex flex-col p-4 md:p-0"
             >
-              <div>
-                <h2 className="text-2xl font-bold text-[#111827] font-display">
-                  Settings
-                </h2>
-                <p className="text-sm text-[#111827]/60">
-                  Manage your account, payments, preferences and portal in one
-                  place.
-                </p>
-              </div>
-
-              {/* Business & Account */}
-              <section>
-                <h3 className="text-[11px] font-bold text-[#111827]/45 uppercase tracking-[0.14em] mb-2">
-                  Business &amp; Account
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                  {/* Profile */}
-                  <div className="bg-white/50 border border-white/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                    <h4 className="font-bold text-[14px] text-[#111827]">
-                      Profile
-                    </h4>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
-                        Display Name
-                      </label>
-                      <input
-                        type="text"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
-                          Phone
-                        </label>
-                        <input
-                          type="text"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="Phone number"
-                          className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
-                          Company
-                        </label>
-                        <input
-                          type="text"
-                          value={company}
-                          onChange={(e) => setCompany(e.target.value)}
-                          placeholder="Company name"
-                          className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
-                        Website
-                      </label>
-                      <input
-                        type="text"
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        placeholder="https://..."
-                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider">
-                        Bio
-                      </label>
-                      <textarea
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        placeholder="A short description..."
-                        rows={2}
-                        className="bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors resize-none"
-                      />
-                    </div>
-                    <div className="flex items-center gap-3 pt-1">
-                      <button
-                        onClick={handleUpdateProfile}
-                        disabled={isUpdatingProfile || !displayName.trim()}
-                        className="bg-[#111827] text-white hover:bg-black px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50"
-                      >
-                        {isUpdatingProfile ? "Saving\u2026" : "Save Profile"}
-                      </button>
-                      {profileUpdateStatus && (
-                        <p
-                          className={`text-xs font-medium ${profileUpdateStatus.ok ? "text-green-600" : "text-red-500"}`}
-                        >
-                          {profileUpdateStatus.msg}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Account type + portal QR */}
-                  <div className="bg-white/50 border border-white/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-[14px] text-[#111827]">
-                        Account Type &amp; Plan
-                      </h4>
-                      {isPro ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <Crown className="w-3.5 h-3.5 text-amber-500" /> Pro
-                          Active
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => setIsUpgradeModalOpen(true)}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-0.5 rounded-full transition-colors"
-                        >
-                          <Sparkles className="w-3 h-3 text-purple-600" />{" "}
-                          Upgrade to Pro
-                        </button>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <button
-                        suppressHydrationWarning
-                        onClick={() =>
-                          setIsPersonaDropdownOpen(!isPersonaDropdownOpen)
-                        }
-                        className="w-full bg-white/40 border border-white/60 hover:bg-white/60 rounded-xl px-3 py-2 text-sm text-[#111827] flex justify-between items-center transition-colors text-left"
-                      >
-                        <span className="font-medium">
-                          {persona === "PERSONAL" && "Personal (50MB Limit)"}
-                          {persona === "EDUCATOR" && "Educator (200MB Limit)"}
-                          {persona === "PRINT_SHOP" &&
-                            "Business / Print Shop (500MB Limit)"}
-                        </span>
-                        <motion.div
-                          animate={{ rotate: isPersonaDropdownOpen ? 180 : 0 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <svg
-                            className="w-4 h-4 text-[#111827]"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </motion.div>
-                      </button>
-                      <AnimatePresence>
-                        {isPersonaDropdownOpen && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="absolute top-full left-0 w-full mt-2 bg-white/90 backdrop-blur-xl border border-white/60 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
-                          >
-                            {[
-                              {
-                                value: "PERSONAL",
-                                label: "Personal (50MB Limit)",
-                              },
-                              {
-                                value: "EDUCATOR",
-                                label: "Educator (200MB Limit)",
-                              },
-                              {
-                                value: "PRINT_SHOP",
-                                label: "Business / Print Shop (500MB Limit)",
-                              },
-                            ].map((opt) => (
-                              <button
-                                key={opt.value}
-                                onClick={() => {
-                                  setPersona(opt.value);
-                                  setIsPersonaDropdownOpen(false);
-                                }}
-                                className={`w-full text-left px-3 py-2.5 text-sm hover:bg-black/5 transition-colors ${persona === opt.value ? "bg-[#111827]/5 font-bold text-[#111827]" : "text-[#111827]/80"}`}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleUpdatePersona(persona)}
-                        disabled={isUpdatingPersona}
-                        className="bg-[#111827] text-white hover:bg-black px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50"
-                      >
-                        {isUpdatingPersona ? "Updating\u2026" : "Update"}
-                      </button>
-                      {personaUpdateStatus && (
-                        <p
-                          className={`text-xs font-medium ${personaUpdateStatus.ok ? "text-green-600" : "text-red-500"}`}
-                        >
-                          {personaUpdateStatus.msg}
-                        </p>
-                      )}
-                    </div>
-                    <p className="text-xs text-[#111827]/55 leading-relaxed">
-                      Your account type sets your maximum file size on the Free
-                      tier. Changes apply immediately.
-                    </p>
-
-                    {/* Portal QR appearance */}
-                    <div className="border-t border-[#111827]/10 pt-3 mt-1 flex flex-col gap-3">
-                      <div>
-                        <h4 className="font-bold text-[14px] text-[#111827]">
-                          Portal QR Appearance
-                        </h4>
-                        <p className="text-[11px] text-[#111827]/50">
-                          Styles the QR of your <b>share portal</b> (not the
-                          payment QR).
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">
-                            Foreground
-                          </label>
-                          <div className="flex items-center gap-2 bg-white/40 border border-white/60 rounded-xl p-1.5">
-                            <input
-                              type="color"
-                              aria-label="QR foreground color"
-                              value={qrFgColor}
-                              onChange={(e) => setQrFgColor(e.target.value)}
-                              className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0"
-                            />
-                            <span className="text-[11px] text-[#111827]/60 font-mono">
-                              {qrFgColor.toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">
-                            Background
-                          </label>
-                          <div className="flex items-center gap-2 bg-white/40 border border-white/60 rounded-xl p-1.5">
-                            <input
-                              type="color"
-                              aria-label="QR background color"
-                              value={qrBgColor}
-                              onChange={(e) => setQrBgColor(e.target.value)}
-                              className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 p-0"
-                            />
-                            <span className="text-[11px] text-[#111827]/60 font-mono">
-                              {qrBgColor.toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-[#111827]/60 uppercase tracking-wider block mb-1.5">
-                          Center Logo URL
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={qrLogoUrl}
-                            onChange={(e) => setQrLogoUrl(e.target.value)}
-                            placeholder="https://example.com/logo.png"
-                            className="flex-1 bg-white/40 border border-white/60 focus:border-[#111827]/50 rounded-xl px-3 py-2 text-sm text-[#111827] outline-none transition-colors"
-                          />
-                          {qrLogoUrl && /^https?:\/\//.test(qrLogoUrl) && (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
-                              key={qrLogoUrl}
-                              src={qrLogoUrl}
-                              alt="Logo preview"
-                              className="w-9 h-9 rounded-lg border border-white/70 bg-white object-contain shrink-0"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          )}
-                        </div>
-                        {qrLogoUrl && !/^https?:\/\//.test(qrLogoUrl) && (
-                          <p className="text-[11px] text-red-500 font-medium mt-1">
-                            Enter a full URL starting with http:// or https://
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => {
-                            saveQrSettings();
-                            setQrSaved(true);
-                            setTimeout(() => setQrSaved(false), 2200);
-                          }}
-                          disabled={
-                            !!qrLogoUrl && !/^https?:\/\//.test(qrLogoUrl)
-                          }
-                          className="bg-[#111827] hover:bg-black text-white px-5 py-2 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50"
-                        >
-                          Save QR Style
-                        </button>
-                        {qrSaved && (
-                          <p className="text-xs font-medium text-green-600">
-                            Saved!
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Payments & Printing (shopkeeper only) */}
-              {isShopkeeper && (
-                <section>
-                  <h3 className="text-[11px] font-bold text-[#111827]/45 uppercase tracking-[0.14em] mb-2">
-                    Payments &amp; Printing
-                  </h3>
-                  <PrintingSettings token={token} />
-                </section>
-              )}
+              <UserSettingsHub
+                user={user}
+                token={token}
+                isShopkeeper={isShopkeeper}
+                isPro={isPro}
+                planType={planType}
+                setIsUpgradeModalOpen={setIsUpgradeModalOpen}
+                displayName={displayName}
+                setDisplayName={setDisplayName}
+                phone={phone}
+                setPhone={setPhone}
+                company={company}
+                setCompany={setCompany}
+                website={website}
+                setWebsite={setWebsite}
+                bio={bio}
+                setBio={setBio}
+                handleUpdateProfile={handleUpdateProfile}
+                isUpdatingProfile={isUpdatingProfile}
+                profileUpdateStatus={profileUpdateStatus}
+                persona={persona}
+                setPersona={setPersona}
+                handleUpdatePersona={handleUpdatePersona}
+                isUpdatingPersona={isUpdatingPersona}
+                personaUpdateStatus={personaUpdateStatus}
+                qrFgColor={qrFgColor}
+                setQrFgColor={setQrFgColor}
+                qrBgColor={qrBgColor}
+                setQrBgColor={setQrBgColor}
+                qrLogoUrl={qrLogoUrl}
+                setQrLogoUrl={setQrLogoUrl}
+                saveQrSettings={saveQrSettings}
+                qrSaved={qrSaved}
+              />
             </motion.div>
           )}
 
