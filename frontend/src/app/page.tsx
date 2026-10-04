@@ -130,7 +130,7 @@ function HomeContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#CDC3E4] relative flex items-center justify-center p-4 sm:p-6 lg:py-10 lg:pr-10 lg:pl-5 font-body">
+    <div className="min-h-[100dvh] lg:h-screen lg:overflow-hidden bg-[#CDC3E4] relative flex items-center justify-center p-4 sm:p-6 lg:py-10 lg:pr-10 lg:pl-5 font-body">
       <GradientBlobs />
 
       {/* Shell: glass panel with the rail fused into its left edge */}
