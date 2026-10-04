@@ -23,13 +23,53 @@ const FOLDER_ITEMS = ITEMS.slice(4);
 
 function RailLink({ item, active, layoutId, horizontal }: { item: typeof ITEMS[0], active: boolean, layoutId: string, horizontal: boolean }) {
   const Icon = item.icon;
+  
+  if (horizontal) {
+    const shortLabel = item.label === "Direct Transfer" ? "P2P" : item.label === "Share with Code" ? "Share" : item.label === "PDF Tools" ? "Tools" : item.label;
+    return (
+      <Link
+        href={item.href}
+        aria-label={item.label}
+        className="relative flex flex-col items-center justify-end w-[64px] h-[72px] pb-2 group shrink-0"
+      >
+        {/* Active Indicator Bubble with Fluid Curves */}
+        {active && (
+          <motion.div
+            layoutId="mobile-active-bubble"
+            transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+            className="absolute -top-[20px] left-1/2 -translate-x-1/2 w-[56px] h-[56px] rounded-full bg-white flex items-center justify-center z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]"
+          >
+            {/* Fluid curve left */}
+            <div className="absolute top-[34px] -left-[20px] w-[20px] h-[22px] bg-transparent rounded-tr-[20px] shadow-[10px_-10px_0_0_#ffffff]" />
+            {/* Fluid curve right */}
+            <div className="absolute top-[34px] -right-[20px] w-[20px] h-[22px] bg-transparent rounded-tl-[20px] shadow-[-10px_-10px_0_0_#ffffff]" />
+            
+            <Icon className="w-6 h-6 text-black relative z-30" strokeWidth={2.5} />
+          </motion.div>
+        )}
+
+        {/* Inactive Icon */}
+        <motion.div
+          animate={{ y: active ? 20 : 0, opacity: active ? 0 : 1, scale: active ? 0.5 : 1 }}
+          transition={{ duration: 0.2 }}
+          className="absolute top-[14px] left-1/2 -translate-x-1/2 pointer-events-none"
+        >
+          <Icon className="w-6 h-6 text-[#9CA3AF]" strokeWidth={2.2} />
+        </motion.div>
+
+        {/* Label */}
+        <span className={`text-[11px] font-bold z-10 transition-colors duration-300 ${active ? "text-black translate-y-[2px]" : "text-[#9CA3AF]"}`}>
+          {shortLabel}
+        </span>
+      </Link>
+    );
+  }
+
   return (
     <Link
       href={item.href}
       aria-label={item.label}
-      className={`relative flex items-center justify-center group shrink-0 ${
-        horizontal ? "w-10 h-10" : "w-12 h-12 mb-2 last:mb-0"
-      }`}
+      className={`relative flex items-center justify-center group shrink-0 w-12 h-12 mb-2 last:mb-0`}
     >
       {/* Active state backplate — frosted light pill */}
       {active && (
@@ -62,21 +102,13 @@ function RailLink({ item, active, layoutId, horizontal }: { item: typeof ITEMS[0
       {/* Flyout name label */}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute z-[70] whitespace-nowrap rounded-full bg-[#111827] text-white text-[12px] font-semibold px-3 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.25)] opacity-0 scale-90 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:scale-100 ${
-          horizontal
-            ? "bottom-full mb-2.5 left-1/2 -translate-x-1/2 origin-bottom translate-y-1 group-hover:translate-y-0"
-            : "left-full ml-3.5 top-1/2 -translate-y-1/2 origin-left -translate-x-1 group-hover:translate-x-0"
-        }`}
+        className={`pointer-events-none absolute z-[70] whitespace-nowrap rounded-full bg-[#111827] text-white text-[12px] font-semibold px-3 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.25)] opacity-0 scale-90 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:scale-100 left-full ml-3.5 top-1/2 -translate-y-1/2 origin-left -translate-x-1 group-hover:translate-x-0`}
       >
         {item.label}
         {/* Little arrow pointing at the icon */}
         <span
           aria-hidden="true"
-          className={`absolute w-2 h-2 bg-[#111827] rotate-45 ${
-            horizontal
-              ? "top-full left-1/2 -translate-x-1/2 -mt-1"
-              : "right-full top-1/2 -translate-y-1/2 -mr-1"
-          }`}
+          className={`absolute w-2 h-2 bg-[#111827] rotate-45 right-full top-1/2 -translate-y-1/2 -mr-1`}
         />
       </span>
     </Link>
@@ -97,51 +129,45 @@ function RailItems({ layoutId, folderId, horizontal = false, onOpenFolder }: { l
       <motion.button
         layoutId={folderId}
         onClick={onOpenFolder}
-        className={`relative flex items-center justify-center shrink-0 group ${
-          horizontal ? "w-10 h-10 ml-0.5" : "w-12 h-12 mt-1"
+        className={`relative flex flex-col items-center justify-end shrink-0 group ${
+          horizontal ? "w-[64px] h-[72px] pb-2" : "w-12 h-12 mt-1 justify-center"
         }`}
         aria-label="More apps"
       >
-        {/* Background pill to match the dock style */}
-        <span className="absolute inset-0 rounded-[14px] bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-        
-        {/* The miniature app grid */}
-        <div className="relative z-10 grid grid-cols-2 gap-[3px] p-[8px] w-full h-full pointer-events-none">
-          {FOLDER_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <motion.div 
-                key={item.href} 
-                layoutId={`${folderId}-icon-${item.href}`}
-                className="flex items-center justify-center bg-black/10 rounded-[4px] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
-              >
-                <Icon className="w-2.5 h-2.5 text-gray-800" strokeWidth={3} />
-              </motion.div>
-            )
-          })}
-          {/* Empty 4th slot to make the 2x2 grid perfect since we have 3 items */}
-          <div className="bg-black/5 rounded-[4px] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]" />
-        </div>
-
-        {/* Flyout label for the folder itself */}
-        <span
-          role="tooltip"
-          className={`pointer-events-none absolute z-[70] whitespace-nowrap rounded-full bg-[#111827] text-white text-[12px] font-semibold px-3 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.25)] opacity-0 scale-90 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:scale-100 ${
-            horizontal
-              ? "bottom-full mb-2.5 left-1/2 -translate-x-1/2 origin-bottom translate-y-1 group-hover:translate-y-0"
-              : "left-full ml-3.5 top-1/2 -translate-y-1/2 origin-left -translate-x-1 group-hover:translate-x-0"
-          }`}
-        >
-          More Apps
-          <span
-            aria-hidden="true"
-            className={`absolute w-2 h-2 bg-[#111827] rotate-45 ${
-              horizontal
-                ? "top-full left-1/2 -translate-x-1/2 -mt-1"
-                : "right-full top-1/2 -translate-y-1/2 -mr-1"
-            }`}
-          />
-        </span>
+        {horizontal ? (
+          <>
+            <div className="absolute top-[16px] left-1/2 -translate-x-1/2 pointer-events-none grid grid-cols-2 gap-[3px] p-[3px] w-[22px] h-[22px]">
+              <div className="bg-[#9CA3AF] rounded-[2px]" />
+              <div className="bg-[#9CA3AF] rounded-[2px]" />
+              <div className="bg-[#9CA3AF] rounded-[2px]" />
+              <div className="bg-[#9CA3AF]/40 rounded-[2px]" />
+            </div>
+            <span className="text-[11px] font-bold text-[#9CA3AF] z-10 transition-colors duration-300">More</span>
+          </>
+        ) : (
+          <>
+            <span className="absolute inset-0 rounded-[14px] bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            <div className="relative z-10 grid grid-cols-2 gap-[3px] p-[8px] w-full h-full pointer-events-none">
+              {FOLDER_ITEMS.map((item) => (
+                <motion.div 
+                  key={item.href} 
+                  layoutId={`${folderId}-icon-${item.href}`}
+                  className="flex items-center justify-center bg-black/10 rounded-[4px] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                >
+                  <item.icon className="w-2.5 h-2.5 text-gray-800" strokeWidth={3} />
+                </motion.div>
+              ))}
+              <div className="bg-black/5 rounded-[4px] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]" />
+            </div>
+            <span
+              role="tooltip"
+              className={`pointer-events-none absolute z-[70] whitespace-nowrap rounded-full bg-[#111827] text-white text-[12px] font-semibold px-3 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.25)] opacity-0 scale-90 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:scale-100 left-full ml-3.5 top-1/2 -translate-y-1/2 origin-left -translate-x-1 group-hover:translate-x-0`}
+            >
+              More Apps
+              <span aria-hidden="true" className="absolute w-2 h-2 bg-[#111827] rotate-45 right-full top-1/2 -translate-y-1/2 -mr-1" />
+            </span>
+          </>
+        )}
       </motion.button>
     </>
   );
@@ -154,25 +180,27 @@ function FolderOverlay({ folderId, onClose }: { folderId: string; onClose: () =>
 
   return (
     <motion.div
-      initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-      animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
-      exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/10"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
         layoutId={folderId}
-        className="relative flex flex-col gap-6 p-6 bg-white/70 backdrop-blur-3xl border border-white/80 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] rounded-[36px] w-[280px]"
+        transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+        className="relative flex flex-col gap-6 p-6 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.2)] rounded-t-[36px] sm:rounded-[36px] w-full sm:w-[320px] pb-12 sm:pb-6 will-change-transform"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center px-1 pt-1">
-          <h3 className="font-semibold text-gray-800 text-lg tracking-tight">More Apps</h3>
-          <button onClick={onClose} className="p-1.5 rounded-full bg-black/5 hover:bg-black/10 transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+        <div className="flex justify-between items-center px-1">
+          <h3 className="font-bold text-black text-xl tracking-tight">More Apps</h3>
+          <button onClick={onClose} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
+            <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
         
-        <div className="grid grid-cols-3 gap-y-6 gap-x-4">
+        <div className="grid grid-cols-3 gap-y-8 gap-x-4">
           {FOLDER_ITEMS.map((item) => {
             const active = isActive(item.href);
             return (
@@ -182,19 +210,17 @@ function FolderOverlay({ folderId, onClose }: { folderId: string; onClose: () =>
                   router.push(item.href);
                   onClose();
                 }}
-                className="flex flex-col items-center gap-2 group cursor-pointer bg-transparent border-none p-0 m-0"
+                className="flex flex-col items-center gap-2.5 group cursor-pointer bg-transparent border-none p-0 m-0"
               >
-                <motion.div
-                  layoutId={`${folderId}-icon-${item.href}`}
-                  className={`flex items-center justify-center w-[60px] h-[60px] rounded-[18px] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.06),_inset_0_1px_1px_rgba(255,255,255,1)] border border-gray-100 transition-transform duration-300 group-hover:scale-105 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)] ${active ? "ring-2 ring-blue-500/50 ring-offset-1" : ""}`}
+                <div
+                  className={`flex items-center justify-center w-[60px] h-[60px] rounded-[20px] bg-white shadow-sm border transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md ${active ? "border-black shadow-md" : "border-gray-200"}`}
                 >
                   <item.icon
-                    className={`w-7 h-7 transition-opacity ${active ? "opacity-100" : "opacity-80 group-hover:opacity-100"}`}
-                    style={{ stroke: `url(#${item.grad})`, filter: `drop-shadow(0 1.5px 0 ${item.deep}) drop-shadow(0 4px 5px rgba(0,0,0,0.15))` }}
-                    strokeWidth={2.5}
+                    className={`w-7 h-7 transition-opacity ${active ? "text-black" : "text-gray-600 group-hover:text-black"}`}
+                    strokeWidth={2.2}
                   />
-                </motion.div>
-                <span className="text-[11px] font-medium text-gray-700 tracking-tight whitespace-nowrap">{item.label}</span>
+                </div>
+                <span className={`text-[11px] font-bold tracking-tight whitespace-nowrap ${active ? "text-black" : "text-gray-500"}`}>{item.label}</span>
               </button>
             )
           })}
@@ -249,7 +275,7 @@ export function SideRail({ embedded = false }: { embedded?: boolean }) {
       {!embedded && (
         <nav
           aria-label="Primary mobile"
-          className="flex lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] h-[56px] px-1.5 flex-row items-center justify-around gap-0.5 rounded-[28px] bg-white/50 backdrop-blur-[32px] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.12),_inset_0_1px_1px_rgba(255,255,255,0.9)] max-w-[95vw] overflow-x-auto scrollbar-hide"
+          className="flex lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] h-[72px] px-2 flex-row items-end pb-0 justify-around gap-2 rounded-[36px] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.2)] w-[92vw] max-w-[420px]"
         >
           <RailItems layoutId="rail-active-mobile" folderId="folder-mobile" horizontal onOpenFolder={() => setOpenFolder("mobile")} />
         </nav>
