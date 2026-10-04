@@ -41,6 +41,16 @@ export function AdManager() {
 
   const isPro = sessionIsPro || localIsPro;
 
+  // ─── CRITICAL FIX ──────────────────────────────────────────────────────────
+  // Never render ad scripts while the session is still loading.
+  // Monetag's script attaches a global click listener the moment it hits the
+  // DOM — once injected it CANNOT be removed. If we render during the
+  // "loading" phase, isPro is always false (session hasn't resolved yet), so
+  // the script fires for everyone, including PRO users.
+  // We gate on `status !== "loading"` so we only render after NextAuth has
+  // determined whether the user is authenticated + what their plan is.
+  // ───────────────────────────────────────────────────────────────────────────
+
   // Sync sessionIsPro into localStorage
   useEffect(() => {
     if (sessionIsPro && typeof window !== "undefined") {
@@ -112,12 +122,17 @@ export function AdManager() {
     }
   }, [isPro]);
 
-  // PRO Members get 100% clean, ad-free, and redirect-free experience
-  if (isPro) {
+  // ── Combined gate ─────────────────────────────────────────────────────────
+  // Wait until NextAuth resolves AND confirm the user is not PRO before
+  // injecting any ad scripts. A single guard keeps TypeScript's flow analysis
+  // happy (two consecutive if-return blocks cause TS7027 "Unreachable code").
+  // Monetag attaches a permanent click listener the instant it is parsed, so
+  // we must never render it while status is still "loading".
+  if (status === "loading" || isPro) {
     return null;
   }
 
-  // Free and Guest users receive standard ad tags
+  // ── Free / Guest users: serve standard ad tags ────────────────────────────
   return (
     <>
       {/* Monetag MultiTag (Zone 281066 for share2me.in) */}
