@@ -11,6 +11,8 @@ import * as fflate from "fflate";
 import { TransferPhase } from "@/hooks/useTransfer";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadToolOutput } from "@/lib/toolOutputStore";
+import { AnimatedCopyIcon } from "@/components/ui/AnimatedCopyIcon";
+import { ScrambleText } from "@/components/ui/ScrambleText";
 
 function useTransferSpeed(bytesTransferred: number) {
   const history = useRef<{ bytes: number; ts: number }[]>([]);
@@ -401,11 +403,13 @@ export function SendFlow({
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-[#8A8F93]">Single-use connection code</span>
                     <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8A8F93] group-hover:text-black transition-colors duration-150">
-                      {copied ? <Check className="w-3.5 h-3.5 text-[#35B94A]" /> : <Copy className="w-3.5 h-3.5" />}
+                      <AnimatedCopyIcon copied={copied} className="w-3.5 h-3.5" />
                       <span>{copied ? "Copied" : "Copy"}</span>
                     </div>
                   </div>
-                  <div className="font-mono text-[38px] leading-tight font-bold text-black tracking-[0.25em] mt-2 pl-[0.125em]">{otc}</div>
+                  <div className="font-mono text-[38px] leading-tight font-bold text-black tracking-[0.25em] mt-2 pl-[0.125em]">
+                    <ScrambleText text={otc} hoverTrigger />
+                  </div>
                 </div>
 
                 {/* QR Code */}

@@ -4,6 +4,7 @@ import { Key, Loader2, CheckCircle2, Camera, CameraOff, Copy, Check, Shield, Act
 import jsQR from "jsqr";
 import { TransferPhase } from "@/hooks/useTransfer";
 import { motion, AnimatePresence } from "framer-motion";
+import { AnimatedCopyIcon } from "@/components/ui/AnimatedCopyIcon";
 
 function useTransferSpeed(bytesTransferred: number) {
   const history = useRef<{ bytes: number; ts: number }[]>([]);
@@ -335,7 +336,7 @@ export function ReceiveFlow({ phase, status, keyStatus, progress, receivedText, 
                     onClick={copyText}
                     className="flex items-center gap-1.5 text-[11px] font-semibold text-[#5F6368] bg-[#F7F8F8] hover:bg-[#E1E3E5] px-3 py-1.5 rounded-lg border border-[#E1E3E5] transition-colors"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-[#35B94A]" /> : <Copy className="w-3.5 h-3.5" />}
+                    <AnimatedCopyIcon copied={copied} className="w-3.5 h-3.5" />
                     {copied ? "Copied!" : "Copy"}
                   </button>
                 </div>

@@ -26,6 +26,7 @@ import {
 } from "@/lib/printShop";
 import { io as socketIO, Socket } from "socket.io-client";
 import { getBackendUrl } from "@/lib/backendUrl";
+import { ContextMenu } from "@/components/ui/ContextMenu";
 
 const EXPRESS_BACKEND_URL = getBackendUrl();
 
@@ -896,10 +897,17 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                 const job = group.jobs[0];
                 const isEditing = editingJobIds.has(job.id);
                 return (
-                  <button
+                  <ContextMenu
                     key={job.id}
-                    className={`w-full text-left px-4 py-3.5 transition-colors flex items-center gap-3 ${selectedJobIds.has(job.id) ? 'bg-indigo-50/50' : 'hover:bg-white/40'}`}
+                    items={[
+                      ...(job.paymentStatus === 'pending' && !isEditing ? [{ label: "Confirm Payment", icon: <BadgeCheck className="w-4 h-4" />, onClick: () => onConfirm(job.id) }] : []),
+                      ...(job.paymentStatus === 'paid' && job.jobStatus !== 'printed' ? [{ label: "Mark Printed", icon: <CheckSquare className="w-4 h-4" />, onClick: () => onPrint(job.id) }] : []),
+                      { label: "View Details", icon: <ChevronRight className="w-4 h-4" />, onClick: () => setOpenJobId(job.id) }
+                    ]}
                   >
+                    <button
+                      className={`w-full text-left px-4 py-3.5 transition-colors flex items-center gap-3 ${selectedJobIds.has(job.id) ? 'bg-indigo-50/50' : 'hover:bg-white/40'}`}
+                    >
                     {job.paymentStatus === 'paid' && job.jobStatus !== 'printed' && (
                       <div className="shrink-0 pt-1" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -971,7 +979,8 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                         <ChevronRight className="w-4 h-4 text-[#111827]/30" onClick={() => setOpenJobId(job.id)} />
                       </div>
                     </div>
-                  </button>
+                    </button>
+                  </ContextMenu>
                 );
               }
 
@@ -983,6 +992,13 @@ export function PrintShopPanel({ token }: { token: string | null }) {
 
               return (
                 <div key={group.key} className="w-full flex flex-col border-b border-[#111827]/5 last:border-b-0 hover:bg-white/20 transition-colors">
+                  <ContextMenu
+                    items={[
+                      ...(firstJob.paymentStatus === 'pending' && !batchIsEditing ? [{ label: "Confirm All", icon: <BadgeCheck className="w-4 h-4" />, onClick: () => onConfirmBatch(group.jobs.map(j => j.id)) }] : []),
+                      ...(firstJob.paymentStatus === 'paid' && firstJob.jobStatus !== 'printed' ? [{ label: "Print All", icon: <CheckSquare className="w-4 h-4" />, onClick: () => onPrintBatch(group.jobs.map(j => j.id)) }] : []),
+                      { label: isExpanded ? "Collapse Batch" : "Expand Batch", icon: <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />, onClick: () => toggleBatch(group.key) }
+                    ]}
+                  >
                   <div
                     onClick={() => toggleBatch(group.key)}
                     className="px-4 py-3 bg-white/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#111827]/5 cursor-pointer hover:bg-white/60"
@@ -1049,6 +1065,7 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                       </button>
                     </div>
                   </div>
+                  </ContextMenu>
 
                   <AnimatePresence initial={false}>
                     {isExpanded && (
@@ -1062,8 +1079,15 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                           {group.jobs.map(job => {
                             const isJobEditing = editingJobIds.has(job.id);
                             return (
-                              <button
+                              <ContextMenu
                                 key={job.id}
+                                items={[
+                                  ...(job.paymentStatus === 'pending' && !isJobEditing ? [{ label: "Confirm Payment", icon: <BadgeCheck className="w-4 h-4" />, onClick: () => onConfirm(job.id) }] : []),
+                                  ...(job.paymentStatus === 'paid' && job.jobStatus !== 'printed' ? [{ label: "Mark Printed", icon: <CheckSquare className="w-4 h-4" />, onClick: () => onPrint(job.id) }] : []),
+                                  { label: "View Details", icon: <ChevronRight className="w-4 h-4" />, onClick: () => setOpenJobId(job.id) }
+                                ]}
+                              >
+                              <button
                                 onClick={() => setOpenJobId(job.id)}
                                 className={`w-full text-left pl-6 pr-4 py-2.5 transition-colors flex items-center gap-3 ${selectedJobIds.has(job.id) ? 'bg-indigo-50/50' : 'hover:bg-white/60'}`}
                               >
@@ -1102,6 +1126,7 @@ export function PrintShopPanel({ token }: { token: string | null }) {
                                   <ChevronRight className="w-3 h-3 text-[#111827]/30" />
                                 </div>
                               </button>
+                              </ContextMenu>
                             );
                           })}
                         </div>

@@ -64,6 +64,11 @@ import {
 import { getBackendUrl } from "@/lib/backendUrl";
 import { useSession } from "next-auth/react";
 import confetti from "canvas-confetti";
+import { AnimatedCopyIcon } from "@/components/ui/AnimatedCopyIcon";
+import { ScrambleText } from "@/components/ui/ScrambleText";
+import { CommandPalette } from "@/components/ui/CommandPalette";
+import { ContextMenu } from "@/components/ui/ContextMenu";
+import { ConfettiButton } from "@/components/ui/ConfettiButton";
 
 interface UserProfile {
   userId: string;
@@ -175,8 +180,8 @@ function UploadRecordRow({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleDownloadAll = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDownloadAll = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     for (let i = 0; i < record.files.length; i++) {
       await onAction(record.files[i], "download");
       if (i < record.files.length - 1) {
@@ -188,8 +193,14 @@ function UploadRecordRow({
   const totalSize = record.files.reduce((acc, f) => acc + f.size, 0);
 
   return (
-    <div className="border-b border-white/20 last:border-0 group/row">
-      {/* Row Header */}
+    <ContextMenu
+      items={[
+        { label: "Download All", icon: <Download className="w-4 h-4" />, onClick: () => handleDownloadAll() },
+        { label: "Delete Request", icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(record.uploadId), danger: true }
+      ]}
+    >
+      <div className="border-b border-white/20 last:border-0 group/row">
+        {/* Row Header */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
         className="grid grid-cols-[1fr_auto_auto] md:grid-cols-[1.5fr_2fr_1fr_1fr_1fr_auto] gap-3 md:gap-4 items-center p-3.5 md:p-4 hover:bg-white/10 transition-colors cursor-pointer text-sm"
@@ -241,13 +252,13 @@ function UploadRecordRow({
           className="flex items-center justify-end gap-2"
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={handleDownloadAll}
+          <ConfettiButton
+            onClick={() => handleDownloadAll()}
             title="Download All"
             className="w-8 h-8 rounded-lg bg-[#111827] text-white flex items-center justify-center hover:bg-black transition-colors"
           >
             <Download className="w-4 h-4" />
-          </button>
+          </ConfettiButton>
           <button
             onClick={() => onDelete(record.uploadId)}
             title="Delete Request"
@@ -345,7 +356,8 @@ function UploadRecordRow({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </ContextMenu>
   );
 }
 
@@ -1685,18 +1697,14 @@ export default function G2pDashboard({
               </div>
               <div className="w-full max-w-sm flex items-center bg-white/50 border border-white/60 rounded-2xl p-2 pl-6 shadow-sm">
                 <span className="flex-1 text-lg font-bold tracking-[0.2em] text-[#111827] uppercase font-mono">
-                  {user.shareCode || activeShareCode || "LOADING..."}
+                  <ScrambleText text={user.shareCode || activeShareCode || "LOADING..."} hoverTrigger />
                 </span>
                 <button
                   onClick={copyToClipboard}
                   disabled={!user.shareCode && !activeShareCode}
                   className="bg-[#111827] text-white hover:bg-black px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 disabled:opacity-50 shadow-sm"
                 >
-                  {copied ? (
-                    <Check className="w-4 h-4" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
+                  <AnimatedCopyIcon copied={copied} className="w-4 h-4" />
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
@@ -2750,6 +2758,7 @@ export default function G2pDashboard({
           </motion.div>
         )}
       </AnimatePresence>
+      <CommandPalette />
     </div>
   );
 }

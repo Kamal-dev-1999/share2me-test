@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import { SideRail } from "@/components/SideRail";
+import { SheetModal } from "@/components/ui/SheetModal";
 import { signIn, useSession } from "next-auth/react";
 import { getBackendUrl } from "@/lib/backendUrl";
 import {
@@ -351,38 +352,26 @@ function HomeContent() {
       </div>
 
       {/* Error Modal */}
-      <AnimatePresence>
-        {errorModal.show && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/40 backdrop-blur-md"
+      <SheetModal 
+        isOpen={errorModal.show} 
+        onClose={() => setErrorModal({ show: false, code: "" })}
+      >
+        <div className="flex flex-col items-center text-center mt-2">
+          <div className="w-16 h-16 rounded-3xl bg-red-50 flex items-center justify-center mb-4 border border-red-100">
+            <AlertCircle className="w-8 h-8 text-[#DC2626]" strokeWidth={2} />
+          </div>
+          <h2 className="text-[22px] font-bold text-[#171226] mb-2 tracking-tight">Portal not found</h2>
+          <p className="text-[14px] text-[#4B4560] leading-relaxed mb-8 px-2">
+            The Share Code <strong className="text-[#171226]">&quot;{errorModal.code}&quot;</strong> is invalid or has expired.
+          </p>
+          <button
+            onClick={() => setErrorModal({ show: false, code: "" })}
+            className="w-full h-12 rounded-full bg-[#171226] text-white text-[13px] font-bold hover:bg-[#2A2140] transition-colors shadow-md"
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="bg-[#EFEAF6] rounded-3xl p-8 max-w-sm w-full shadow-[0_24px_80px_rgba(70,40,140,0.2)] flex flex-col items-center text-center border border-white/50"
-            >
-              <div className="w-16 h-16 rounded-3xl bg-[#F0D5D8] flex items-center justify-center mb-5 border border-white/50">
-                <AlertCircle className="w-8 h-8 text-[#DC2626]" strokeWidth={2} />
-              </div>
-              <h2 className="text-[22px] font-bold text-[#171226] mb-2 tracking-tight">Portal not found</h2>
-              <p className="text-[14px] text-[#4B4560] leading-relaxed mb-8 px-2">
-                The Share Code <strong className="text-[#171226]">&quot;{errorModal.code}&quot;</strong> is invalid or has expired.
-              </p>
-              <button
-                onClick={() => setErrorModal({ show: false, code: "" })}
-                className="w-full h-12 rounded-full bg-[#171226] text-white text-[13px] font-bold hover:bg-[#2A2140] transition-colors shadow-md"
-              >
-                Return Home
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            Return Home
+          </button>
+        </div>
+      </SheetModal>
     </div>
   );
 }
