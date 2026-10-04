@@ -1,24 +1,33 @@
-# ShareIt Knowledge Base
+# Share2Me Knowledge Base (v3.5)
 
-This document is the project handoff for coding agents. Read this first when resuming work on the ShareIt repository.
+This document is the authoritative project handoff and architecture record for coding agents working on the Share2Me repository.
 
 ---
 
 ## 1. Project Summary
 
-ShareIt is a browser-based, secure peer-to-peer file transfer app with two main flows:
+Share2Me is a browser-native, zero-knowledge peer-to-peer file transfer engine and merchant receive portal with three core operations:
 
-1. **P2P Transfer**: Two transport modes:
-   - `optical` — smaller transfers via QR streaming (not yet implemented end-to-end).
-   - `webrtc` — larger transfers via WebRTC DataChannels (fully working).
-2. **G2P (Get 2 Peer) / Vendor Dashboard**: A feature allowing vendors, print shops, or normal users to have a personalized Share Portal where others can upload files to them securely.
+1. **P2P Transfer (`/`, `/p2p`)**: Direct device-to-device transfers over WebRTC DataChannels using client-side AES-GCM-256 and ECDH P-256 key exchange inside Web Workers.
+2. **G2P (Get-to-Peer) Merchant Hub (`/g2p`)**: A real-time Bento Box vendor portal where print shops, educators, and businesses receive customer documents directly using permanent custom Share Codes.
+3. **Productivity Tools Suite (`/tools`)**: In-browser tools including PDF signing, background removal (WebAssembly / Cloud Run), page numbering, and visual editing.
 
 ---
 
-## 2. Current Phase: Frontend Rewrite Complete → Refine & Add Missing Features
+## 2. Current Standing (v3.5 Milestone)
 
-The Next.js (React) + TypeScript + TailwindCSS rewrite is **complete and working end-to-end**.
-The app correctly routes WebRTC signaling and UI through a single proxy port (3000), allowing cross-device testing via a single ngrok URL.
+The codebase is on **branch `v3.5`**, running **Next.js 15.5.27**, **React 18/19**, **TypeScript 5.x**, and **Tailwind CSS**.
+
+### Key Additions in v3.5:
+- **Decoupled User Settings Hub (`UserSettingsHub.tsx`)**: Replaced inline settings with a modular 4-domain hub:
+  1. *Storefront & Profile*: Public business identity, pickup landmark, Nominatim GPS auto-detection, and 3-photo Cloudflare R2 gallery via presigned URLs.
+  2. *Orders & Pricing*: One-touch intake toggle (Accepting Orders vs. Paused) and per-page rates for B&W and Color printing.
+  3. *Direct UPI Settlement & 2FA*: 100% direct customer-to-vendor payment routing with zero platform fee, protected by 2FA email OTP verification modal.
+  4. *Plan & Portal Branding*: Active persona selection, Razorpay Pro subscription upgrade, and live interactive SVG QR preview with customizable foreground, background, and center logo URL.
+- **Fluid Non-Clipping Tab Navigation**: Replaced rigid multi-column pills with an adaptive horizontal scrollable bar with active tab centering, preventing any right-edge truncation (`Plan & P...`).
+- **Contextual Floating Save Bar**: Elevated at `bottom-24 lg:bottom-6` to avoid colliding with the mobile bottom navigation dock (`h-[72px]` at `bottom-6`), tracking dirty state across tabs.
+- **Micro-Interactions**: Optimized with React 18 `useTransition` for zero-lag tab switches, `ScrambleText`, `AnimatedCopyIcon`, `ConfettiButton`, and custom right-click context menu portals.
+- **Mobile Navigation Dock (`SideRail.tsx`)**: Fluid curved floating dock on mobile with iOS-style folder expansion animations for secondary tools.
 
 ---
 
@@ -26,170 +35,80 @@ The app correctly routes WebRTC signaling and UI through a single proxy port (30
 
 ```
 ShareIt/
-├── backend/                     # Express + Socket.io signaling server
-│   ├── server.js                # Entry point — signal relay + Next.js proxy
-│   ├── package.json             # { "name": "shareit-backend" }
-│   └── public/                  # Plain-HTML POC (accessible at /poc)
-│       ├── index.html           # Unified sender + receiver on one page
-│       ├── app.js               # POC browser logic
-│       ├── worker.js            # AES-GCM + ECDH Web Worker
-│       └── storage.js           # OPFS / IndexedDB persistence
+├── backend/                         # Express + Socket.io signaling & API server
+│   ├── server.js                    #   Entry point — WebSocket relay + Next.js reverse proxy
+│   ├── g2p/                         #   Vendor routes, direct UPI, R2 presigning, billing
+│   ├── db/                          #   Postgres + PostGIS migrations
+│   └── package.json
 │
-├── frontend/                    # Next.js 14 application
+├── frontend/                        # Next.js 15 application
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── layout.tsx       # Root layout + SEO metadata
-│   │   │   ├── page.tsx         # Main page — composes all sections
-│   │   │   └── globals.css      # Inter + JetBrains Mono, dark defaults
+│   │   │   ├── layout.tsx           #   Root layout, fonts, SideRail dock, analytics
+│   │   │   ├── page.tsx             #   Home page — P2P transfer workspace
+│   │   │   ├── g2p/
+│   │   │   │   ├── page.tsx         #   Dashboard container + persona selection gate
+│   │   │   │   ├── [code]/page.tsx  #   Public customer file-drop portal
+│   │   │   │   └── nearby/page.tsx  #   PostGIS nearby print shops explorer
+│   │   │   ├── tools/               #   Productivity suite (PDF signer, editor, bg remover)
+│   │   │   └── pricing/             #   Share2Me Pro subscription upgrade
 │   │   ├── components/
-│   │   │   ├── TopNav.tsx       # 64px dark navigation bar
-│   │   │   ├── HeroSection.tsx  # Display headline + stat callouts
-│   │   │   ├── ModeSelector.tsx # Send ↔ Receive pill toggle
-│   │   │   ├── SendFlow.tsx     # Drag-drop, OTC badge, QR, progress
-│   │   │   └── ReceiveFlow.tsx  # OTC input, key status, receive progress
-│   │   └── hooks/
-│   │       ├── useSocket.ts     # Singleton socket.io-client hook
-│   │       └── useTransfer.ts   # Full sender + receiver state machine
+│   │   │   ├── G2pDashboard.tsx     #   Bento Box vendor dashboard
+│   │   │   ├── SideRail.tsx         #   Fluid mobile curved dock & desktop rail
+│   │   │   ├── settings/
+│   │   │   │   └── UserSettingsHub.tsx  # Modular Settings Architecture
+│   │   │   ├── SendFlow.tsx         #   P2P file & text sender
+│   │   │   ├── ReceiveFlow.tsx      #   P2P file & text receiver
+│   │   │   └── ui/                  #   AnimatedCopyIcon, ScrambleText, ConfettiButton
+│   │   ├── hooks/
+│   │   │   ├── useSocket.ts         #   Socket.io singleton hook
+│   │   │   └── useTransfer.ts       #   P2P state machine
+│   │   └── lib/
+│   │       ├── printShop.ts         #   Vendor API client & TypeScript interfaces
+│   │       └── backendUrl.ts        #   Dynamic backend resolution
 │   ├── public/
-│   │   ├── worker.js            # Crypto worker (served to browser)
-│   │   └── storage.js           # Chunk storage (served to browser)
-│   ├── tailwind.config.ts       # Full Binance design token palette
-│   └── .env.local               # NEXT_PUBLIC_SIGNAL_URL
+│   │   ├── worker.js                #   Crypto worker (AES-GCM + ECDH)
+│   │   └── storage.js               #   OPFS / IndexedDB persistence
+│   ├── tailwind.config.ts           #   Design system tokens
+│   └── next.config.mjs              #   Security headers, CSP, image domains
 │
-├── knowledge/                   # Project docs + design specs
-│   ├── knowledge-base.md        # THIS FILE
-│   ├── trd.md                   # Technical Requirements
-│   ├── prd.md                   # Product Requirements
-│   ├── cbd.md                   # Component Breakdown
-│   ├── flow.md                  # Data flow diagrams
-│   └── DESIGN.md                # Binance design system reference
+├── knowledge/                       # Architecture records & developer guides
+│   ├── knowledge-base.md            #   THIS FILE
+│   ├── DESIGN.md                    #   UI design system standards
+│   └── security_audit_plan.md       #   Security audit & remediation records
 │
-├── package.json                 # Root — orchestration scripts only
-└── README.md
+├── docker-compose.yml               # Production container stack
+└── README.md                        # Project root documentation
 ```
 
 ---
 
-## 4. What Was Built (Latest Version)
+## 4. Architectural Rules & Gotchas for Future Agents
 
-### Core Features
-- **Frontend Architecture**: Next.js 14 (App Router) + TypeScript + TailwindCSS.
-- **Design System**: Fully implemented Binance-inspired dark-mode (`canvas-dark`, `primary` yellow, `trading-up` green).
-- **Unified App**: Sender and receiver flows are cleanly separated into React components (`SendFlow` and `ReceiveFlow`) but run on the same page.
-- **State Management**: `useTransfer.ts` encapsulates the complex WebRTC, Socket.io, and Web Worker logic from the POC into React hooks.
-- **Signaling & Proxy**: The backend Express server on port 3000 relays socket events AND uses `http-proxy-middleware` to forward all other HTTP requests to the Next.js dev server on port 3001. This allows **a single ngrok URL** to handle both the app UI and WebSockets.
-
-### G2P (Get 2 Peer) Vendor Dashboard
-- **Bento Box UI**: The dashboard (`G2pDashboard.tsx`) has been completely overhauled from a standard table to a modern, responsive grid-based "Bento Box" layout with glass-morphism effects (`backdrop-blur`, `bg-white/20`, dynamic SVG gradients for file-type icons).
-- **Responsive Layout**: Mobile uses a compact pill-shaped bottom/top navigation, while desktop features a glass sidebar with high-level metrics.
-- **Real-Time Sync**: Driven by `socket.io-client`, file uploads and download statuses sync in real-time (`g2p:new_submission`, `g2p:file_downloaded`).
-- **Monetization & Extensions**: Includes Stripe checkout for "Pro Plan" upgrades, debounced custom QR code logo saving, and a specialized "Print Shop" panel (`PrintShopPanel.tsx`) integration.
-
-### Crypto & Security (End-to-End)
-- **ECDH-based key exchange**: Raw AES key is **never** in metadata or QR output.
-  - Sender: generates ephemeral ECDH P-256 keypair + AES-GCM-256 file key.
-  - Metadata carries `senderPubKey` (JWK) but not the key itself.
-  - Receiver: generates its own ECDH keypair, sends `receiver_pub` over Socket.io.
-  - Sender wraps AES key → sends `wrapped_key` → receiver unwraps.
-- AES-GCM-256 chunk encryption runs in a Web Worker (`public/worker.js`).
-- WebRTC DataChannel file transfer with NACK/resend for missing chunks.
-- OPFS chunk persistence with IndexedDB fallback (`public/storage.js`).
-
-### Fixed Architectural Quirks (from POC migration)
-- **Same-socket local dispatch**: When testing locally (same browser tab), `socket.to(id)` excludes the sender. All socket event handlers in `useTransfer.ts` include direct local dispatch to bypass this limitation.
-- **Storage timing race**: `state.sender.chunks[]` in-memory cache bypasses async storage reads to feed WebRTC instantly.
-- **Assembly trigger**: Latched `doneReceived` boolean prevents NACK timers from cancelling the final file assembly.
+1. **Mobile Dock Avoidance**:
+   - The mobile dock (`SideRail.tsx`) sits fixed at `bottom-6` with height `72px`.
+   - Any floating modals, sheets, or save bars must be elevated to at least `bottom-24` (`96px`) on mobile viewports (`bottom-24 lg:bottom-6`).
+   - All scrolling page containers must include `pb-28 lg:pb-16` to allow full clearance.
+2. **Framer Motion Button Props**:
+   - When wrapping animated buttons with Framer Motion, extend `HTMLMotionProps<"button">` rather than standard `React.ButtonHTMLAttributes<HTMLButtonElement>` to prevent `onDrag` type conflicts.
+3. **Tab Label Truncation**:
+   - Never rely on fixed `grid-cols-4` on medium viewports with verbose tab labels. Use `overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap` with dynamic responsive labels.
+4. **Signaling Server & Proxy**:
+   - In development, the Express backend (port 3000) relays WebSocket events and proxies all HTTP requests to Next.js (port 3001). This allows cross-device testing with a single ngrok tunnel on port 3000.
+5. **Zero-Knowledge Keys**:
+   - Never serialize raw AES keys into QR codes, URLs, or metadata blobs. Key exchange is strictly brokered via ECDH P-256 public key wrapping.
 
 ---
 
-## 5. Current Data Flow (Next.js Version)
-
-### Sender
-1. User picks file → clicks "Create OTC & Prepare".
-2. `createRoom()` calls backend `create_room` → server returns 6-digit OTC.
-3. Web Worker generates AES-GCM key + ECDH keypair, hashes file, encrypts chunks, emits `senderMetadata`.
-4. Metadata JSON (with `senderPubKey`, **no raw AES key**) shown + QR rendered via `qrcode` lib.
-5. On `receiver_pub` (via Socket or local dispatch): worker wraps AES key via ECDH-derived wrap key → emits `wrapped_key`.
-6. User clicks "Start WebRTC Send" → WebRTC offer created → sent to receiver.
-7. On DC open + `chunksReady`: chunks stream.
-
-### Receiver
-1. User enters OTC → "Join Room" → `join_room` via `useSocket`.
-2. Pastes sender metadata JSON → "Import Metadata & Start Key Exchange".
-3. Web Worker generates ECDH keypair → `receiverPubKey` → `receiver_pub` emitted to Sender.
-4. On `wrapped_key`: worker unwraps AES key → `fileKeyReady`.
-5. WebRTC offer arrives → answer created → sent back to sender.
-6. DataChannel opens → chunks arrive → decrypted in Worker → saved to OPFS.
-7. On sender `{done:true}`, wait 300ms for final decrypts, then assemble OPFS chunks into a Blob and trigger native browser download.
-
----
-
-## 6. Socket.io Events (backend/server.js)
-
-| Event | Direction | Purpose |
-|---|---|---|
-| `create_room` | Client → Server | Get 6-digit OTC, join room |
-| `join_room` | Client → Server | Join existing room by OTC |
-| `signal` | Bidirectional relay | WebRTC offer / answer / ICE |
-| `receiver_pub` | Relay | Receiver ECDH public key → Sender |
-| `wrapped_key` | Relay | Sender-wrapped AES key → Receiver |
-| `nack` | Relay | Receiver requests missing chunk sequences |
-| `ack` | Relay | (Routed but unused) |
-
----
-
-## 7. Metadata JSON Contract
-
-```json
-{
-  "f": "filename.ext",
-  "s": 1048576,
-  "c": 1024,
-  "h": "sha256-base64",
-  "total": 1024,
-  "otc": "123456",
-  "senderPubKey": { "crv": "P-256", ... },
-  "transport": "webrtc"
-}
-```
-
----
-
-## 8. What the Next Agent Should Build
-
-### Missing Features / Roadmap:
-- **Optical QR streaming mode**: Sub-5MB files, 512–1024 byte chunks, QR display loop, and Reed-Solomon FEC for dropped frames. Currently, optical transport is mocked/unimplemented.
-- **Camera-based QR Scanner**: Implement a web-based camera scanner (e.g. `html5-qrcode`) in the `ReceiveFlow` to replace manual JSON pasting.
-- **OPFS Resume**: Partial transfer recovery if the browser reloads mid-transfer.
-- **Docker + Production Build**: Containerize the app for deployment (removing dev server proxy logic).
-- **Automated Tests**: Playwright/Cypress end-to-end tests for cross-browser transfer validation.
-
----
-
-## 9. Local Run (Dev Environment)
+## 5. Quick Commands
 
 ```bash
-# Install all dependencies (orchestrated from root)
-npm run install:all
-
-# Run both Next.js and Backend Express Proxy concurrently
+# Start backend (3000) and frontend (3001)
 npm run dev
 
-# App is accessible at:
-# http://localhost:3000
+# Check TypeScript types
+cd frontend && npx tsc --noEmit
+
+# Production Next.js build
+cd frontend && npx next build
 ```
-
-### Cross-Device Testing with ngrok
-Because port 3000 proxies UI to Next.js AND handles Socket.io:
-1. `ngrok http 3000`
-2. Copy the `https://xxxx.ngrok-free.app` URL.
-3. Edit `frontend/.env.local`: `NEXT_PUBLIC_SIGNAL_URL=https://xxxx.ngrok-free.app`
-4. Restart the dev servers (`npm run dev`).
-5. Open the ngrok URL on both devices.
-
----
-
-## 10. Debugging Notes
-- If key exchange stalls, check browser console for `wrapError` or `decryptError` from the worker.
-- If receiver shows "Decrypted chunk N/N" but no download, check `rcv.current.doneReceived` in `useTransfer.ts` — should be `true` after the `{done:true}` DataChannel message arrives.
-- Ensure the `NEXT_PUBLIC_SIGNAL_URL` is correctly configured in `frontend/.env.local` if testing across physical devices; otherwise Socket.io will attempt to connect to `localhost`.
