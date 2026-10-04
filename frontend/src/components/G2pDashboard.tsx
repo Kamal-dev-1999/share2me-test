@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import {
   Copy,
   Check,
@@ -373,7 +373,9 @@ export default function G2pDashboard({
   onLogout: () => void;
   initialPersona?: import("@/lib/printShop").UserPersona | string;
 }) {
-  const [activeTab, setActiveTab] = useState<TabMode>("inbox");
+  const [isPending, startTransition] = useTransition();
+  const [activeTab, setActiveTabState] = useState<TabMode>("inbox");
+  const setActiveTab = (tab: TabMode) => startTransition(() => setActiveTabState(tab));
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest");

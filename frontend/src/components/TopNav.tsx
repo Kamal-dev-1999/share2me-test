@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ export function TopNav() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -25,7 +26,9 @@ export function TopNav() {
   const goToTransfer = (mode: "send" | "receive") => (e: React.MouseEvent) => {
     e.preventDefault();
     setIsMenuOpen(false);
-    router.push(`/p2p?mode=${mode}`);
+    startTransition(() => {
+      router.push(`/p2p?mode=${mode}`);
+    });
   };
 
   const isActive = (href: string) =>
@@ -66,14 +69,14 @@ export function TopNav() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-1 ml-4 lg:ml-8">
-          <Link href="/" className={linkClass(!!isActive("/"))}>Home</Link>
-          <Link href="/p2p?mode=send" onClick={goToTransfer("send")} className={linkClass(!!isActive("/p2p"))}>
+          <Link href="/" onMouseEnter={() => router.prefetch("/")} className={linkClass(!!isActive("/"))}>Home</Link>
+          <Link href="/p2p?mode=send" onMouseEnter={() => router.prefetch("/p2p")} onClick={goToTransfer("send")} className={linkClass(!!isActive("/p2p"))}>
             Direct Transfer
           </Link>
-          <Link href="/g2p" className={linkClass(!!isActive("/g2p"))}>Share with Code</Link>
-          <Link href="/tools" className={linkClass(!!isActive("/tools"))}>Tools</Link>
-          <Link href="/about" className={linkClass(!!isActive("/about"))}>About</Link>
-          <Link href="/pricing" className={linkClass(!!isActive("/pricing"))}>Pricing</Link>
+          <Link href="/g2p" onMouseEnter={() => router.prefetch("/g2p")} className={linkClass(!!isActive("/g2p"))}>Share with Code</Link>
+          <Link href="/tools" onMouseEnter={() => router.prefetch("/tools")} className={linkClass(!!isActive("/tools"))}>Tools</Link>
+          <Link href="/about" onMouseEnter={() => router.prefetch("/about")} className={linkClass(!!isActive("/about"))}>About</Link>
+          <Link href="/pricing" onMouseEnter={() => router.prefetch("/pricing")} className={linkClass(!!isActive("/pricing"))}>Pricing</Link>
         </div>
 
         {/* Right cluster */}
@@ -116,6 +119,7 @@ export function TopNav() {
                 <Link
                   key={item.label}
                   href={item.href}
+                  onMouseEnter={() => router.prefetch(item.href.split("?")[0])}
                   onClick={item.onClick ?? (() => setIsMenuOpen(false))}
                   className="px-3 py-2.5 rounded-lg text-[14px] font-medium text-on-surface hover:bg-surface-muted transition-colors"
                 >
@@ -131,6 +135,7 @@ export function TopNav() {
                 <Link
                   key={item.label}
                   href={item.href}
+                  onMouseEnter={() => router.prefetch(item.href)}
                   onClick={() => setIsMenuOpen(false)}
                   className="px-3 py-2.5 rounded-lg text-[14px] font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-muted transition-colors"
                 >

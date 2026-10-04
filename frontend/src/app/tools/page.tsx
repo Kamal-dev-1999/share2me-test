@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Search, ShieldCheck, Sparkles, Zap, ArrowRight, X } from "lucide-react";
 import {
@@ -398,6 +399,7 @@ function FilterChip({
 }
 
 function ToolCard({ tool, index }: { tool: PdfTool; index: number }) {
+  const router = useRouter();
   const isReady = tool.phase === "ready";
   const Icon = tool.icon;
   const style3D = TOOL_3D_STYLES[tool.slug] || DEFAULT_3D_STYLE;
@@ -475,7 +477,11 @@ function ToolCard({ tool, index }: { tool: PdfTool; index: number }) {
     return <div className="cursor-not-allowed h-full">{inner}</div>;
   }
   return (
-    <Link href={`/tools/${tool.slug}`} className="block h-full">
+    <Link 
+      href={`/tools/${tool.slug}`} 
+      onMouseEnter={() => router.prefetch(`/tools/${tool.slug}`)}
+      className="block h-full"
+    >
       {inner}
     </Link>
   );
