@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -101,6 +101,10 @@ function HomeContent() {
   const { data: session, status } = useSession();
   const [errorModal, setErrorModal] = useState<{ show: boolean; code: string }>({ show: false, code: "" });
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
   const openPortal = async (e: React.FormEvent) => {
     e.preventDefault();
     const val = code.trim().toUpperCase();
@@ -131,18 +135,21 @@ function HomeContent() {
   };
 
   return (
-    <div className="min-h-[100dvh] lg:h-screen lg:overflow-hidden bg-[#CDC3E4] relative flex items-center justify-center p-4 sm:p-6 lg:py-10 lg:pr-10 lg:pl-5 font-body">
+    <div
+      id="home-root"
+      className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden overscroll-none bg-[#CDC3E4] flex items-center justify-center p-3 sm:p-6 pb-24 sm:pb-6 lg:py-10 lg:pr-10 lg:pl-5 font-body"
+    >
       <GradientBlobs />
 
       {/* Shell: glass panel with the rail fused into its left edge */}
       <div className="relative z-10 w-full max-w-[1200px] flex items-center">
         {/* Frosted glass panel */}
-        <div className="flex-1 rounded-[28px] bg-white/30 backdrop-blur-2xl border border-white/50 shadow-[0_24px_80px_rgba(70,40,140,0.25)] overflow-visible flex">
+        <div className="flex-1 rounded-[24px] sm:rounded-[28px] bg-white/30 backdrop-blur-2xl border border-white/50 shadow-[0_24px_80px_rgba(70,40,140,0.25)] overflow-visible flex">
           <SideRail embedded />
           <div className="flex-1 min-w-0">
 
           {/* Top bar */}
-          <header className="flex items-center gap-4 px-6 sm:px-8 pt-6 flex-wrap">
+          <header className="flex items-center gap-4 px-5 sm:px-8 pt-4 sm:pt-6 flex-wrap">
             <Link href="/" className="flex items-center gap-2.5 shrink-0">
               <span className="w-9 h-9 rounded-xl overflow-hidden bg-black flex items-center justify-center">
                 <Image src="/logo.png" alt="Share2Me" width={36} height={36} className="object-cover w-full h-full" priority />
@@ -180,27 +187,27 @@ function HomeContent() {
           </header>
 
           {/* Body: copy left, floating tiles right */}
-          <div className="grid lg:grid-cols-2 gap-8 px-6 sm:px-8 lg:pl-12 pb-10 pt-8 lg:pt-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-4 lg:gap-8 px-5 sm:px-8 lg:pl-12 pb-5 sm:pb-10 pt-3 sm:pt-8 lg:pt-12 items-center">
 
             {/* Left column */}
             <div className="max-w-[440px]">
-              <p className="text-[11px] font-bold tracking-[0.18em] text-[#5B5470] uppercase">
+              <p className="text-[10px] sm:text-[11px] font-bold tracking-[0.18em] text-[#5B5470] uppercase">
                 Do more with us!
               </p>
-              <h1 className="mt-3 text-[36px] sm:text-[44px] leading-[1.08] font-bold text-[#171226] tracking-tight text-balance">
+              <h1 className="mt-1.5 sm:mt-3 text-[28px] sm:text-[44px] leading-[1.08] font-bold text-[#171226] tracking-tight text-balance">
                 Share Files<br />Instantly
               </h1>
-              <p className="mt-4 text-[13px] leading-relaxed text-[#4B4560]">
+              <p className="mt-2 sm:mt-4 text-[12px] sm:text-[13px] leading-relaxed text-[#4B4560] line-clamp-3 sm:line-clamp-none">
                 Send files and text directly between devices — end-to-end encrypted,
                 no cloud storage, no size limits, no sign-ups. Or claim a permanent
                 portal so anyone can drop files into your inbox.
               </p>
 
               {/* Share-code input (the email field in the reference) */}
-              <form onSubmit={openPortal} className="mt-7 flex flex-col gap-3">
+              <form onSubmit={openPortal} className="mt-3.5 sm:mt-7 flex flex-col gap-2.5 sm:gap-3">
                 {/* Hidden sentinel — this form is SPA-only (no server POST). Included to satisfy automated CSRF scanners. */}
                 <input type="hidden" name="_protection" value="spa-csrf-exempt" readOnly />
-                <div className="flex items-center bg-white/55 border border-white/80 rounded-full px-5 py-3">
+                <div className="flex items-center bg-white/55 border border-white/80 rounded-full px-4 sm:px-5 py-2 sm:py-3">
                   <input
                     suppressHydrationWarning
                     id="share-code-input"
@@ -213,26 +220,26 @@ function HomeContent() {
                     className="flex-1 bg-transparent text-[13px] text-[#1E1B2E] placeholder:text-[#6B6480] focus:outline-none min-w-0 uppercase tracking-[0.14em]"
                   />
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                   <button
                     suppressHydrationWarning
                     type="submit"
                     disabled={isVerifying}
-                    className="h-11 px-8 rounded-full bg-[#171226] text-white text-[12px] font-bold tracking-[0.12em] uppercase hover:bg-[#2A2140] transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="h-9 sm:h-11 px-5 sm:px-8 rounded-full bg-[#171226] text-white text-[11px] sm:text-[12px] font-bold tracking-[0.12em] uppercase hover:bg-[#2A2140] transition-colors flex items-center gap-1.5 sm:gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     {isVerifying ? "Verifying..." : "Open portal"}
                     {!isVerifying && <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />}
                   </button>
                   <Link
                     href="/p2p"
-                    className="h-11 px-6 rounded-full bg-white/55 border border-white/80 text-[#171226] text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-white/80 transition-colors flex items-center gap-2"
+                    className="h-9 sm:h-11 px-4 sm:px-6 rounded-full bg-white/55 border border-white/80 text-[#171226] text-[11px] sm:text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-white/80 transition-colors flex items-center gap-1.5 sm:gap-2"
                   >
                     <Zap className="w-3.5 h-3.5" strokeWidth={2.5} />
                     P2P transfer
                   </Link>
                   <Link
                     href="/g2p/nearby"
-                    className="h-11 px-6 rounded-full bg-white/55 border border-white/80 text-[#171226] text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-white/80 transition-colors flex items-center gap-2"
+                    className="h-9 sm:h-11 px-4 sm:px-6 rounded-full bg-white/55 border border-white/80 text-[#171226] text-[11px] sm:text-[12px] font-bold tracking-[0.08em] uppercase hover:bg-white/80 transition-colors flex items-center gap-1.5 sm:gap-2"
                   >
                     <MapPin className="w-3.5 h-3.5" strokeWidth={2.5} />
                     Find Nearby Shops
@@ -241,7 +248,7 @@ function HomeContent() {
               </form>
 
               {/* Social row */}
-              <div className="mt-8 flex items-center gap-3">
+              <div className="mt-3.5 sm:mt-8 flex items-center gap-2.5 sm:gap-3">
                 {[
                   { Svg: GithubSvg,    href: "https://github.com/share2me",               label: "GitHub" },
                   { Svg: LinkedinSvg,  href: "https://www.linkedin.com/company/share2me", label: "LinkedIn" },
@@ -254,9 +261,9 @@ function HomeContent() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={label}
-                    className="w-9 h-9 rounded-full bg-white/50 border border-white/70 flex items-center justify-center text-[#4B4560] hover:text-[#171226] hover:bg-white/80 transition-colors"
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/50 border border-white/70 flex items-center justify-center text-[#4B4560] hover:text-[#171226] hover:bg-white/80 transition-colors"
                   >
-                    <Svg className="w-4 h-4" />
+                    <Svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </a>
                 ))}
               </div>

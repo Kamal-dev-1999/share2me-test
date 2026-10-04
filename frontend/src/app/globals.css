@@ -114,9 +114,19 @@
     body:has(> nav[aria-label="Primary"].fixed) { padding-left: 96px; }
   }
 
-  /* Mobile: the rail becomes a floating bottom pill — reserve space for it. */
+  /* Mobile: the rail becomes a floating bottom pill — reserve space for it.
+     Exclude home page so it acts as a fixed, non-scrolling single viewport. */
   @media (max-width: 1023.98px) {
-    body { padding-bottom: 96px; }
+    body:not(:has(#home-root)) { padding-bottom: 96px; }
+
+    /* Prevent mobile scroll / bounce animation on Home */
+    html:has(#home-root),
+    body:has(#home-root) {
+      overflow: hidden !important;
+      overscroll-behavior: none !important;
+      height: 100% !important;
+      height: 100dvh !important;
+    }
 
     /* iOS Safari auto-zooms when a focused field is under 16px — force all
        form fields to 16px on touch layouts so the page never jumps on tap. */
