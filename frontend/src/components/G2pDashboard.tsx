@@ -436,6 +436,15 @@ export default function G2pDashboard({
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [analyticsFilter, setAnalyticsFilter] = useState("7d");
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+  const [monthlyStats, setMonthlyStats] = useState<{
+    received: number;
+    remaining: number | null;
+    limit: number | null;
+  }>({
+    received: 0,
+    remaining: 250,
+    limit: 250,
+  });
 
   // QR Customization State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -759,6 +768,13 @@ export default function G2pDashboard({
         if (res.ok) {
           const data = await res.json();
           setAnalyticsData(data);
+          if (data?.overview?.monthlyFilesReceived !== undefined) {
+            setMonthlyStats({
+              received: data.overview.monthlyFilesReceived ?? 0,
+              remaining: data.overview.monthlyFilesRemaining ?? null,
+              limit: data.overview.monthlyFilesLimit ?? null,
+            });
+          }
         }
       } catch (e) {
         console.error("Failed to load analytics", e);
@@ -923,6 +939,17 @@ export default function G2pDashboard({
                   }
                 }
                 setPersonaSelected(profile.persona_selected);
+                if (profile.monthly_files_received !== undefined) {
+                  setMonthlyStats({
+                    received: profile.monthly_files_received || 0,
+                    remaining:
+                      profile.monthly_files_remaining ??
+                      Math.max(0, 250 - (profile.monthly_files_received || 0)),
+                    limit:
+                      profile.monthly_files_limit ??
+                      (profile.plan_type === "PRO" ? null : 250),
+                  });
+                }
                 if (
                   profile.subscription_status ||
                   profile.subscription_ends_at
@@ -1582,7 +1609,7 @@ export default function G2pDashboard({
                     <span className="text-3xl font-black text-[#111827]">
                       {isPro
                         ? "Unlimited"
-                        : (vendorProfile?.monthly_files_remaining ?? Math.max(0, 250 - (vendorProfile?.monthly_files_received || 0)))}
+                        : (monthlyStats.remaining ?? Math.max(0, 250 - monthlyStats.received))}
                     </span>
                     {!isPro && (
                       <span className="text-xs font-bold text-[#111827]/60 font-mono">
