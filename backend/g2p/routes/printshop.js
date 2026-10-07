@@ -494,6 +494,36 @@ router.post('/jobs/bulk', async (req, res) => {
     await client.query('COMMIT');
 
     let paymentAmountPaise = Math.round(totalBatchAmount * 100);
+    let razorpayOrderId = null;
+
+    if (cleanPayMethod === 'online') {
+      if (paymentAmountPaise < 100) paymentAmountPaise = 100;
+      const orderOptions = {
+        amount: paymentAmountPaise,
+        currency: 'INR',
+        receipt: batchId.substring(0, 40),
+      };
+
+      if (shop.razorpay_account_id && shop.razorpay_account_id.startsWith('acc_') && shop.charges_enabled) {
+        const platformFee = Math.round(paymentAmountPaise * 0.05);
+        const vendorAmount = paymentAmountPaise - platformFee;
+        orderOptions.transfers = [
+          {
+            account: shop.razorpay_account_id,
+            amount: vendorAmount,
+            currency: 'INR',
+            notes: { batch_id: batchId },
+            on_hold: false
+          }
+        ];
+      }
+
+      const order = await getRazorpay().orders.create(orderOptions);
+      razorpayOrderId = order.id;
+
+      // Persist order ID across all jobs in this batch
+      await query('UPDATE printshop_jobs SET razorpay_order_id = $1 WHERE batch_id = $2', [razorpayOrderId, batchId]);
+    }
 
     // Consolidated single notification for the multi-file batch
     emitToVendor(shop.vendor_id, 'printshop:new_batch', {
@@ -540,6 +570,7 @@ router.post('/jobs/bulk', async (req, res) => {
       batchId,
       vendorId: shop.vendor_id,
       totalBatchAmount,
+      razorpayOrderId,
       amountPaise: paymentAmountPaise,
     });
   } catch (err) {
@@ -559,21 +590,44 @@ router.post('/verify-payment-bulk', async (req, res) => {
   }
 
   const secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!secret) return res.status(500).json({ error: 'razorpay_unconfigured' });
+
   const generatedSignature = crypto.createHmac('sha256', secret)
     .update(razorpay_order_id + "|" + razorpay_payment_id)
     .digest('hex');
 
-  if (generatedSignature !== razorpay_signature) {
-    return res.status(400).json({ error: 'signature_mismatch' });
+  const sigBuf = Buffer.from(razorpay_signature, 'utf8');
+  const expBuf = Buffer.from(generatedSignature, 'utf8');
+
+  const isSignatureValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+  if (!isSignatureValid) {
+    return res.status(400).json({ error: 'signature_mismatch', message: 'Payment verification failed. Invalid signature.' });
   }
 
   try {
+    // Validate jobs exist and match order ID if recorded
+    const jobsRes = await query(`
+      SELECT id, vendor_id, payment_status, razorpay_order_id 
+      FROM printshop_jobs 
+      WHERE id = ANY($1::uuid[])
+    `, [jobIds]);
+
+    if (jobsRes.rowCount === 0) {
+      return res.status(404).json({ error: 'jobs_not_found' });
+    }
+
+    for (const j of jobsRes.rows) {
+      if (j.razorpay_order_id && j.razorpay_order_id !== razorpay_order_id) {
+        return res.status(400).json({ error: 'order_mismatch', message: `Job ${j.id} does not match order ${razorpay_order_id}` });
+      }
+    }
+
     const updateRes = await query(`
       UPDATE printshop_jobs 
-      SET payment_status = 'paid', payment_id = $1, paid_at = NOW()
-      WHERE id = ANY($2::uuid[]) AND payment_status != 'paid'
+      SET payment_status = 'paid', payment_id = $1, razorpay_order_id = COALESCE(razorpay_order_id, $2), paid_at = NOW()
+      WHERE id = ANY($3::uuid[]) AND payment_status != 'paid'
       RETURNING vendor_id, id, payment_status, payment_id, paid_at
-    `, [razorpay_payment_id, jobIds]);
+    `, [razorpay_payment_id, razorpay_order_id, jobIds]);
 
     for (const job of updateRes.rows) {
       emitToVendor(job.vendor_id, 'printshop:job_updated', {
@@ -599,35 +653,63 @@ router.post('/verify-payment', async (req, res) => {
   }
 
   const secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!secret) return res.status(500).json({ error: 'razorpay_unconfigured' });
+
   const generatedSignature = crypto.createHmac('sha256', secret)
     .update(razorpay_order_id + "|" + razorpay_payment_id)
     .digest('hex');
 
-  if (generatedSignature !== razorpay_signature) {
-    return res.status(400).json({ error: 'signature_mismatch' });
+  const sigBuf = Buffer.from(razorpay_signature, 'utf8');
+  const expBuf = Buffer.from(generatedSignature, 'utf8');
+
+  const isSignatureValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+  if (!isSignatureValid) {
+    return res.status(400).json({ error: 'signature_mismatch', message: 'Payment verification failed. Invalid signature.' });
   }
 
   try {
+    const jobRes = await query(`
+      SELECT id, vendor_id, payment_status, razorpay_order_id, total_amount 
+      FROM printshop_jobs 
+      WHERE id = $1
+    `, [jobId]);
+
+    if (jobRes.rowCount === 0) {
+      return res.status(404).json({ error: 'job_not_found' });
+    }
+
+    const job = jobRes.rows[0];
+
+    // Idempotency: Already paid
+    if (job.payment_status === 'paid') {
+      return res.json({ success: true, alreadyPaid: true });
+    }
+
+    // Security check: order ID verification
+    if (job.razorpay_order_id && job.razorpay_order_id !== razorpay_order_id) {
+      return res.status(400).json({ error: 'order_mismatch', message: 'Order ID does not match this job.' });
+    }
+
     const updateRes = await query(`
       UPDATE printshop_jobs 
-      SET payment_status = 'paid', payment_id = $1, paid_at = NOW()
-      WHERE id = $2 AND payment_status != 'paid'
+      SET payment_status = 'paid', payment_id = $1, razorpay_order_id = COALESCE(razorpay_order_id, $2), paid_at = NOW()
+      WHERE id = $3 AND payment_status != 'paid'
       RETURNING vendor_id, id, payment_status, payment_id, paid_at
-    `, [razorpay_payment_id, jobId]);
+    `, [razorpay_payment_id, razorpay_order_id, jobId]);
 
     if (updateRes.rowCount > 0) {
-      const job = updateRes.rows[0];
-      emitToVendor(job.vendor_id, 'printshop:job_updated', {
-        jobId: job.id,
-        paymentStatus: job.payment_status,
-        paymentId: job.payment_id,
-        paidAt: job.paid_at,
+      const updatedJob = updateRes.rows[0];
+      emitToVendor(updatedJob.vendor_id, 'printshop:job_updated', {
+        jobId: updatedJob.id,
+        paymentStatus: updatedJob.payment_status,
+        paymentId: updatedJob.payment_id,
+        paidAt: updatedJob.paid_at,
       });
-      emitToJob(job.id, 'printshop:job_updated', {
-        jobId: job.id,
-        paymentStatus: job.payment_status,
-        paymentId: job.payment_id,
-        paidAt: job.paid_at,
+      emitToJob(updatedJob.id, 'printshop:job_updated', {
+        jobId: updatedJob.id,
+        paymentStatus: updatedJob.payment_status,
+        paymentId: updatedJob.payment_id,
+        paidAt: updatedJob.paid_at,
       });
     }
     res.json({ success: true });

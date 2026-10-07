@@ -1518,7 +1518,7 @@ export default function G2pDashboard({
                 </h4>
               </div>
               <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">
-                Permanent Share Code, 10 GB storage &amp; up to 7-day retention.
+                Permanent Share Code, unlimited receives &amp; up to 7-day retention.
               </p>
               <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
                 ₹499/month{" "}
@@ -1572,19 +1572,22 @@ export default function G2pDashboard({
                 <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#111827]/70 font-display">
-                      Storage Used
+                      {isPro ? "Monthly Limit" : "Monthly Quota"}
                     </span>
                     <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center">
                       <HardDrive className="w-4 h-4 text-[#111827]" />
                     </div>
                   </div>
-                  <div className="text-3xl font-black text-[#111827]">
-                    {formatSize(
-                      uploads.reduce(
-                        (acc, u) =>
-                          acc + u.files.reduce((sum, f) => sum + f.size, 0),
-                        0,
-                      ),
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-black text-[#111827]">
+                      {isPro
+                        ? "Unlimited"
+                        : (vendorProfile?.monthly_files_remaining ?? Math.max(0, 250 - (vendorProfile?.monthly_files_received || 0)))}
+                    </span>
+                    {!isPro && (
+                      <span className="text-xs font-bold text-[#111827]/60 font-mono">
+                        files left / 250
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1855,53 +1858,82 @@ export default function G2pDashboard({
                     <div className="flex justify-between items-center">
                       <div>
                         <h3 className="font-bold text-[#111827]">
-                          Storage Capacity
+                          Monthly Received Files
                         </h3>
                         <p className="text-xs text-[#111827]/60 mt-1 font-mono uppercase tracking-wider">
-                          {analyticsData.overview.planType} PLAN
+                          {analyticsData.overview.planType === "PRO"
+                            ? "PRO PLAN • UNLIMITED RECEIVES"
+                            : "FREE PLAN • RESETS MONTHLY"}
                         </p>
                       </div>
                       <div className="text-right">
-                        <span className="text-2xl font-black text-[#111827]">
-                          {formatSize(analyticsData.overview.storageUsed || 0)}
-                        </span>
-                        <span className="text-sm font-bold text-[#111827]/60 ml-2">
-                          /{" "}
-                          {formatSize(
-                            analyticsData.overview.storageLimit || 1073741824,
-                          )}
-                        </span>
+                        {analyticsData.overview.planType === "PRO" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-black text-[#111827]">
+                              {analyticsData.overview.monthlyFilesReceived || 0}
+                            </span>
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-full font-mono uppercase">
+                              ∞ Unlimited
+                            </span>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="text-2xl font-black text-[#111827]">
+                              {analyticsData.overview.monthlyFilesReceived || 0}
+                            </span>
+                            <span className="text-sm font-bold text-[#111827]/60 ml-1.5">
+                              / 250 files
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
+
                     <div className="w-full bg-white/40 border border-white/60 rounded-full h-4 overflow-hidden relative">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{
-                          width: `${Math.min(100, ((analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824)) * 100)}%`,
+                          width: analyticsData.overview.planType === "PRO"
+                            ? "100%"
+                            : `${Math.min(100, (((analyticsData.overview.monthlyFilesReceived || 0) / 250) * 100))}%`,
                         }}
                         transition={{ duration: 1, ease: "easeOut" }}
-                        className={`h-full rounded-full ${(analyticsData.overview.storageUsed || 0) / (analyticsData.overview.storageLimit || 1073741824) > 0.9 ? "bg-red-500" : "bg-gradient-to-r from-[#c084fc] to-[#9333ea]"}`}
+                        className={`h-full rounded-full ${
+                          analyticsData.overview.planType === "PRO"
+                            ? "bg-gradient-to-r from-[#10b981] via-[#8b5cf6] to-[#ec4899]"
+                            : (analyticsData.overview.monthlyFilesReceived || 0) >= 225
+                              ? "bg-red-500"
+                              : "bg-gradient-to-r from-[#c084fc] to-[#9333ea]"
+                        }`}
                       />
                     </div>
-                    {analyticsData.overview.planType === "FREE" &&
-                      (analyticsData.overview.storageUsed || 0) /
-                        (analyticsData.overview.storageLimit || 1073741824) >
-                        0.8 && (
-                        <div className="flex justify-between items-center mt-2 bg-[#111827]/5 rounded-xl p-3 border border-[#111827]/10">
-                          <span className="text-xs font-bold text-[#111827]">
-                            Running low on space?
+
+                    {analyticsData.overview.planType === "FREE" && (
+                      <div className="flex flex-wrap justify-between items-center mt-1 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-lg bg-purple-100 border border-purple-200 text-xs font-bold text-[#9333ea] font-mono">
+                            {analyticsData.overview.monthlyFilesRemaining ?? Math.max(0, 250 - (analyticsData.overview.monthlyFilesReceived || 0))} files left this month
                           </span>
-                          <button
-                            onClick={() => {
-                              setActiveTab("settings");
-                              setIsUpgradeModalOpen(true);
-                            }}
-                            className="text-xs font-bold text-white bg-[#111827] hover:bg-black px-4 py-2 rounded-lg transition-colors"
-                          >
-                            Upgrade to PRO
-                          </button>
                         </div>
-                      )}
+
+                        {(analyticsData.overview.monthlyFilesReceived || 0) >= 200 && (
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-red-600">
+                              Approaching monthly free limit
+                            </span>
+                            <button
+                              onClick={() => {
+                                setActiveTab("settings");
+                                setIsUpgradeModalOpen(true);
+                              }}
+                              className="text-xs font-bold text-white bg-[#111827] hover:bg-black px-4 py-2 rounded-lg transition-colors shadow-sm"
+                            >
+                              Upgrade for Unlimited
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2199,7 +2231,7 @@ export default function G2pDashboard({
                     <div className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-white/60 shrink-0" />
                       <span className="text-sm text-white/80 leading-relaxed">
-                        <strong>1 GB</strong> storage capacity limit.
+                        <strong>250 Files</strong> monthly receive quota.
                       </span>
                     </div>
                     <div className="flex items-start gap-3">
@@ -2290,7 +2322,7 @@ export default function G2pDashboard({
                     <div className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-emerald-400 shrink-0" />
                       <span className="text-sm text-white/90 leading-relaxed">
-                        <strong>10 GB Storage</strong> for peak customer rush.
+                        <strong>Unlimited File Receives</strong> with zero monthly caps.
                       </span>
                     </div>
                     <div className="flex items-start gap-3">
@@ -2412,10 +2444,10 @@ export default function G2pDashboard({
                   <HardDrive className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
                   <div>
                     <div className="text-xs font-bold text-white">
-                      10 GB Cloud Storage
+                      Unlimited Receives
                     </div>
                     <div className="text-[11px] text-white/60">
-                      10x storage upgrade
+                      Zero monthly limits
                     </div>
                   </div>
                 </div>

@@ -351,8 +351,8 @@ export default function PricingPage() {
       a: "Yes! You can extend your Pro plan by 30 days at any point directly from this pricing page or inside your G2P Inbox dashboard via Razorpay.",
     },
     {
-      q: "What are the storage and file size limits on Pro?",
-      a: "Pro plan members enjoy 10 GB cloud storage, configurable file retention up to 7 days, 100% ad-free file downloads for customers, and automated print job queue sync.",
+      q: "What are the file receive limits?",
+      a: "Free plan accounts can receive up to 250 files per calendar month. Pro plan members enjoy unlimited monthly file receives, configurable file retention up to 7 days, 100% ad-free file downloads for customers, and automated print job queue sync.",
     },
   ];
 
@@ -431,7 +431,7 @@ export default function PricingPage() {
                 <ul className="space-y-4">
                   {[
                     "Create your unique Share Code",
-                    "Receive files up to 2 GB",
+                    "Receive up to 250 files per month",
                     "Customized display name profile",
                     "Full dashboard inbox access",
                     "No credit card required",
@@ -532,7 +532,7 @@ export default function PricingPage() {
                 <ul className="space-y-4 mt-4">
                   {[
                     "100% Ad-Free (Zero redirects & popunders)",
-                    "10 GB Cloud Storage upgrade",
+                    "Unlimited File Receives (Zero monthly caps)",
                     "Up to 7-Day File Retention (configurable)",
                     "Permanent 6-char Share Code active forever",
                     "Customized QR codes & shop branding",
@@ -601,7 +601,7 @@ export default function PricingPage() {
                 Secure Cryptographic Billing
               </h4>
               <p className="text-xs text-text-secondary mt-0.5 font-body">
-                All transactions are 256-bit SSL encrypted and processed securely via Razorpay. Your Pro perks, 10 GB storage, and zero-ad privileges unlock instantly upon payment.
+                All transactions are 256-bit SSL encrypted and processed securely via Razorpay. Your Pro perks, unlimited file receives, and zero-ad privileges unlock instantly upon payment.
               </p>
             </div>
           </div>
@@ -726,10 +726,10 @@ export default function PricingPage() {
                   <HardDrive className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
                   <div>
                     <div className="text-xs font-bold text-white">
-                      10 GB Cloud Storage
+                      Unlimited Receives
                     </div>
                     <div className="text-[11px] text-white/60">
-                      10x storage upgrade
+                      Zero monthly limits
                     </div>
                   </div>
                 </div>

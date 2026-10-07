@@ -113,8 +113,8 @@ app.use((req, res, next) => {
   // Always allow OPTIONS preflight requests
   if (req.method === 'OPTIONS') return next();
 
-  // Allow Stripe server-to-server webhook callbacks (verified via STRIPE_WEBHOOK_SECRET in webhooksRouter)
-  if (req.path.startsWith('/g2p/billing/webhook')) return next();
+  // Allow Stripe and Razorpay server-to-server webhook callbacks
+  if (req.path.startsWith('/g2p/billing/webhook') || req.path.startsWith('/g2p/billing/razorpay')) return next();
 
   // Allow internal server-to-server calls for public blogs
   if (req.path.startsWith('/api/blogs')) return next();
@@ -159,8 +159,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── Body Parsers ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
+// ─── Body Parsers (Capture rawBody for cryptographic signature verification) ──
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Mount G2P module (Decoupled Phase 2)

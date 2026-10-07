@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
 
     // 1. Lock the vendor row (SELECT FOR UPDATE)
-    const vendorRes = await client.query('SELECT id, accepting_requests FROM vendors WHERE id = $1 FOR UPDATE', [vendorId]);
+    const vendorRes = await client.query('SELECT id, accepting_requests, plan_type, subscription_ends_at FROM vendors WHERE id = $1 FOR UPDATE', [vendorId]);
     if (vendorRes.rowCount === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'vendor_not_found' });
@@ -52,6 +52,28 @@ router.post('/', async (req, res) => {
     if (!vendorRes.rows[0].accepting_requests) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'vendor_not_accepting' });
+    }
+
+    // Check Free tier monthly received files limit
+    const vendorRow = vendorRes.rows[0];
+    const isExpired = vendorRow.subscription_ends_at && new Date(vendorRow.subscription_ends_at) < new Date();
+    const planType = (vendorRow.plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
+    if (planType === 'FREE') {
+      const monthlyFilesRes = await client.query(`
+        SELECT COUNT(*)::int as count 
+        FROM g2p_analytics_events 
+        WHERE vendor_id = $1 
+          AND event_type = 'upload_received' 
+          AND created_at >= date_trunc('month', NOW())
+      `, [vendorId]);
+      const monthlyCount = parseInt(monthlyFilesRes.rows[0]?.count || 0, 10);
+      if (monthlyCount >= 250) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'vendor_monthly_limit_reached',
+          message: 'This recipient has reached their free monthly limit of 250 received files.'
+        });
+      }
     }
 
     // 2. Enforce cap: max 100 active requests per vendor
