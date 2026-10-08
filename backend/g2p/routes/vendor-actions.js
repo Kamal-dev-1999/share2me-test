@@ -2,7 +2,7 @@ const express = require('express');
 const { query } = require('../lib/db');
 const { generatePresignedGetUrl } = require('../lib/storage');
 const { deleteRequest } = require('../lib/delete');
-const { emitToVendor } = require('../socket');
+const { emitToVendor, isAgentOnline } = require('../socket');
 const { verifyVendorJWT } = require('../lib/auth');
 
 const router = express.Router();
@@ -87,7 +87,7 @@ router.get('/me', async (req, res) => {
     const vRes = await query(`
       SELECT id, name, share2me_id, persona, persona_selected, plan_type, phone, company, website, bio,
              stripe_account_id, charges_enabled, subscription_tier, subscription_status,
-             subscription_starts_at, subscription_ends_at
+             subscription_starts_at, subscription_ends_at, vendor_setup_completed, print_agent_token
       FROM vendors WHERE id = $1
     `, [req.vendorId]);
     if (vRes.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
@@ -166,6 +166,22 @@ router.post('/profile', async (req, res) => {
     console.error('[G2P] Update profile error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
+});
+
+// Complete vendor onboarding setup
+router.post('/complete-setup', async (req, res) => {
+  try {
+    await query(`UPDATE vendors SET vendor_setup_completed = true WHERE id = $1`, [req.vendorId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[G2P] Complete setup error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// Get agent online status
+router.get('/agent-status', async (req, res) => {
+  res.json({ online: isAgentOnline(req.vendorId) });
 });
 
 // Pro upgrades require Razorpay payment verification

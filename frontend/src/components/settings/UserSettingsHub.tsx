@@ -71,6 +71,7 @@ interface UserSettingsHubProps {
   setQrLogoUrl: (v: string) => void;
   saveQrSettings: () => void;
   qrSaved: boolean;
+  onRetriggerSetup?: () => void;
 }
 
 export function UserSettingsHub({
@@ -106,6 +107,7 @@ export function UserSettingsHub({
   setQrLogoUrl,
   saveQrSettings,
   qrSaved,
+  onRetriggerSetup,
 }: UserSettingsHubProps) {
   // Navigation tabs
   type SettingsTab = "storefront" | "pricing" | "payouts" | "plan";
@@ -146,6 +148,31 @@ export function UserSettingsHub({
   const [editToken, setEditToken] = useState<string | null>(null);
   const [upiForm, setUpiForm] = useState({ upiId: "", upiName: "" });
   const [updatingBank, setUpdatingBank] = useState(false);
+
+  // Agent Status
+  const [agentOnline, setAgentOnline] = useState(false);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (activeTab === "storefront") {
+      const checkAgent = async () => {
+        try {
+          const res = await fetch(`${getBackendUrl()}/g2p/vendor/agent-status`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setAgentOnline(data.isOnline || data.online);
+          }
+        } catch {
+          // ignore
+        }
+      };
+      checkAgent();
+      interval = setInterval(checkAgent, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [activeTab, token]);
   const [copiedUpi, setCopiedUpi] = useState(false);
 
   // Retention dropdown
@@ -760,6 +787,42 @@ export function UserSettingsHub({
                     )}
                   </div>
                   {galleryNotice && <p className="text-[11px] text-amber-800 font-medium">{galleryNotice}</p>}
+                </div>
+
+                {/* Automation & Agent Setup Card */}
+                <div className="bg-white/50 backdrop-blur-xl border border-white/60 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <span className="w-10 h-10 rounded-xl bg-[#111827]/10 text-[#111827] flex items-center justify-center">
+                        <Sparkles className="w-5 h-5" />
+                      </span>
+                      {agentOnline ? (
+                        <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full animate-pulse" />
+                      ) : (
+                        <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-[#111827] flex items-center gap-2">
+                        Local Print Agent
+                        {agentOnline ? (
+                          <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Online</span>
+                        ) : (
+                          <span className="bg-red-100 text-red-800 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Offline</span>
+                        )}
+                      </h3>
+                      <p className="text-[11px] text-[#111827]/55 mt-0.5">
+                        {agentOnline ? "Agent is actively monitoring orders" : "Re-run setup to connect your physical printers"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onRetriggerSetup && onRetriggerSetup()}
+                    className="shrink-0 px-4 py-2 rounded-xl bg-[#111827] hover:bg-black text-white text-xs font-bold transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Agent Setup
+                  </button>
                 </div>
               </div>
             ) : null}

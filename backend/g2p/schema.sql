@@ -197,3 +197,6 @@ CREATE INDEX IF NOT EXISTS idx_vendor_subscriptions_vendor ON vendor_subscriptio
 CREATE INDEX IF NOT EXISTS idx_vendor_subscriptions_order ON vendor_subscriptions(razorpay_order_id);
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS subscription_starts_at TIMESTAMPTZ;
 
+-- Vendor Onboarding state
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS vendor_setup_completed BOOLEAN DEFAULT false;
+
