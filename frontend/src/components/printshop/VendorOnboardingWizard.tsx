@@ -143,16 +143,16 @@ export function VendorOnboardingWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-[999] bg-[#111827]/40 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto min-h-screen py-8">
+    <div className="fixed inset-0 z-[999] bg-[#111827]/60 backdrop-blur-xl flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto min-h-screen py-8">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white/90 backdrop-blur-2xl border border-white/50 rounded-[32px] w-full max-w-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] flex flex-col relative my-auto shrink-0 max-h-full overflow-hidden"
+        className="bg-[#F7F8F8]/90 backdrop-blur-3xl border border-white/60 rounded-[32px] w-full max-w-2xl shadow-[0_24px_64px_rgba(0,0,0,0.2)] flex flex-col relative my-auto shrink-0 max-h-full overflow-hidden"
       >
         {/* Header / Stepper */}
-        <div className="bg-[#111827] text-white p-6 sm:p-8 relative shrink-0">
-          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-            <Store className="w-48 h-48 -mr-12 -mt-12" />
+        <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] text-white p-8 sm:p-10 relative shrink-0 border-b border-white/10">
+          <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+            <Store className="w-64 h-64 -mr-16 -mt-16" />
           </div>
           
           <div className="relative z-10 flex flex-col gap-6">
@@ -175,14 +175,14 @@ export function VendorOnboardingWizard({
             </div>
 
             {/* Progress Bar */}
-            <div className="flex gap-2 w-full max-w-sm">
+            <div className="flex gap-2 w-full max-w-sm mt-2">
               {[1, 2, 3, 4].map((s) => (
-                <div key={s} className="h-1.5 flex-1 rounded-full bg-white/20 overflow-hidden">
+                <div key={s} className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: step >= s ? "100%" : "0%" }}
-                    className="h-full bg-emerald-400"
-                    transition={{ duration: 0.4 }}
+                    className="h-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"
+                    transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                 </div>
               ))}
@@ -191,7 +191,7 @@ export function VendorOnboardingWizard({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 sm:p-8 bg-white/40 flex-1 relative min-h-[360px] overflow-y-auto">
+        <div className="p-6 sm:p-10 bg-transparent flex-1 relative min-h-[380px] overflow-y-auto custom-scrollbar">
           <AnimatePresence mode="wait">
             
             {/* STEP 1 */}
@@ -201,46 +201,46 @@ export function VendorOnboardingWizard({
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="flex flex-col gap-5"
+                className="flex flex-col gap-6"
               >
                 <div>
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Shop / Business Name *</label>
-                  <div className="relative">
-                    <Building2 className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Shop / Business Name *</label>
+                  <div className="relative group">
+                    <Building2 className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#111827] transition-colors" />
                     <input 
                       type="text" 
                       value={displayName}
                       onChange={e => setDisplayName(e.target.value)}
                       placeholder="e.g. Campus Xerox Hub"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-[#111827] focus:ring-1 focus:ring-[#111827] outline-none text-gray-800 transition-all font-medium"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200/80 bg-white/60 focus:bg-white focus:border-[#111827] focus:ring-4 focus:ring-[#111827]/5 outline-none text-gray-800 transition-all font-semibold shadow-sm backdrop-blur-md"
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Contact Phone *</label>
-                  <div className="relative">
-                    <Phone className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Contact Phone *</label>
+                  <div className="relative group">
+                    <Phone className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#111827] transition-colors" />
                     <input 
                       type="text" 
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="+91 98765 43210"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-[#111827] focus:ring-1 focus:ring-[#111827] outline-none text-gray-800 transition-all font-medium"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200/80 bg-white/60 focus:bg-white focus:border-[#111827] focus:ring-4 focus:ring-[#111827]/5 outline-none text-gray-800 transition-all font-semibold shadow-sm backdrop-blur-md"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Organization / Institution *</label>
-                  <div className="relative">
-                    <MapPin className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block mb-2">Organization / Institution *</label>
+                  <div className="relative group">
+                    <MapPin className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#111827] transition-colors" />
                     <input 
                       type="text" 
                       value={company}
                       onChange={e => setCompany(e.target.value)}
                       placeholder="e.g. Share2Me Hub"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-[#111827] focus:ring-1 focus:ring-[#111827] outline-none text-gray-800 transition-all font-medium"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200/80 bg-white/60 focus:bg-white focus:border-[#111827] focus:ring-4 focus:ring-[#111827]/5 outline-none text-gray-800 transition-all font-semibold shadow-sm backdrop-blur-md"
                     />
                   </div>
                 </div>
@@ -261,33 +261,33 @@ export function VendorOnboardingWizard({
                   <p>When customers send files, Share2Me automatically counts the pages and calculates the cost based on your rates below.</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 mb-2">
-                      <span className="font-bold font-serif">B&W</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl border border-gray-200/80 shadow-sm flex flex-col gap-3 group hover:border-gray-300 transition-colors">
+                    <div className="w-10 h-10 rounded-xl bg-[#F7F8F8] border border-gray-100 flex items-center justify-center text-gray-600 mb-2 group-hover:scale-105 transition-transform">
+                      <span className="font-black font-serif text-lg">B&W</span>
                     </div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Price per page (₹)</label>
+                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block">Price per page (₹)</label>
                     <input 
                       type="number" 
                       value={bwPrice}
                       onChange={e => setBwPrice(e.target.value)}
                       step="0.5"
-                      className="w-full text-2xl font-bold border-b-2 border-gray-200 focus:border-[#111827] outline-none text-gray-900 pb-1 bg-transparent transition-colors"
+                      className="w-full text-3xl font-black border-b-2 border-gray-200 focus:border-[#111827] outline-none text-gray-900 pb-1.5 bg-transparent transition-colors"
                     />
                   </div>
 
-                  <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full blur-2xl -mr-10 -mt-10" />
-                    <div className="relative z-10 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white mb-2">
-                      <Sparkles className="w-4 h-4" />
+                  <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl border border-gray-200/80 shadow-sm flex flex-col gap-3 relative overflow-hidden group hover:border-gray-300 transition-colors">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl -mr-10 -mt-10 group-hover:scale-110 transition-transform duration-700" />
+                    <div className="relative z-10 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white mb-2 shadow-lg shadow-purple-500/20 group-hover:scale-105 transition-transform">
+                      <Sparkles className="w-5 h-5" />
                     </div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block relative z-10">Color Price (₹)</label>
+                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest block relative z-10">Color Price (₹)</label>
                     <input 
                       type="number" 
                       value={colorPrice}
                       onChange={e => setColorPrice(e.target.value)}
                       step="1.0"
-                      className="relative z-10 w-full text-2xl font-bold border-b-2 border-gray-200 focus:border-[#111827] outline-none text-gray-900 pb-1 bg-transparent transition-colors"
+                      className="relative z-10 w-full text-3xl font-black border-b-2 border-gray-200 focus:border-[#111827] outline-none text-gray-900 pb-1.5 bg-transparent transition-colors"
                     />
                   </div>
                 </div>
@@ -402,10 +402,10 @@ export function VendorOnboardingWizard({
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-white border-t border-gray-100 p-4 sm:p-6 flex items-center justify-between">
+        <div className="bg-white/50 backdrop-blur-xl border-t border-white/60 p-5 sm:p-8 flex items-center justify-between">
           <button
             onClick={() => setStep(Math.max(1, step - 1))}
-            className={`px-4 py-2 flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors ${step === 1 || step === 4 ? "invisible" : ""}`}
+            className={`px-5 py-2.5 flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 bg-white/50 hover:bg-white rounded-xl border border-gray-200/50 transition-all ${step === 1 || step === 4 ? "opacity-0 pointer-events-none" : ""}`}
           >
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
@@ -413,7 +413,7 @@ export function VendorOnboardingWizard({
           <button
             onClick={handleNext}
             disabled={isLoading || (step === 3 && !isAgentOnline)}
-            className="px-6 py-2.5 bg-[#111827] hover:bg-black text-white text-sm font-bold rounded-xl shadow-lg shadow-black/10 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-8 py-3.5 bg-[#111827] hover:bg-black hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-[0_8px_20px_rgba(17,24,39,0.2)] flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             {step === 4 ? "Enter Dashboard" : "Continue"}
