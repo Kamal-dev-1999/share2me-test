@@ -46,7 +46,8 @@ Share2Me is a **browser-native, high-performance transfer and digital document p
 - **Real-Time WebSocket Sync**: Real-time push updates via `socket.io-client` (`g2p:new_submission`, `g2p:file_downloaded`) accompanied by an optional 880Hz audio chime.
 - **Interactive Micro-Interactions**: Built with `useTransition` for zero-lag tab switches, `ScrambleText` code reveals, `AnimatedCopyIcon`, `ConfettiButton`, and custom right-click context menu portals.
 
-### 3. Decoupled User Settings Hub (`UserSettingsHub.tsx`)
+### 3. Decoupled User Settings & Onboarding Hub (`UserSettingsHub.tsx`)
+- **Automated Vendor Onboarding**: First-time print shops are guided through an unskippable, animated glassmorphic wizard that configures their profile, pricing, and securely auto-connects the local hardware Print Agent via a local HTTP bridge (`localhost:13337`).
 - **Fluid Responsive Pill Navigation**: Dynamic segmented bar (`Storefront` · `Pricing` · `Payouts` · `Plan & QR`) that smoothly scrolls on mobile with auto-centering and symmetrically expands on desktop without text clipping.
 - **Storefront & Contact Profile**: Manage public vendor name, phone, organization, bio, pickup landmark, and live GPS coordinates pinned via OpenStreetMap Nominatim reverse geocoding.
 - **Photo Gallery**: Upload up to 3 shopfront images to Cloudflare R2 using secure presigned URLs, with touch-friendly deletion controls.
