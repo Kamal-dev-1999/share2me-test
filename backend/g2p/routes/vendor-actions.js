@@ -101,6 +101,18 @@ router.get('/me', async (req, res) => {
       ? Math.max(0, Math.ceil((new Date(row.subscription_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
       : 0;
 
+    const monthlyFilesRes = await query(`
+      SELECT COUNT(*)::int as count 
+      FROM g2p_analytics_events 
+      WHERE vendor_id = $1 
+        AND event_type = 'upload_received' 
+        AND created_at >= date_trunc('month', NOW())
+    `, [req.vendorId]);
+    const monthlyFilesReceived = parseInt(monthlyFilesRes.rows[0]?.count || 0, 10);
+    row.monthly_files_received = monthlyFilesReceived;
+    row.monthly_files_limit = effectivePlan === 'PRO' ? null : 250;
+    row.monthly_files_remaining = effectivePlan === 'PRO' ? null : Math.max(0, 250 - monthlyFilesReceived);
+
     res.json(row);
   } catch (err) {
     console.error('[G2P] Fetch vendor profile error:', err);
@@ -505,32 +517,31 @@ router.get('/analytics', async (req, res) => {
       }));
     }
 
-    // 5. Storage Capacity and Plan Type
+    // 5. Monthly File Quotas and Plan Type (Replaced 1GB storage limit)
     const vendorRes = await query(`SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1`, [req.vendorId]);
     const v = vendorRes.rows[0] || {};
     const isExpired = v.subscription_ends_at && new Date(v.subscription_ends_at) < new Date();
     const planType = (v.plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
     
-    const storageRes = await query(`
-      SELECT COALESCE(SUM(f.size_bytes), 0) as total_bytes 
-      FROM files f
-      JOIN requests r ON r.id = f.request_id
-      WHERE r.vendor_id = $1 AND r.deleted_at IS NULL AND f.status != 'deleted'
+    const monthlyFilesRes = await query(`
+      SELECT COUNT(*)::int as count 
+      FROM g2p_analytics_events 
+      WHERE vendor_id = $1 
+        AND event_type = 'upload_received' 
+        AND created_at >= date_trunc('month', NOW())
     `, [req.vendorId]);
     
-    const storageUsed = parseInt(storageRes.rows[0].total_bytes, 10);
-    const TOTAL_MAX_SIZES = {
-      FREE: 1 * 1024 * 1024 * 1024,
-      PRO: 10 * 1024 * 1024 * 1024
-    };
-    const storageLimit = TOTAL_MAX_SIZES[planType] || TOTAL_MAX_SIZES.FREE;
+    const monthlyFilesReceived = parseInt(monthlyFilesRes.rows[0]?.count || 0, 10);
+    const monthlyFilesLimit = planType === 'PRO' ? null : 250;
+    const monthlyFilesRemaining = planType === 'PRO' ? null : Math.max(0, 250 - monthlyFilesReceived);
 
     res.json({
       overview: {
         totalBandwidth: parseInt(bandwidthRes.rows[0].total_bandwidth, 10),
         totalFiles: parseInt(bandwidthRes.rows[0].total_uploads, 10),
-        storageUsed,
-        storageLimit,
+        monthlyFilesReceived,
+        monthlyFilesLimit,
+        monthlyFilesRemaining,
         planType
       },
       fileTypes: typeRes.rows,
@@ -539,7 +550,6 @@ router.get('/analytics', async (req, res) => {
     });
   } catch (err) {
     console.error('[G2P] Analytics fetch error:', err);
-    require('fs').writeFileSync('d:/Downloads/ShareIt/backend/analytics_error.log', err.stack || err.toString());
     res.status(500).json({ error: 'internal_error' });
   }
 });

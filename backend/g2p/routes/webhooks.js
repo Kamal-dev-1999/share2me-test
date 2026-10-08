@@ -14,16 +14,21 @@ function getStripe() {
 
 const router = express.Router();
 
-// Stripe Webhook Endpoint (Requires raw body parsing)
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+// Stripe Webhook Endpoint (Uses raw body captured by server middleware)
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!sig || !webhookSecret) {
+    return res.status(400).send('Missing Stripe signature or webhook secret');
+  }
 
   let event;
 
   try {
+    const rawPayload = req.rawBody || req.body;
     // Verify signature using Stripe SDK
-    event = getStripe().webhooks.constructEvent(req.body, sig, webhookSecret);
+    event = getStripe().webhooks.constructEvent(rawPayload, sig, webhookSecret);
   } catch (err) {
     console.error(`[Webhook] Signature verification failed:`, err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -156,7 +161,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 });
 
 // Razorpay Webhook Endpoint
-router.post('/razorpay', express.json(), async (req, res) => {
+router.post('/razorpay', async (req, res) => {
   try {
     const signature = req.headers['x-razorpay-signature'];
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
@@ -166,11 +171,16 @@ router.post('/razorpay', express.json(), async (req, res) => {
     }
 
     const crypto = require('crypto');
+    const rawPayload = req.rawBody ? req.rawBody : Buffer.from(JSON.stringify(req.body));
     const expectedSignature = crypto.createHmac('sha256', secret)
-      .update(JSON.stringify(req.body))
+      .update(rawPayload)
       .digest('hex');
 
-    if (signature !== expectedSignature) {
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const expBuf = Buffer.from(expectedSignature, 'utf8');
+
+    const isSignatureValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+    if (!isSignatureValid) {
       return res.status(400).send('Invalid signature');
     }
 

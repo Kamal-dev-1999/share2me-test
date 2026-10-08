@@ -75,24 +75,25 @@ router.post('/presign', async (req, res) => {
       return res.status(429).json({ error: 'too_many_files' });
     }
 
-    // Cap 2: 1GB total active storage per vendor
-    const vendorStorageRes = await client.query(`
-      SELECT COALESCE(SUM(f.size_bytes), 0) as total_bytes 
-      FROM files f
-      JOIN requests r ON r.id = f.request_id
-      WHERE r.vendor_id = $1 AND r.deleted_at IS NULL AND f.status != 'deleted'
-    `, [vendorId]);
-    
-    const totalBytes = parseInt(vendorStorageRes.rows[0].total_bytes, 10);
-    const TOTAL_MAX_SIZES = {
-      FREE: 1 * 1024 * 1024 * 1024,  // 1 GB
-      PRO: 10 * 1024 * 1024 * 1024   // 10 GB
-    };
-    const totalMaxSize = TOTAL_MAX_SIZES[planType] || TOTAL_MAX_SIZES.FREE;
-
-    if (totalBytes + sizeBytes > totalMaxSize) {
-      await client.query('ROLLBACK');
-      return res.status(429).json({ error: 'vendor_storage_full', message: `Total storage capacity for ${planType} plan reached.` });
+    // Cap 2: Free plan monthly received files quota (250 files/month)
+    if (planType === 'FREE') {
+      const monthlyFilesRes = await client.query(`
+        SELECT COUNT(*)::int as count 
+        FROM g2p_analytics_events 
+        WHERE vendor_id = $1 
+          AND event_type = 'upload_received' 
+          AND created_at >= date_trunc('month', NOW())
+      `, [vendorId]);
+      
+      const monthlyCount = parseInt(monthlyFilesRes.rows[0]?.count || 0, 10);
+      const FREE_MONTHLY_LIMIT = 250;
+      if (monthlyCount >= FREE_MONTHLY_LIMIT) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ 
+          error: 'monthly_file_limit_reached', 
+          message: `The recipient has reached their Free monthly limit of ${FREE_MONTHLY_LIMIT} received files. Upgrade to Pro for unlimited files.` 
+        });
+      }
     }
 
     // Generate unique R2 key

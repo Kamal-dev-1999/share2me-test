@@ -2,11 +2,19 @@
 
 const express = require('express');
 const crypto = require('crypto');
-const { query } = require('../lib/db');
+const { query, getTransactionClient } = require('../lib/db');
 const { verifyVendorJWT } = require('../lib/auth');
 const Razorpay = require('razorpay');
 const nodemailer = require('nodemailer');
 const { SignJWT, jwtVerify } = require('jose');
+
+function getJwtSecret() {
+  const secretStr = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET;
+  if (!secretStr) {
+    throw new Error('JWT_SECRET environment variable is not configured');
+  }
+  return new TextEncoder().encode(secretStr);
+}
 
 let razorpayInstance = null;
 function getRazorpay() {
@@ -85,13 +93,16 @@ router.post('/bank/request-edit', async (req, res) => {
     const email = vRes.rows[0].email || req.vendorEmail;
     if (!email) return res.status(400).json({ error: 'no_email', message: 'No registered email found to send OTP.' });
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Invalidate previous unexpired/unused OTPs for this vendor
+    await query(`UPDATE vendor_otps SET used = TRUE WHERE vendor_id = $1 AND used = FALSE`, [req.vendorId]);
+
+    // Generate cryptographically secure 6-digit OTP
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
 
     // Store in DB, expires in 5 mins
     await query(
-      `INSERT INTO vendor_otps (vendor_id, otp_hash, expires_at) VALUES ($1, $2, NOW() + INTERVAL '5 minutes')`,
+      `INSERT INTO vendor_otps (vendor_id, otp_hash, expires_at, used) VALUES ($1, $2, NOW() + INTERVAL '5 minutes', FALSE)`,
       [req.vendorId, otpHash]
     );
 
@@ -118,23 +129,38 @@ router.post('/bank/request-edit', async (req, res) => {
 router.post('/bank/verify-otp', async (req, res) => {
   try {
     const { otp } = req.body;
-    if (!otp) return res.status(400).json({ error: 'missing_otp' });
+    if (!otp || typeof otp !== 'string' || otp.trim().length !== 6) {
+      return res.status(400).json({ error: 'invalid_otp_format', message: 'Please provide a valid 6-digit OTP.' });
+    }
 
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpRes = await query(
-      `SELECT id FROM vendor_otps WHERE vendor_id = $1 AND otp_hash = $2 AND used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`,
-      [req.vendorId, otpHash]
+      `SELECT id, otp_hash FROM vendor_otps 
+       WHERE vendor_id = $1 AND used = FALSE AND expires_at > NOW() 
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.vendorId]
     );
 
     if (otpRes.rowCount === 0) {
       return res.status(400).json({ error: 'invalid_otp', message: 'OTP is invalid or has expired.' });
     }
 
-    // Mark as used
-    await query(`UPDATE vendor_otps SET used = TRUE WHERE id = $1`, [otpRes.rows[0].id]);
+    const activeOtp = otpRes.rows[0];
+    const suppliedHash = crypto.createHash('sha256').update(otp.trim()).digest('hex');
 
-    // Issue short-lived JWT (15 mins)
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const suppliedBuf = Buffer.from(suppliedHash, 'utf8');
+    const storedBuf = Buffer.from(activeOtp.otp_hash, 'utf8');
+
+    const isMatch = suppliedBuf.length === storedBuf.length && crypto.timingSafeEqual(suppliedBuf, storedBuf);
+
+    if (!isMatch) {
+      return res.status(400).json({ error: 'invalid_otp', message: 'Incorrect OTP entered.' });
+    }
+
+    // Mark as used
+    await query(`UPDATE vendor_otps SET used = TRUE WHERE id = $1`, [activeOtp.id]);
+
+    // Issue short-lived scoped JWT (15 mins) with strict secret
+    const secret = getJwtSecret();
     const editToken = await new SignJWT({ sub: req.vendorId, purpose: 'bank_edit' })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -144,7 +170,7 @@ router.post('/bank/verify-otp', async (req, res) => {
     res.json({ success: true, editToken });
   } catch (err) {
     console.error('[Billing] POST /bank/verify-otp error:', err);
-    res.status(500).json({ error: 'internal_error' });
+    res.status(500).json({ error: 'internal_error', message: err.message });
   }
 });
 
@@ -156,20 +182,33 @@ router.post('/upi/update', async (req, res) => {
       return res.status(400).json({ error: 'missing_fields' });
     }
 
-    // Verify token
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const cleanUpiId = typeof upiId === 'string' ? upiId.trim() : '';
+    const cleanUpiName = typeof upiName === 'string' ? upiName.trim() : '';
+
+    // Regex validation for standard UPI IDs: username@bank
+    const UPI_REGEX = /^[\w.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+    if (!UPI_REGEX.test(cleanUpiId)) {
+      return res.status(400).json({ error: 'invalid_upi_format', message: 'Please enter a valid UPI ID (e.g. username@okhdfcbank or 9876543210@paytm).' });
+    }
+
+    if (cleanUpiName.length < 2 || cleanUpiName.length > 100) {
+      return res.status(400).json({ error: 'invalid_name', message: 'UPI Account Name must be between 2 and 100 characters.' });
+    }
+
+    // Verify token strictly without fallback
+    const secret = getJwtSecret();
     try {
       const { payload } = await jwtVerify(editToken, secret);
       if (payload.sub !== req.vendorId || payload.purpose !== 'bank_edit') throw new Error();
     } catch {
-      return res.status(401).json({ error: 'invalid_edit_token', message: 'Session expired. Request a new OTP.' });
+      return res.status(401).json({ error: 'invalid_edit_token', message: 'Session expired or invalid. Please request a new OTP.' });
     }
 
     await query(
       `INSERT INTO printshop_settings (vendor_id, upi_id, upi_name, bank_verification_status, updated_at) 
        VALUES ($1, $2, $3, 'verified', NOW()) 
        ON CONFLICT (vendor_id) DO UPDATE SET upi_id = EXCLUDED.upi_id, upi_name = EXCLUDED.upi_name, bank_verification_status = 'verified', updated_at = NOW()`,
-      [req.vendorId, upiId, upiName]
+      [req.vendorId, cleanUpiId, cleanUpiName]
     );
 
     // Ensure charges_enabled is true in vendors table
@@ -178,7 +217,7 @@ router.post('/upi/update', async (req, res) => {
       [req.vendorId]
     );
 
-    res.json({ success: true, upi_id: upiId, status: 'verified' });
+    res.json({ success: true, upi_id: cleanUpiId, status: 'verified' });
   } catch (err) {
     console.error('[Billing] POST /upi/update error:', err);
     res.status(500).json({ error: 'update_failed', message: err.message });
@@ -252,14 +291,16 @@ router.post('/subscription/verify-payment', async (req, res) => {
       .update(razorpay_order_id + '|' + razorpay_payment_id)
       .digest('hex');
 
-    if (expectedSignature !== razorpay_signature) {
+    const expectedBuf = Buffer.from(expectedSignature, 'utf8');
+    const receivedBuf = Buffer.from(razorpay_signature, 'utf8');
+    if (expectedBuf.length !== receivedBuf.length || !crypto.timingSafeEqual(expectedBuf, receivedBuf)) {
       console.warn(`[Billing] Signature mismatch for order ${razorpay_order_id}`);
       return res.status(400).json({ error: 'signature_mismatch', message: 'Payment verification failed. Invalid signature.' });
     }
 
     // Check if order exists in vendor_subscriptions
     const subRes = await query(`
-      SELECT id, vendor_id, status FROM vendor_subscriptions 
+      SELECT id, vendor_id, status, ends_at FROM vendor_subscriptions 
       WHERE razorpay_order_id = $1 AND vendor_id = $2
     `, [razorpay_order_id, req.vendorId]);
 
@@ -267,45 +308,71 @@ router.post('/subscription/verify-payment', async (req, res) => {
       return res.status(404).json({ error: 'order_not_found', message: 'Subscription order record not found.' });
     }
 
-    // Fetch vendor's current subscription status to handle stacking (early renewal)
-    const vRes = await query('SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1', [req.vendorId]);
-    const vendor = vRes.rows[0];
-
-    const now = new Date();
-    let startsAt = now;
-    let endsAt;
-
-    if (vendor && vendor.subscription_ends_at && new Date(vendor.subscription_ends_at) > now) {
-      // Active subscription: extend by 30 days from existing expiry
-      startsAt = new Date(vendor.subscription_ends_at);
-      endsAt = new Date(startsAt.getTime() + 30 * 24 * 60 * 60 * 1000);
-    } else {
-      // New or expired: 30 days from now
-      endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const existingSub = subRes.rows[0];
+    if (existingSub.status === 'paid') {
+      const vRes = await query('SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1', [req.vendorId]);
+      const vendor = vRes.rows[0] || {};
+      const endsAt = vendor.subscription_ends_at ? new Date(vendor.subscription_ends_at) : new Date();
+      return res.json({
+        success: true,
+        plan_type: 'PRO',
+        subscription_status: 'active',
+        subscription_ends_at: endsAt.toISOString(),
+        days_remaining: Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      });
     }
 
-    // Update vendor_subscriptions ledger
-    await query(`
-      UPDATE vendor_subscriptions
-      SET status = 'paid',
-          razorpay_payment_id = $1,
-          razorpay_signature = $2,
-          starts_at = $3,
-          ends_at = $4,
-          updated_at = NOW()
-      WHERE razorpay_order_id = $5
-    `, [razorpay_payment_id, razorpay_signature, startsAt, endsAt, razorpay_order_id]);
+    // Atomic transaction for updating subscription and vendor
+    const client = await getTransactionClient();
+    let endsAt;
+    try {
+      await client.query('BEGIN');
 
-    // Update vendors table
-    await query(`
-      UPDATE vendors
-      SET plan_type = 'PRO',
-          subscription_tier = 'pro',
-          subscription_status = 'active',
-          subscription_starts_at = COALESCE(subscription_starts_at, $1),
-          subscription_ends_at = $2
-      WHERE id = $3
-    `, [startsAt, endsAt, req.vendorId]);
+      const vRes = await client.query('SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1 FOR UPDATE', [req.vendorId]);
+      const vendor = vRes.rows[0];
+
+      const now = new Date();
+      let startsAt = now;
+
+      if (vendor && vendor.subscription_ends_at && new Date(vendor.subscription_ends_at) > now) {
+        // Active subscription: extend by 30 days from existing expiry
+        startsAt = new Date(vendor.subscription_ends_at);
+        endsAt = new Date(startsAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+      } else {
+        // New or expired: 30 days from now
+        endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      }
+
+      // Update vendor_subscriptions ledger
+      await client.query(`
+        UPDATE vendor_subscriptions
+        SET status = 'paid',
+            razorpay_payment_id = $1,
+            razorpay_signature = $2,
+            starts_at = $3,
+            ends_at = $4,
+            updated_at = NOW()
+        WHERE razorpay_order_id = $5
+      `, [razorpay_payment_id, razorpay_signature, startsAt, endsAt, razorpay_order_id]);
+
+      // Update vendors table
+      await client.query(`
+        UPDATE vendors
+        SET plan_type = 'PRO',
+            subscription_tier = 'pro',
+            subscription_status = 'active',
+            subscription_starts_at = COALESCE(subscription_starts_at, $1),
+            subscription_ends_at = $2
+        WHERE id = $3
+      `, [startsAt, endsAt, req.vendorId]);
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
 
     console.log(`[Billing] Vendor ${req.vendorId} upgraded to PRO until ${endsAt.toISOString()}`);
 

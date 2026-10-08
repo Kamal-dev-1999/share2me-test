@@ -139,7 +139,9 @@ ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS job_status TEXT DEFAULT 'que
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS printed_at TIMESTAMPTZ;
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS allow_download BOOLEAN DEFAULT true;
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS batch_id UUID;
+ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS razorpay_order_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_printshop_jobs_batch ON printshop_jobs(batch_id);
+CREATE INDEX IF NOT EXISTS idx_printshop_jobs_order ON printshop_jobs(razorpay_order_id);
 
 -- Print Agent Token
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS print_agent_token UUID UNIQUE DEFAULT gen_random_uuid();
