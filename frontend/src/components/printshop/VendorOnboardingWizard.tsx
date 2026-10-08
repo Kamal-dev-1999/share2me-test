@@ -48,10 +48,13 @@ export function VendorOnboardingWizard({
     let interval: NodeJS.Timeout;
     if (step === 3 && !isAgentOnline) {
       
+      let autoConfigSuccess = false;
+
       // Auto-configure local agent if running
       const autoConfigureAgent = async () => {
+        if (autoConfigSuccess) return;
         try {
-          await fetch('http://127.0.0.1:13337/auth', {
+          const res = await fetch('http://127.0.0.1:13337/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -59,6 +62,9 @@ export function VendorOnboardingWizard({
               serverUrl: getBackendUrl() 
             })
           });
+          if (res.ok) {
+            autoConfigSuccess = true;
+          }
         } catch (err) {
           // Agent not running locally yet, ignore
         }
@@ -69,8 +75,10 @@ export function VendorOnboardingWizard({
 
       interval = setInterval(async () => {
         setIsCheckingAgent(true);
-        // Also keep trying to auto-configure in case they start it while waiting
-        autoConfigureAgent();
+        // Only keep trying to auto-configure if we haven't successfully reached the agent yet
+        if (!autoConfigSuccess) {
+          autoConfigureAgent();
+        }
         
         try {
           const res = await fetch(`${getBackendUrl()}/g2p/vendor/agent-status`, {
@@ -80,6 +88,10 @@ export function VendorOnboardingWizard({
             const data = await res.json();
             if (data.isOnline || data.online) {
               setIsAgentOnline(true);
+              clearInterval(interval);
+              setTimeout(() => {
+                setStep(4);
+              }, 2000);
             }
           }
         } catch (e) {
@@ -89,7 +101,9 @@ export function VendorOnboardingWizard({
         }
       }, 3000); // Check every 3 seconds
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [step, isAgentOnline, token, agentToken]);
 
   const handleNext = async () => {
