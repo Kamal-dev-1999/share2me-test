@@ -108,6 +108,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               token.id = vendorData.id;
               token.shareCode = vendorData.share2me_id;
               token.planType = vendorData.plan_type || "FREE";
+              token.vendorSetupCompleted = !!vendorData.vendor_setup_completed;
               token.lastPlanCheck = now;
             } else {
               console.error(
@@ -127,6 +128,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id;
         session.user.shareCode = token.shareCode;
         session.user.planType = token.planType || "FREE";
+        session.user.vendorSetupCompleted = !!token.vendorSetupCompleted;
         session.user.adminAuthorized = !!token.adminAuthorized;
       }
       return session;

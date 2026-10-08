@@ -24,14 +24,14 @@ router.post('/upsert', async (req, res) => {
   try {
     // Check if exists first by auth_provider_id
     let existing = await query(
-      `SELECT id, share2me_id, email, plan_type, subscription_ends_at FROM vendors WHERE auth_provider_id = $1`,
+      `SELECT id, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed FROM vendors WHERE auth_provider_id = $1`,
       [providerId]
     );
 
     // If not found by providerId, check by email (handles legacy accounts)
     if (existing.rowCount === 0 && email) {
       existing = await query(
-        `SELECT id, share2me_id, email, plan_type, subscription_ends_at FROM vendors WHERE email = $1`,
+        `SELECT id, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed FROM vendors WHERE email = $1`,
         [email]
       );
       if (existing.rowCount > 0) {
@@ -62,7 +62,7 @@ router.post('/upsert', async (req, res) => {
     const insertRes = await query(`
       INSERT INTO vendors (name, email, auth_provider_id, share2me_id)
       VALUES ($1, $2, $3, $4)
-      RETURNING id, share2me_id, plan_type
+      RETURNING id, share2me_id, plan_type, vendor_setup_completed
     `, [name, email || null, providerId, share2me_id]);
     
     res.json(insertRes.rows[0]);
@@ -77,7 +77,7 @@ router.use(async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   const vendor = await verifyVendorJWT(token);
   if (!vendor) return res.status(401).json({ error: 'unauthorized' });
-  req.vendorId = vendor.id;
+  req.vendorId = vendor.id || vendor.vendorId || vendor.sub;
   next();
 });
 

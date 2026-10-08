@@ -62,6 +62,7 @@ function G2PContent() {
     image?: string | null;
     shareCode?: string;
     planType?: string;
+    vendorSetupCompleted?: boolean;
   }
 
   const sessionUser = session?.user as ExtendedSessionUser | undefined;
@@ -79,6 +80,7 @@ function G2PContent() {
             localStorage.getItem("share2me_is_pro") === "true"
               ? "PRO"
               : sessionUser?.planType || "FREE",
+          vendorSetupCompleted: Boolean(sessionUser?.vendorSetupCompleted),
           googleId: "",
           createdAt: new Date().toISOString(),
         }

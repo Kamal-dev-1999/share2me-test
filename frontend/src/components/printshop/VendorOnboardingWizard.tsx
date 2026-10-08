@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowRight, Store, MapPin, Printer, ShieldCheck, CheckCircle2,
-  Download, Loader2, Sparkles, Building2, Phone, ArrowLeft
+  Download, Loader2, Sparkles, Building2, Phone, ArrowLeft, X
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { getBackendUrl } from "@/lib/backendUrl";
@@ -20,11 +20,13 @@ interface UserProfile {
 export function VendorOnboardingWizard({
   user,
   token,
-  onComplete
+  onComplete,
+  onClose,
 }: {
   user: UserProfile;
   token: string;
   onComplete: () => void;
+  onClose?: () => void;
 }) {
   const [step, setStep] = useState(1);
   const totalSteps = 4;
@@ -133,14 +135,39 @@ export function VendorOnboardingWizard({
     }
   };
 
+  const handleDismiss = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("share2me_vendor_onboarded", "true");
+      if (user?.username) {
+        localStorage.setItem(`share2me_vendor_onboarded_${user.username}`, "true");
+      }
+    }
+    if (onClose) {
+      onClose();
+    } else {
+      onComplete();
+    }
+  };
+
   const finishOnboarding = async () => {
     setIsLoading(true);
-    await fetch(`${getBackendUrl()}/g2p/vendor/complete-setup`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setIsLoading(false);
-    onComplete();
+    try {
+      await fetch(`${getBackendUrl()}/g2p/vendor/complete-setup`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (e) {
+      console.warn("Failed to complete setup on server", e);
+    } finally {
+      setIsLoading(false);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("share2me_vendor_onboarded", "true");
+        if (user?.username) {
+          localStorage.setItem(`share2me_vendor_onboarded_${user.username}`, "true");
+        }
+      }
+      onComplete();
+    }
   };
 
   const triggerSuccess = () => {
@@ -165,6 +192,16 @@ export function VendorOnboardingWizard({
       >
         {/* Header / Stepper */}
         <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] text-white p-8 sm:p-10 relative shrink-0 border-b border-white/10">
+          {/* Close / Dismiss Button */}
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="absolute top-6 right-6 z-20 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors border border-white/10"
+            title="Skip for now"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
           <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
             <Store className="w-64 h-64 -mr-16 -mt-16" />
           </div>
@@ -417,12 +454,23 @@ export function VendorOnboardingWizard({
 
         {/* Footer Actions */}
         <div className="bg-white/50 backdrop-blur-xl border-t border-white/60 p-5 sm:p-8 flex items-center justify-between">
-          <button
-            onClick={() => setStep(Math.max(1, step - 1))}
-            className={`px-5 py-2.5 flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 bg-white/50 hover:bg-white rounded-xl border border-gray-200/50 transition-all ${step === 1 || step === 4 ? "opacity-0 pointer-events-none" : ""}`}
-          >
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setStep(Math.max(1, step - 1))}
+              className={`px-5 py-2.5 flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 bg-white/50 hover:bg-white rounded-xl border border-gray-200/50 transition-all ${step === 1 || step === 4 ? "opacity-0 pointer-events-none" : ""}`}
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            {step !== 4 && (
+              <button
+                type="button"
+                onClick={handleDismiss}
+                className="text-xs font-semibold text-gray-500 hover:text-gray-900 underline underline-offset-4 transition-colors"
+              >
+                Skip for now
+              </button>
+            )}
+          </div>
           
           <button
             onClick={handleNext}

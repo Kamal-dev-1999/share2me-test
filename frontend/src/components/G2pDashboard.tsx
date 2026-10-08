@@ -397,7 +397,14 @@ export default function G2pDashboard({
   const [company, setCompany] = useState("");
   const [website, setWebsite] = useState("");
   const [bio, setBio] = useState("");
-  const [vendorSetupCompleted, setVendorSetupCompleted] = useState<boolean>(user.vendorSetupCompleted || false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [vendorSetupCompleted, setVendorSetupCompleted] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("share2me_vendor_onboarded");
+      if (saved === "true") return true;
+    }
+    return user.vendorSetupCompleted || false;
+  });
   const [printAgentToken, setPrintAgentToken] = useState<string>(user.print_agent_token || "");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [profileUpdateStatus, setProfileUpdateStatus] = useState<{
@@ -946,7 +953,17 @@ export default function G2pDashboard({
                   }
                 }
                 setPersonaSelected(profile.persona_selected);
-                if (profile.vendor_setup_completed !== undefined) setVendorSetupCompleted(profile.vendor_setup_completed);
+                if (profile.vendor_setup_completed !== undefined) {
+                  setVendorSetupCompleted(profile.vendor_setup_completed);
+                  if (profile.vendor_setup_completed && typeof window !== "undefined") {
+                    localStorage.setItem("share2me_vendor_onboarded", "true");
+                  }
+                } else if (profile.company || profile.phone) {
+                  setVendorSetupCompleted(true);
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("share2me_vendor_onboarded", "true");
+                  }
+                }
                 if (profile.print_agent_token) setPrintAgentToken(profile.print_agent_token);
                 if (profile.monthly_files_received !== undefined) {
                   setMonthlyStats({
@@ -973,7 +990,10 @@ export default function G2pDashboard({
             })
             .catch((err) =>
               console.error("Failed to load vendor profile:", err),
-            );
+            )
+            .finally(() => {
+              if (mounted) setProfileLoaded(true);
+            });
         }
       })
       .catch((err) => console.error("Failed to get token:", err));
@@ -1096,7 +1116,7 @@ export default function G2pDashboard({
 
   return (
     <div className="flex flex-col md:flex-row w-full md:h-[calc(100vh-3rem)] text-[#111827] font-sans gap-4 md:gap-6">
-      {isShopkeeper && !vendorSetupCompleted && token && (
+      {isShopkeeper && profileLoaded && !vendorSetupCompleted && token && (
         <VendorOnboardingWizard
           user={{
             username: displayName,
@@ -1105,7 +1125,24 @@ export default function G2pDashboard({
             print_agent_token: printAgentToken
           }}
           token={token}
-          onComplete={() => setVendorSetupCompleted(true)}
+          onClose={() => {
+            setVendorSetupCompleted(true);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("share2me_vendor_onboarded", "true");
+              if (user.userId || user.shareCode) {
+                localStorage.setItem(`share2me_vendor_onboarded_${user.userId || user.shareCode}`, "true");
+              }
+            }
+          }}
+          onComplete={() => {
+            setVendorSetupCompleted(true);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("share2me_vendor_onboarded", "true");
+              if (user.userId || user.shareCode) {
+                localStorage.setItem(`share2me_vendor_onboarded_${user.userId || user.shareCode}`, "true");
+              }
+            }
+          }}
         />
       )}
 

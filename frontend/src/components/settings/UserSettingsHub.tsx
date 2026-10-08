@@ -1081,32 +1081,77 @@ export function UserSettingsHub({
                     <p className="text-[11px] text-[#111827]/55">100% of customer payments route straight to you</p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-800 border border-emerald-500/20">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  Verified
-                </span>
+                {billing?.upi_id ? (
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                    billing.bank_verification_status === "verified"
+                      ? "bg-emerald-500/15 text-emerald-800 border border-emerald-500/20"
+                      : billing.bank_verification_status === "failed"
+                      ? "bg-rose-500/15 text-rose-800 border border-rose-500/20"
+                      : "bg-amber-500/15 text-amber-800 border border-amber-500/20"
+                  }`}>
+                    {billing.bank_verification_status === "verified" ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Verified
+                      </>
+                    ) : billing.bank_verification_status === "failed" ? (
+                      <>
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                        Verification Failed
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        Verification Pending
+                      </>
+                    )}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-800 border border-amber-500/20">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                    Not Configured
+                  </span>
+                )}
               </div>
 
               <div className="bg-white/60 border border-white/80 rounded-xl p-3.5 flex flex-col gap-2">
                 <span className="text-[10px] font-bold text-[#111827]/60 uppercase tracking-wider">
                   Settlement UPI Address
                 </span>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm font-bold text-[#111827] truncate">
-                    {billing?.upi_id || "kamaltripathi1431-2@okicici"}
-                  </span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(billing?.upi_id || "kamaltripathi1431-2@okicici");
-                      setCopiedUpi(true);
-                      setTimeout(() => setCopiedUpi(false), 2000);
-                    }}
-                    className="p-1.5 rounded-lg hover:bg-black/5 text-[#111827]/60 hover:text-[#111827] transition-colors"
-                    title="Copy UPI ID"
-                  >
-                    {copiedUpi ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
+                {billing?.upi_id ? (
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-sm font-bold text-[#111827] truncate">
+                      {billing.upi_id}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(billing.upi_id!);
+                        setCopiedUpi(true);
+                        setTimeout(() => setCopiedUpi(false), 2000);
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-black/5 text-[#111827]/60 hover:text-[#111827] transition-colors"
+                      title="Copy UPI ID"
+                    >
+                      {copiedUpi ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-xs font-medium text-[#111827]/50 italic">
+                      No settlement UPI ID configured yet
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowOtpModal(true);
+                        setOtpStep("request");
+                      }}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      + Add UPI ID
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
@@ -1115,11 +1160,14 @@ export function UserSettingsHub({
                 </p>
                 <button
                   type="button"
-                  onClick={() => setShowOtpModal(true)}
+                  onClick={() => {
+                    setShowOtpModal(true);
+                    setOtpStep("request");
+                  }}
                   className="px-4 py-2 rounded-xl bg-white border border-black/10 hover:bg-black/5 text-xs font-bold text-[#111827] transition-all shadow-sm flex items-center justify-center gap-1.5 self-start sm:self-auto"
                 >
                   <CreditCard className="w-3.5 h-3.5 text-purple-600" />
-                  Manage Bank Details
+                  {billing?.upi_id ? "Manage Bank Details" : "Set Up UPI Details"}
                 </button>
               </div>
             </div>
@@ -1573,7 +1621,7 @@ export function UserSettingsHub({
                       type="text"
                       value={upiForm.upiName}
                       onChange={(e) => setUpiForm((f) => ({ ...f, upiName: e.target.value }))}
-                      placeholder="e.g. Kamal Tripathi"
+                      placeholder="e.g. Rahul Sharma"
                       className="w-full px-3.5 py-2 rounded-xl border border-gray-300 focus:border-black text-sm outline-none"
                     />
                   </div>
