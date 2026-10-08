@@ -60,11 +60,10 @@ router.post('/', async (req, res) => {
     const planType = (vendorRow.plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
     if (planType === 'FREE') {
       const monthlyFilesRes = await client.query(`
-        SELECT COUNT(*)::int as count 
-        FROM g2p_analytics_events 
-        WHERE vendor_id = $1 
-          AND event_type = 'upload_received' 
-          AND created_at >= date_trunc('month', NOW())
+        SELECT GREATEST(
+          COALESCE((SELECT COUNT(*)::int FROM g2p_analytics_events WHERE vendor_id = $1 AND event_type = 'upload_received' AND created_at >= date_trunc('month', NOW())), 0),
+          COALESCE((SELECT COUNT(f.id)::int FROM files f JOIN requests r ON r.id = f.request_id WHERE r.vendor_id = $1 AND f.created_at >= date_trunc('month', NOW())), 0)
+        ) as count
       `, [vendorId]);
       const monthlyCount = parseInt(monthlyFilesRes.rows[0]?.count || 0, 10);
       if (monthlyCount >= 250) {

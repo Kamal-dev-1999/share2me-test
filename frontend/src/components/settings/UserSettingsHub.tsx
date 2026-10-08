@@ -41,6 +41,7 @@ interface UserSettingsHubProps {
   isShopkeeper: boolean;
   isPro: boolean;
   planType: string;
+  monthlyStats?: { received: number; remaining: number | null; limit: number | null };
   setIsUpgradeModalOpen: (v: boolean) => void;
   // Profile props
   displayName: string;
@@ -80,6 +81,7 @@ export function UserSettingsHub({
   isShopkeeper,
   isPro,
   planType,
+  monthlyStats,
   setIsUpgradeModalOpen,
   displayName,
   setDisplayName,
@@ -1221,7 +1223,7 @@ export function UserSettingsHub({
                     >
                       <span className="block text-xs font-bold">{opt.label}</span>
                       <span className={`text-[10px] ${persona === opt.value ? "text-white/70" : "text-[#111827]/50"}`}>
-                        {opt.limit} file quota
+                        {opt.limit} max / file
                       </span>
                     </button>
                   ))}
@@ -1233,10 +1235,45 @@ export function UserSettingsHub({
                 )}
               </div>
 
+              {/* Live File Receive Quota Meter */}
+              <div className="bg-[#111827]/5 border border-[#111827]/10 rounded-xl p-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#111827]">Monthly File Receive Quota</span>
+                  {isPro ? (
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full font-mono uppercase">
+                      ∞ Unlimited
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-purple-700 bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-full font-mono">
+                      {monthlyStats?.remaining ?? Math.max(0, 250 - (monthlyStats?.received || 0))} files left of 250
+                    </span>
+                  )}
+                </div>
+                {!isPro && (
+                  <div className="w-full bg-white/60 rounded-full h-2 overflow-hidden border border-white/80">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        (monthlyStats?.received || 0) >= 225
+                          ? "bg-red-500"
+                          : "bg-gradient-to-r from-purple-500 to-indigo-600"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, (((monthlyStats?.received || 0) / 250) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                )}
+                <p className="text-[11px] text-[#111827]/60">
+                  {isPro
+                    ? "Your account enjoys zero monthly file receive limits and extended 7-day retention."
+                    : `Free accounts can receive up to 250 files per month (resets on the 1st of every month). ${monthlyStats?.received || 0} received so far.`}
+                </p>
+              </div>
+
               <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-purple-900 block">Share2Me Pro Member</span>
-                  <span className="text-[11px] text-purple-800/80">Permanent share code, 7-day retention, ad-free portal</span>
+                  <span className="text-[11px] text-purple-800/80">Permanent share code, unlimited receives, 7-day retention</span>
                 </div>
                 <button
                   type="button"

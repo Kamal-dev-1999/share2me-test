@@ -1193,30 +1193,60 @@ export default function G2pDashboard({
 
       {/* SIDEBAR */}
       <aside className="w-full md:w-[280px] shrink-0 flex flex-col gap-3 md:gap-6">
-        {/* Profile Info */}
-        <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
-          <img
-            src={
-              user.profilePhoto ||
-              `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`
-            }
-            alt="Profile"
-            className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/30"
-          />
-          <div className="flex flex-col min-w-0">
-            <span className="font-bold text-[15px] truncate text-[#111827] leading-tight">
-              {displayName}
-            </span>
-            <span className="text-[13px] text-[#111827]/60">Admin</span>
+        {/* Profile Info & Live Plan/Quota Badge */}
+        <div className="flex flex-col gap-2 p-3.5 md:p-4 bg-white/20 backdrop-blur-[32px] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+          <div className="flex items-center gap-3">
+            <img
+              src={
+                user.profilePhoto ||
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`
+              }
+              alt="Profile"
+              className="w-10 h-10 md:w-11 md:h-11 rounded-full border border-white/40 shadow-sm"
+            />
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="font-bold text-[15px] truncate text-[#111827] leading-tight">
+                {displayName}
+              </span>
+              <span className="text-[12px] text-[#111827]/60 font-medium truncate">
+                {user.email || "Share2Me Portal"}
+              </span>
+            </div>
+            <button
+              onClick={onLogout}
+              aria-label="Log out"
+              title="Log out"
+              className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-[#111827]/50 hover:text-red-600 hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut className="w-4 h-4" strokeWidth={2.25} />
+            </button>
           </div>
-          <button
-            onClick={onLogout}
-            aria-label="Log out"
-            title="Log out"
-            className="ml-auto shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-[#111827]/50 hover:text-red-600 hover:bg-red-500/10 transition-colors"
-          >
-            <LogOut className="w-[18px] h-[18px]" strokeWidth={2.25} />
-          </button>
+
+          {/* Plan & Quota Status Pill */}
+          <div className="pt-2 border-t border-white/30 flex items-center justify-between gap-2">
+            {isPro ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-800 text-xs font-bold font-mono">
+                <Crown className="w-3.5 h-3.5 text-amber-500" />
+                <span>PRO • Unlimited</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900 font-mono">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span>
+                    {monthlyStats.remaining ?? Math.max(0, 250 - monthlyStats.received)} files left
+                  </span>
+                  <span className="text-[#111827]/40 font-normal">/ 250</span>
+                </div>
+                <button
+                  onClick={() => setIsUpgradeModalOpen(true)}
+                  className="text-[10px] font-black uppercase tracking-wider bg-[#111827] hover:bg-black text-white px-2 py-0.5 rounded-md transition-colors"
+                >
+                  Upgrade
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* MOBILE — persona-aware tab pill */}
@@ -1339,6 +1369,62 @@ export default function G2pDashboard({
               </span>
             )}
           </button>
+        </div>
+
+        {/* Mobile Live Quota Card */}
+        <div className="flex md:hidden flex-col gap-2 p-3 bg-white/30 backdrop-blur-[32px] border border-white/40 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[#111827]/70 font-display">
+                Monthly File Quota
+              </span>
+              {isPro ? (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  PRO Plan
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-100 text-purple-800 border border-purple-300 font-mono">
+                  Free Tier
+                </span>
+              )}
+            </div>
+            {!isPro && (
+              <button
+                onClick={() => setIsUpgradeModalOpen(true)}
+                className="text-[11px] font-bold text-purple-700 hover:text-purple-900 flex items-center gap-0.5"
+              >
+                Upgrade <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-black text-[#111827]">
+              {isPro
+                ? "∞ Unlimited"
+                : (monthlyStats.remaining ?? Math.max(0, 250 - monthlyStats.received))}
+            </span>
+            <span className="text-xs font-bold text-[#111827]/60 font-mono">
+              {isPro
+                ? "Zero Monthly Limits"
+                : `${monthlyStats.received} received / 250 limit`}
+            </span>
+          </div>
+
+          {!isPro && (
+            <div className="w-full bg-[#111827]/10 rounded-full h-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  monthlyStats.received >= 225
+                    ? "bg-red-500"
+                    : "bg-gradient-to-r from-purple-500 to-indigo-600"
+                }`}
+                style={{
+                  width: `${Math.min(100, (monthlyStats.received / 250) * 100)}%`,
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Primary Action Button (desktop) — persona-aware */}
@@ -1558,19 +1644,45 @@ export default function G2pDashboard({
               className="w-full text-left bg-gradient-to-br from-[#c084fc] to-[#9333ea] text-white rounded-[24px] p-5 relative overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.25)] flex flex-col group hover:scale-[1.02] transition-transform"
             >
               <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none" />
-              <div className="flex items-center gap-3 mb-2 relative z-10">
-                <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-white/30 shrink-0">
-                  <Sparkles className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-sm border border-white/30 shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <h4 className="font-bold text-[17px] tracking-tight text-white leading-none">
+                    Free Plan Quota
+                  </h4>
                 </div>
-                <h4 className="font-bold text-[19px] tracking-tight text-white leading-none">
-                  Pro Plan
-                </h4>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full border border-white/30 font-mono">
+                  250 / mo
+                </span>
               </div>
-              <p className="text-xs text-white/90 mb-4 leading-relaxed relative z-10">
-                Permanent Share Code, unlimited receives &amp; up to 7-day retention.
+
+              <div className="bg-black/20 backdrop-blur-md rounded-xl p-3 my-2 border border-white/20 relative z-10 flex flex-col gap-1.5">
+                <div className="flex justify-between items-baseline text-xs">
+                  <span className="text-white/80 font-medium">Files Left:</span>
+                  <span className="text-base font-black text-amber-300 font-mono">
+                    {monthlyStats.remaining ?? Math.max(0, 250 - monthlyStats.received)}
+                  </span>
+                </div>
+                <div className="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="h-full bg-amber-300 rounded-full"
+                    style={{
+                      width: `${Math.min(100, (monthlyStats.received / 250) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-[10px] text-white/70 font-mono text-right">
+                  {monthlyStats.received} of 250 files received
+                </span>
+              </div>
+
+              <p className="text-xs text-white/90 mb-3 leading-relaxed relative z-10">
+                Upgrade to PRO for unlimited receives, 7-day retention &amp; permanent code.
               </p>
               <div className="bg-white/20 backdrop-blur-md text-white px-4 py-2.5 text-xs rounded-xl border border-white/30 font-bold flex items-center justify-between group-hover:bg-white group-hover:text-[#9333ea] transition-colors relative z-10 shadow-inner">
-                ₹499/month{" "}
+                Upgrade to PRO ₹499/mo{" "}
                 <ArrowRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
               </div>
             </button>
@@ -1591,7 +1703,7 @@ export default function G2pDashboard({
               transition={{ duration: 0.2 }}
               className="flex flex-col gap-4 md:gap-6 md:h-full md:min-h-0"
             >
-              <div className="hidden md:grid md:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-6">
                 <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#111827]/70 font-display">
@@ -1621,22 +1733,53 @@ export default function G2pDashboard({
                 <div className="bg-white/40 backdrop-blur-[32px] border border-white/60 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col justify-between min-h-[120px]">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-[#111827]/70 font-display">
-                      {isPro ? "Monthly Limit" : "Monthly Quota"}
+                      {isPro ? "Monthly Limit" : "Monthly Free Quota"}
                     </span>
                     <div className="w-8 h-8 rounded-full bg-[#111827]/5 flex items-center justify-center">
-                      <HardDrive className="w-4 h-4 text-[#111827]" />
+                      {isPro ? (
+                        <Crown className="w-4 h-4 text-amber-500" />
+                      ) : (
+                        <HardDrive className="w-4 h-4 text-[#111827]" />
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-black text-[#111827]">
-                      {isPro
-                        ? "Unlimited"
-                        : (monthlyStats.remaining ?? Math.max(0, 250 - monthlyStats.received))}
-                    </span>
-                    {!isPro && (
-                      <span className="text-xs font-bold text-[#111827]/60 font-mono">
-                        files left / 250
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-[#111827]">
+                        {isPro
+                          ? "∞ Unlimited"
+                          : (monthlyStats.remaining ?? Math.max(0, 250 - monthlyStats.received))}
                       </span>
+                      {!isPro && (
+                        <span className="text-xs font-bold text-[#111827]/70 font-mono">
+                          more files you can receive
+                        </span>
+                      )}
+                    </div>
+
+                    {!isPro ? (
+                      <div className="mt-2.5">
+                        <div className="w-full bg-[#111827]/10 rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              monthlyStats.received >= 225
+                                ? "bg-red-500"
+                                : "bg-gradient-to-r from-[#c084fc] to-[#9333ea]"
+                            }`}
+                            style={{
+                              width: `${Math.min(100, (monthlyStats.received / 250) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center text-[11px] text-[#111827]/60 font-mono mt-1 font-semibold">
+                          <span>{monthlyStats.received} received</span>
+                          <span>250 monthly cap</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-emerald-700 font-bold font-mono mt-1">
+                        PRO PLAN • ZERO MONTHLY LIMITS
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1783,6 +1926,7 @@ export default function G2pDashboard({
                 onRetriggerSetup={() => setVendorSetupCompleted(false)}
                 isPro={isPro}
                 planType={planType}
+                monthlyStats={monthlyStats}
                 setIsUpgradeModalOpen={setIsUpgradeModalOpen}
                 displayName={displayName}
                 setDisplayName={setDisplayName}
