@@ -41,6 +41,7 @@ export function VendorOnboardingWizard({
   const [isLoading, setIsLoading] = useState(false);
   
   const [agentToken] = useState(user.print_agent_token || "LOADING_TOKEN...");
+  const [isCopied, setIsCopied] = useState(false);
 
   // Poll for agent status in Step 3
   useEffect(() => {
@@ -325,10 +326,20 @@ export function VendorOnboardingWizard({
                 <div className="flex flex-col gap-2 p-4 bg-white border border-gray-200 rounded-2xl shadow-sm">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-gray-900">2. Copy your unique token</h3>
-                    <AnimatedCopyIcon
-                      text={agentToken}
-                      className="text-gray-400 hover:text-black transition-colors"
-                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(agentToken);
+                        setIsCopied(true);
+                        setTimeout(() => setIsCopied(false), 2000);
+                      }}
+                      className="p-2 -mr-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      title="Copy Token"
+                    >
+                      <AnimatedCopyIcon
+                        copied={isCopied}
+                        className="text-gray-400 hover:text-black transition-colors w-5 h-5"
+                      />
+                    </button>
                   </div>
                   <p className="text-xs text-gray-500 mb-2">Paste this token into the Print Agent when asked.</p>
                   <div className="bg-gray-100 rounded-lg p-3 font-mono text-sm text-gray-800 break-all border border-gray-200 text-center select-all cursor-text">
