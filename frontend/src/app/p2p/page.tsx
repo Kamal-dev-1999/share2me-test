@@ -7,7 +7,7 @@ import { SeoContent } from "@/components/SeoContent";
 import { useSocket } from "@/hooks/useSocket";
 import { useTransfer } from "@/hooks/useTransfer";
 import Link from "next/link";
-import { ArrowLeft, Upload, Download, Zap } from "lucide-react";
+import { ArrowLeft, Upload, Download } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 
 function P2PContent() {
@@ -34,9 +34,11 @@ function P2PContent() {
   return (
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col text-on-surface font-body relative overflow-x-hidden">
       {/* Ambient decorative glowing backdrops */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[380px] bg-gradient-to-b from-purple-200/40 via-indigo-100/30 to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[420px] bg-gradient-to-b from-purple-200/40 via-indigo-100/30 to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-16 -left-28 w-[400px] h-[400px] bg-purple-200/20 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-28 -right-28 w-[400px] h-[400px] bg-indigo-200/20 rounded-full blur-3xl pointer-events-none -z-10" />
 
-      <main className="w-full max-w-[820px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 flex-1 relative z-10">
+      <main className="w-full max-w-[960px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 flex-1 relative z-10">
         {/* Visually-hidden h1 for screen readers and SEO */}
         <h1 className="sr-only">
           Share2Me — Peer-to-Peer File Transfer

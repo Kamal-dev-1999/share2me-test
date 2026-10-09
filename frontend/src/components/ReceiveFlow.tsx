@@ -1,9 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { 
-  Key, Loader2, CheckCircle2, Camera, CameraOff, Copy, Check, 
-  Shield, Activity, HardDrive, X, ArrowRight, Laptop, Smartphone,
-  Download, RefreshCw, Sparkles, AlertCircle
+  Key, Loader2, CheckCircle2, Camera, X, ArrowRight, Laptop, Smartphone,
+  Download, RefreshCw, AlertCircle, QrCode, KeyRound
 } from "lucide-react";
 import jsQR from "jsqr";
 import confetti from "canvas-confetti";
@@ -42,6 +41,31 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function getFriendlyErrorMessage(status: string | null | undefined, code: string) {
+  if (!status) {
+    return code 
+      ? `Could not connect with code "${code}". Please verify the code and try again.` 
+      : "Transfer connection timed out or code was invalid.";
+  }
+  const s = status.toLowerCase();
+  if (s.includes("not_found")) {
+    return `Transfer code "${code || "entered"}" was not found or has expired. The sender device may have closed their transfer window, or the code was mistyped.`;
+  }
+  if (s.includes("timeout")) {
+    return "Connection timed out while waiting for the sender device. Please ensure both devices have an active internet connection.";
+  }
+  if (s.includes("socket not connected")) {
+    return "Signaling network disconnected. Please wait a moment and try again.";
+  }
+  if (s.includes("rejected") || s.includes("denied")) {
+    return "The transfer request was declined by the sender device.";
+  }
+  if (s.includes("closed") || s.includes("disconnect")) {
+    return "The sender device disconnected or closed the session.";
+  }
+  return status.replace(/^Join error:\s*/i, "");
+}
+
 interface Props {
   phase: TransferPhase;
   status: string;
@@ -56,7 +80,6 @@ interface Props {
 export function ReceiveFlow({
   phase,
   status,
-  keyStatus,
   progress,
   receivedText,
   onJoin,
@@ -68,6 +91,7 @@ export function ReceiveFlow({
   const [joining, setJoining] = useState(false);
   const [copied, setCopied]   = useState(false);
 
+  const pinInputRef = useRef<HTMLInputElement>(null);
   const videoRef   = useRef<HTMLVideoElement>(null);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const streamRef  = useRef<MediaStream | null>(null);
@@ -83,10 +107,22 @@ export function ReceiveFlow({
   useEffect(() => {
     if (phase === "error") {
       setShowErrorPopup(true);
+      setJoining(false);
     } else {
       setShowErrorPopup(false);
     }
   }, [phase]);
+
+  // Close modal on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showErrorPopup) {
+        setShowErrorPopup(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showErrorPopup]);
 
   // Confetti on done
   useEffect(() => {
@@ -200,147 +236,247 @@ export function ReceiveFlow({
     setTimeout(() => setCopied(false), 2000);
   }, [receivedText]);
 
+  const handleInputChange = (rawVal: string) => {
+    let cleaned = rawVal.trim().toUpperCase();
+    if (cleaned.includes("CODE=")) {
+      const match = cleaned.match(/CODE=([A-Z0-9]{6})/i);
+      if (match) cleaned = match[1];
+    }
+    cleaned = cleaned.replace(/[^A-Z0-9]/g, "").slice(0, 6);
+    setOtc(cleaned);
+    if (cleaned.length === 6 && !joining) {
+      handleJoin(cleaned);
+    }
+  };
+
   const isIdle         = phase === "idle" || phase === "error";
   const isTransferring = phase === "transferring";
   const isDone         = phase === "done";
   const isConnecting   = !isIdle && !isTransferring && !isDone;
 
+  const digits = Array.from({ length: 6 }, (_, i) => otc[i] || "");
+
   return (
     <div className="w-full flex flex-col items-center">
       
-      {/* ── STATE 1: IDLE / PIN INPUT & QR SCANNER ── */}
+      {/* ── STATE 1: IDLE / PIN INPUT & QR SCANNER (2-COLUMN BALANCED BENTO) ── */}
       {isIdle && (
         <div className="w-full flex flex-col gap-6 animate-fade-in">
           
+          {/* Header Title */}
           <div className="text-center mb-1">
             <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-3 text-indigo-600 shadow-inner">
               <Download className="w-6 h-6" />
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold font-display text-gray-900">
+            <h3 className="text-xl sm:text-2xl font-bold font-display text-gray-900 tracking-tight">
               Receive Direct Transfer
             </h3>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1 max-w-sm mx-auto">
+            <p className="text-xs sm:text-sm text-gray-500 mt-1 max-w-md mx-auto">
               Enter the 6-digit share code or scan the QR code from the sender device.
             </p>
           </div>
 
-          {/* 6-Digit PIN Input Card */}
-          <div className="bg-gradient-to-br from-[#F7F8FA] to-white border border-gray-200/90 rounded-[28px] p-6 sm:p-8 shadow-sm flex flex-col gap-4">
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block text-center">
-              Enter 6-Digit Code
-            </label>
+          {/* 2-Column Responsive Bento Layout (Eliminating whitespace voids) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 items-stretch w-full">
+            
+            {/* ── COLUMN 1: 6-DIGIT PIN INPUT CARD ── */}
+            <div className="bg-gradient-to-b from-[#F9FAFC] to-white border border-gray-200/90 rounded-[28px] p-6 sm:p-7 shadow-sm flex flex-col justify-between gap-5 relative overflow-hidden group">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 bg-gray-100/90 px-2.5 py-1 rounded-full flex items-center gap-1.5 w-fit">
+                    <KeyRound className="w-3 h-3 text-indigo-600" /> Method 1 • Enter PIN
+                  </span>
+                  <span className="text-[11px] font-mono font-semibold text-gray-400">
+                    {otc.length}/6
+                  </span>
+                </div>
 
-            <div className="relative w-full max-w-xs mx-auto">
-              <input
-                type="text"
-                maxLength={6}
-                value={otc}
-                onChange={(e) => {
-                  const cleaned = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                  setOtc(cleaned);
-                  if (cleaned.length === 6 && !joining) {
-                    handleJoin(cleaned);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && otc.length === 6 && !joining) {
-                    handleJoin(otc);
-                  }
-                }}
-                placeholder="• • • • • •"
-                className="w-full bg-white border-2 border-gray-200 focus:border-black rounded-2xl py-3.5 px-4 text-center font-mono text-3xl font-extrabold tracking-[0.3em] text-gray-900 focus:outline-none transition-all placeholder:text-gray-300 placeholder:tracking-widest uppercase shadow-sm"
-              />
+                <div>
+                  <h4 className="text-base font-bold text-gray-900">
+                    6-Digit Share Code
+                  </h4>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Click below and type or paste the code
+                  </p>
+                </div>
+
+                {/* Segmented Digit Input View */}
+                <div 
+                  onClick={() => pinInputRef.current?.focus()}
+                  className="relative cursor-text flex items-center justify-center gap-2 sm:gap-2.5 my-2"
+                >
+                  <input
+                    ref={pinInputRef}
+                    type="text"
+                    maxLength={6}
+                    value={otc}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && otc.length === 6 && !joining) {
+                        handleJoin(otc);
+                      }
+                    }}
+                    autoFocus
+                    autoComplete="one-time-code"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-text pointer-events-auto"
+                    aria-label="Enter 6-digit transfer code"
+                  />
+
+                  {digits.map((digit, idx) => {
+                    const isCurrent = otc.length === idx;
+                    const isFilled = digit !== "";
+                    return (
+                      <div
+                        key={idx}
+                        className={`w-10 h-13 sm:w-11 sm:h-14 md:w-12 md:h-15 rounded-2xl border-2 flex items-center justify-center font-mono text-2xl sm:text-3xl font-black transition-all duration-150 select-none ${
+                          isCurrent
+                            ? "border-black bg-white shadow-md ring-4 ring-black/5 scale-105"
+                            : isFilled
+                            ? "border-gray-900/40 bg-white text-gray-900 shadow-sm"
+                            : "border-gray-200 bg-gray-50/70 text-gray-300"
+                        }`}
+                      >
+                        {digit ? (
+                          digit
+                        ) : isCurrent ? (
+                          <span className="w-0.5 h-6 bg-gray-800 animate-pulse rounded-full" />
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <div className="flex flex-col gap-2">
+                <button
+                  disabled={otc.length !== 6 || joining}
+                  onClick={() => handleJoin(otc)}
+                  className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-sm ${
+                    otc.length !== 6 || joining
+                      ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                      : "bg-[#111827] hover:bg-black text-white shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                  }`}
+                >
+                  {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                  <span>{joining ? "Linking Devices…" : "Connect & Receive"}</span>
+                </button>
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400 text-center">
+                  <span>🔒 Direct P2P • No server upload required</span>
+                </div>
+              </div>
             </div>
 
-            <button
-              disabled={otc.length !== 6 || joining}
-              onClick={() => handleJoin(otc)}
-              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                otc.length !== 6 || joining
-                  ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
-                  : "bg-[#111827] hover:bg-black text-white shadow-md hover:-translate-y-0.5 active:translate-y-0"
-              }`}
-            >
-              {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-              <span>{joining ? "Linking Devices…" : "Connect & Receive"}</span>
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 w-full my-1">
-            <div className="h-px bg-gray-200 flex-1" />
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">or scan with camera</span>
-            <div className="h-px bg-gray-200 flex-1" />
-          </div>
-
-          {/* QR Camera Scanner Section */}
-          <div className="bg-white border border-gray-200/90 rounded-[28px] overflow-hidden shadow-sm flex flex-col items-center">
-            {!scanning && !scanSuccess ? (
-              <button
-                onClick={startScan}
-                className="w-full py-6 px-4 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-colors group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-105 transition-transform">
-                  <Camera className="w-6 h-6" />
+            {/* ── COLUMN 2: CAMERA QR SCANNER CARD ── */}
+            <div className="bg-gradient-to-b from-[#F9FAFC] to-white border border-gray-200/90 rounded-[28px] p-6 sm:p-7 shadow-sm flex flex-col justify-between gap-5 relative overflow-hidden">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 border border-purple-100 px-2.5 py-1 rounded-full flex items-center gap-1.5 w-fit">
+                    <QrCode className="w-3 h-3 text-purple-600" /> Method 2 • Camera Scan
+                  </span>
+                  <span className="text-[11px] font-semibold text-gray-400">
+                    Live Webcam
+                  </span>
                 </div>
-                <span className="text-xs sm:text-sm font-bold text-gray-800">
-                  Scan Sender's QR Code
-                </span>
-                <span className="text-xs text-gray-400">
-                  Instant pairing via webcam or phone camera
-                </span>
-              </button>
-            ) : null}
 
-            {/* Live Camera Viewport */}
-            <div className={`relative bg-black w-full overflow-hidden transition-all duration-300 ${scanning || scanSuccess ? "h-[320px]" : "h-0"}`}>
-              <video
-                ref={videoRef}
-                muted
-                playsInline
-                onCanPlay={startTick}
-                className={`w-full h-full object-cover ${scanning && videoReady ? "block" : "hidden"}`}
-              />
-              <canvas ref={canvasRef} className="hidden" />
+                <div>
+                  <h4 className="text-base font-bold text-gray-900">
+                    Scan Sender&apos;s QR Code
+                  </h4>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Point camera at the QR code on the sender screen
+                  </p>
+                </div>
 
-              {scanSuccess ? (
-                <div className="absolute inset-0 bg-emerald-50 flex flex-col items-center justify-center p-4">
-                  <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-2 text-emerald-600 shadow-inner">
-                    <CheckCircle2 className="w-7 h-7" />
-                  </div>
-                  <p className="text-emerald-700 font-bold text-sm">QR Code Verified!</p>
-                  <p className="text-xs text-emerald-600 mt-1">Connecting to sender…</p>
-                </div>
-              ) : scanning && !videoReady ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-white gap-2">
-                  <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-                  <p className="text-xs text-gray-300">Initializing camera sensor…</p>
-                </div>
-              ) : scanning && videoReady ? (
-                <div className="absolute inset-0 pointer-events-none">
-                  {/* Modern Reticle */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-56 h-56 rounded-3xl border-2 border-emerald-400 shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] relative">
-                      <div className="absolute inset-0 rounded-3xl border-2 border-white/40" />
+                {/* Idle Scanner Launcher */}
+                {!scanning && !scanSuccess ? (
+                  <div
+                    onClick={startScan}
+                    className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-dashed border-gray-200/90 hover:border-purple-300 bg-white/80 hover:bg-purple-50/20 transition-all cursor-pointer group text-center gap-3 min-h-[160px]"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform shadow-inner">
+                      <Camera className="w-7 h-7" />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs sm:text-sm font-bold text-gray-800 group-hover:text-purple-900 transition-colors">
+                        Click to Launch Camera
+                      </span>
+                      <span className="text-[11px] text-gray-400 max-w-[220px]">
+                        Webcam or phone camera supported
+                      </span>
                     </div>
                   </div>
-                  <div className="absolute bottom-4 right-4 pointer-events-auto">
-                    <button
-                      onClick={stopCamera}
-                      className="px-4 py-2 rounded-xl bg-white/90 hover:bg-white text-xs font-bold text-black border border-white/40 transition-colors shadow-md"
-                    >
-                      Cancel Scanner
-                    </button>
-                  </div>
+                ) : null}
+
+                {/* Active Live Video Viewport */}
+                <div className={`relative bg-black w-full rounded-2xl overflow-hidden transition-all duration-300 ${scanning || scanSuccess ? "h-[220px] sm:h-[240px]" : "h-0"}`}>
+                  <video
+                    ref={videoRef}
+                    muted
+                    playsInline
+                    onCanPlay={startTick}
+                    className={`w-full h-full object-cover ${scanning && videoReady ? "block" : "hidden"}`}
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+
+                  {scanSuccess ? (
+                    <div className="absolute inset-0 bg-emerald-600/95 flex flex-col items-center justify-center p-4 text-white text-center">
+                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-2 shadow-inner">
+                        <CheckCircle2 className="w-8 h-8 text-white" />
+                      </div>
+                      <p className="font-bold text-sm sm:text-base">QR Code Verified!</p>
+                      <p className="text-xs text-emerald-100 mt-1">Connecting to sender device…</p>
+                    </div>
+                  ) : scanning && !videoReady ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-white gap-2">
+                      <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                      <p className="text-xs text-gray-300">Initializing camera sensor…</p>
+                    </div>
+                  ) : scanning && videoReady ? (
+                    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3">
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-36 h-36 rounded-2xl border-2 border-emerald-400 relative overflow-hidden shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]">
+                          <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" />
+                        </div>
+                      </div>
+                      
+                      <div className="z-10 bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold py-1 px-3 rounded-full mx-auto">
+                        Align QR Code within frame
+                      </div>
+
+                      <div className="z-10 flex justify-end pointer-events-auto">
+                        <button
+                          onClick={stopCamera}
+                          className="px-3 py-1.5 rounded-xl bg-white/90 hover:bg-white text-xs font-bold text-black border border-white/40 transition-colors shadow-md"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
+
+                {cameraError && (
+                  <div className="p-3 bg-red-50 text-red-600 text-xs font-semibold w-full text-center rounded-xl border border-red-100">
+                    {cameraError}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Button */}
+              {!scanning && !scanSuccess ? (
+                <button
+                  onClick={startScan}
+                  className="w-full py-3.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Open Camera Scanner</span>
+                </button>
               ) : null}
             </div>
 
-            {cameraError && (
-              <div className="p-3 bg-red-50 text-red-600 text-xs font-semibold w-full text-center border-t border-red-100">
-                {cameraError}
-              </div>
-            )}
           </div>
 
         </div>
@@ -494,34 +630,99 @@ export function ReceiveFlow({
         </motion.div>
       )}
 
-      {/* Error Popup */}
+      {/* ── DEAD-CENTER VIEWPORT ERROR MODAL OVERLAY ── */}
       <AnimatePresence>
         {showErrorPopup && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-[100] bg-white border border-rose-200 shadow-2xl rounded-2xl p-5 flex flex-col gap-3 w-full max-w-[320px]"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
-                <AlertCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-gray-900">Transfer Connection Error</h4>
-                <p className="text-xs text-gray-500 mt-0.5">{status || "Invalid code or connection timed out."}</p>
-              </div>
-            </div>
-            <button
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            {/* Backdrop with blur & click outside to dismiss */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setShowErrorPopup(false)}
-              className="w-full py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-800 transition-colors"
+              className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 15 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="relative w-full max-w-[460px] bg-white rounded-[28px] shadow-[0_25px_70px_rgba(0,0,0,0.35),0_0_0_1px_rgba(244,63,94,0.15)] p-6 sm:p-8 flex flex-col gap-5 z-10 overflow-hidden"
             >
-              Dismiss
-            </button>
-          </motion.div>
+              {/* Top ambient highlight gradient */}
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 via-red-500 to-amber-500" />
+
+              {/* Header with Icon and Close button */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200/90 flex items-center justify-center text-rose-600 shadow-inner shrink-0">
+                    <AlertCircle className="w-6 h-6 stroke-[2.2]" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold font-display text-gray-900 tracking-tight">
+                      Transfer Connection Error
+                    </h3>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                      Session Unreachable
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowErrorPopup(false)}
+                  className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  aria-label="Close error popup"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Human-readable message */}
+              <div className="bg-gray-50 border border-gray-200/80 rounded-2xl p-4 flex flex-col gap-2.5">
+                <p className="text-xs sm:text-sm text-gray-700 font-medium leading-relaxed">
+                  {getFriendlyErrorMessage(status, otc)}
+                </p>
+
+                <div className="pt-2 border-t border-gray-200/60 flex flex-col gap-1.5 text-[11px] text-gray-500">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                    <span>Double check the 6-character code on the sender device.</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                    <span>Make sure the sender still has their transfer tab open.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setShowErrorPopup(false);
+                    setOtc("");
+                    setTimeout(() => pinInputRef.current?.focus(), 150);
+                  }}
+                  className="flex-1 py-3 px-4 rounded-xl bg-[#111827] hover:bg-black text-white text-xs sm:text-sm font-bold shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Try Another Code</span>
+                </button>
+                <button
+                  onClick={() => setShowErrorPopup(false)}
+                  className="py-3 px-5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs sm:text-sm font-semibold transition-colors active:scale-95"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
     </div>
   );
 }
+
