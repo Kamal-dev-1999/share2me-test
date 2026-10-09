@@ -32,60 +32,55 @@ function P2PContent() {
   } = useTransfer(socket);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col text-on-surface font-body">
+    <div className="min-h-screen bg-[#F8F9FB] flex flex-col text-on-surface font-body relative overflow-x-hidden">
+      {/* Ambient decorative glowing backdrops */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[380px] bg-gradient-to-b from-purple-200/40 via-indigo-100/30 to-transparent blur-3xl pointer-events-none -z-10" />
 
-      <main className="w-full max-w-[1200px] mx-auto px-5 md:px-8 lg:px-12 pt-8 pb-24 flex-1">
-        {/* Visually-hidden h1 for screen readers and SEO — layout is visually driven by the mode toggle */}
-        <h1 className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0" style={{ clip: "rect(0,0,0,0)" }}>
+      <main className="w-full max-w-[820px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 flex-1 relative z-10">
+        {/* Visually-hidden h1 for screen readers and SEO */}
+        <h1 className="sr-only">
           Share2Me — Peer-to-Peer File Transfer
         </h1>
-        {/* Navigation / Actions Header */}
-        <div className="mb-6">
+
+        {/* Top Header & Actions Bar */}
+        <div className="flex items-center justify-between gap-3 mb-6">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-5 py-2 bg-white border border-[#E1E3E5] hover:bg-[#F7F8F8] text-[13px] font-semibold text-[#5F6368] hover:text-black rounded-xl transition-all shadow-sm active:scale-95"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-md border border-black/5 hover:border-black/10 hover:bg-white text-[13px] font-semibold text-gray-600 hover:text-black rounded-xl transition-all shadow-sm active:scale-95"
           >
-            <ArrowLeft className="w-4 h-4 text-black" strokeWidth={2.5} />
-            Back
+            <ArrowLeft className="w-4 h-4 text-gray-800" strokeWidth={2.2} />
+            <span>Back</span>
           </Link>
+
+          {/* Mode toggle pills */}
+          <div className="inline-flex bg-black/[0.04] p-1 rounded-full border border-black/[0.06] backdrop-blur-md shadow-inner">
+            <button
+              onClick={() => setMode("send")}
+              className={`py-1.5 px-6 rounded-full text-[13px] font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+                mode === "send"
+                  ? "bg-black text-white shadow-[0_2px_10px_rgba(0,0,0,0.15)]"
+                  : "text-gray-600 hover:text-black"
+              }`}
+            >
+              <Upload className="w-3.5 h-3.5" strokeWidth={2.4} />
+              <span>Send</span>
+            </button>
+            <button
+              onClick={() => setMode("receive")}
+              className={`py-1.5 px-6 rounded-full text-[13px] font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+                mode === "receive"
+                  ? "bg-black text-white shadow-[0_2px_10px_rgba(0,0,0,0.15)]"
+                  : "text-gray-600 hover:text-black"
+              }`}
+            >
+              <Download className="w-3.5 h-3.5" strokeWidth={2.4} />
+              <span>Receive</span>
+            </button>
+          </div>
         </div>
 
-        {/* Workspace */}
-        <div className="bg-white border border-[#E1E3E5] rounded-[24px] p-5 sm:p-8 md:p-10 shadow-sm relative">
-
-          {/* Mode toggle */}
-          <div className="flex items-center justify-between gap-4 mb-8 flex-wrap relative z-10">
-            <div className="inline-flex bg-[#F7F8F8] p-1 rounded-full border border-[#E1E3E5]/60 w-full sm:w-auto">
-              <button
-                onClick={() => setMode("send")}
-                className={`flex-1 sm:flex-none py-2 px-6 rounded-full text-[13px] font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-                  mode === "send"
-                    ? "bg-black text-white shadow-sm"
-                    : "text-[#5F6368] hover:text-black"
-                }`}
-              >
-                <Upload className="w-3.5 h-3.5" strokeWidth={2.5} />
-                Send
-              </button>
-              <button
-                onClick={() => setMode("receive")}
-                className={`flex-1 sm:flex-none py-2 px-6 rounded-full text-[13px] font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-                  mode === "receive"
-                    ? "bg-black text-white shadow-sm"
-                    : "text-[#5F6368] hover:text-black"
-                }`}
-              >
-                <Download className="w-3.5 h-3.5" strokeWidth={2.5} />
-                Receive
-              </button>
-            </div>
-
-            <div className="hidden md:flex items-center gap-2 text-[12px] text-[#5F6368] bg-[#F7F8F8] px-3.5 py-1.5 rounded-full border border-[#E1E3E5]">
-              <Zap className="w-3.5 h-3.5 text-[#35B94A] animate-pulse" strokeWidth={2.5} />
-              <span>Ephemeral · ECDH P-256 handshake</span>
-            </div>
-          </div>
-
+        {/* Main Glassmorphic Workspace Card */}
+        <div className="bg-white/90 backdrop-blur-2xl border border-white/80 rounded-[32px] p-5 sm:p-8 md:p-9 shadow-[0_24px_60px_rgba(15,23,42,0.06)] relative overflow-hidden transition-all duration-300">
           <AnimatePresence mode="wait">
             {mode === "send" ? (
               <SendFlow
@@ -113,6 +108,12 @@ function P2PContent() {
               />
             )}
           </AnimatePresence>
+        </div>
+
+        {/* Privacy & Security Trust Footer Banner */}
+        <div className="mt-5 flex items-center justify-center gap-2 text-[12px] font-medium text-gray-500 bg-white/60 backdrop-blur-md py-2.5 px-5 rounded-2xl border border-white/80 shadow-sm mx-auto w-fit">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span>🔒 Direct Device-to-Device • 100% Private &amp; Encrypted • Zero Server Retention</span>
         </div>
       </main>
 
