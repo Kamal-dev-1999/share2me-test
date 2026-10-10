@@ -130,16 +130,16 @@ export function AgentSetupModal({
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm text-gray-900">1. Download Print Agent</h3>
               <a
-                href={`${getBackendUrl()}/download/Share2Me-PrintAgent.exe`}
+                href={`${getBackendUrl()}/download/Share2Me-PrintAgent.zip`}
                 download
                 className="flex items-center gap-2 bg-gradient-to-r from-[#FF8A00] to-[#FF2E93] text-white px-4 py-2 rounded-full text-xs font-bold hover:shadow-lg hover:shadow-[#FF2E93]/30 transition-all active:scale-95"
               >
                 <Download className="w-3.5 h-3.5" />
-                Download .exe
+                Download Agent (.zip)
               </a>
             </div>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Run this application on the Windows computer connected to your physical printers.
+              Extract the zip file and run the application on the Windows computer connected to your physical printers.
             </p>
           </div>
 
