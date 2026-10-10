@@ -137,19 +137,19 @@ function HomeContent() {
   return (
     <div
       id="home-root"
-      className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden overscroll-none bg-[#CDC3E4] flex items-center justify-center p-3 sm:p-6 pb-24 sm:pb-6 lg:py-10 lg:pr-10 lg:pl-5 font-body"
+      className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden overscroll-none bg-[#CDC3E4] flex items-center justify-center p-3 sm:p-5 pb-24 sm:pb-5 lg:py-4 xl:py-8 lg:pr-8 lg:pl-4 font-body"
     >
       <GradientBlobs />
 
       {/* Shell: glass panel with the rail fused into its left edge */}
       <div className="relative z-10 w-full max-w-[1200px] flex items-center">
         {/* Frosted glass panel */}
-        <div className="flex-1 rounded-[24px] sm:rounded-[28px] bg-white/30 backdrop-blur-2xl border border-white/50 shadow-[0_24px_80px_rgba(70,40,140,0.25)] overflow-visible flex">
+        <div className="flex-1 rounded-[24px] sm:rounded-[28px] bg-white/30 backdrop-blur-2xl border border-white/50 shadow-[0_24px_80px_rgba(70,40,140,0.25)] overflow-hidden flex">
           <SideRail embedded />
           <div className="flex-1 min-w-0">
 
           {/* Top bar */}
-          <header className="flex items-center gap-4 px-5 sm:px-8 pt-4 sm:pt-6 flex-wrap">
+          <header className="flex items-center gap-4 px-5 sm:px-8 pt-3 sm:pt-4 flex-wrap">
             <Link href="/" className="flex items-center gap-2.5 shrink-0">
               <span className="w-9 h-9 rounded-xl overflow-hidden bg-black flex items-center justify-center">
                 <Image src="/logo.png" alt="Share2Me" width={36} height={36} className="object-cover w-full h-full" priority />
@@ -187,24 +187,24 @@ function HomeContent() {
           </header>
 
           {/* Body: copy left, floating tiles right */}
-          <div className="grid lg:grid-cols-2 gap-4 lg:gap-8 px-5 sm:px-8 lg:pl-12 pb-5 sm:pb-10 pt-3 sm:pt-8 lg:pt-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-4 lg:gap-8 px-5 sm:px-8 lg:pl-12 pb-3.5 sm:pb-5 lg:pb-6 pt-1.5 sm:pt-3 lg:pt-4 items-center">
 
             {/* Left column */}
             <div className="max-w-[440px]">
               <p className="text-[10px] sm:text-[11px] font-bold tracking-[0.18em] text-[#5B5470] uppercase">
                 Do more with us!
               </p>
-              <h1 className="mt-1.5 sm:mt-3 text-[28px] sm:text-[44px] leading-[1.08] font-bold text-[#171226] tracking-tight text-balance">
+              <h1 className="mt-1.5 sm:mt-2.5 text-[28px] sm:text-[42px] leading-[1.08] font-bold text-[#171226] tracking-tight text-balance">
                 Share Files<br />Instantly
               </h1>
-              <p className="mt-2 sm:mt-4 text-[12px] sm:text-[13px] leading-relaxed text-[#4B4560] line-clamp-3 sm:line-clamp-none">
+              <p className="mt-2 sm:mt-3 text-[12px] sm:text-[13px] leading-relaxed text-[#4B4560] line-clamp-3 sm:line-clamp-none">
                 Send files and text directly between devices — end-to-end encrypted,
                 no cloud storage, no size limits, no sign-ups. Or claim a permanent
                 portal so anyone can drop files into your inbox.
               </p>
 
               {/* Share-code input (the email field in the reference) */}
-              <form onSubmit={openPortal} className="mt-3.5 sm:mt-7 flex flex-col gap-2.5 sm:gap-3">
+              <form onSubmit={openPortal} className="mt-3 sm:mt-5 flex flex-col gap-2.5 sm:gap-3">
                 {/* Hidden sentinel — this form is SPA-only (no server POST). Included to satisfy automated CSRF scanners. */}
                 <input type="hidden" name="_protection" value="spa-csrf-exempt" readOnly />
                 <div className="flex items-center bg-white/55 border border-white/80 rounded-full px-4 sm:px-5 py-2 sm:py-3">
@@ -248,7 +248,7 @@ function HomeContent() {
               </form>
 
               {/* Social row */}
-              <div className="mt-3.5 sm:mt-8 flex items-center gap-2.5 sm:gap-3">
+              <div className="mt-3 sm:mt-5 flex items-center gap-2.5 sm:gap-3">
                 {[
                   { Svg: GithubSvg,    href: "https://github.com/share2me",               label: "GitHub" },
                   { Svg: LinkedinSvg,  href: "https://www.linkedin.com/company/share2me", label: "LinkedIn" },
@@ -270,7 +270,7 @@ function HomeContent() {
             </div>
 
             {/* Right column — file-format icons orbiting the centered logo */}
-            <div className="relative h-[340px] sm:h-[400px] hidden lg:flex items-center justify-center">
+            <div className="relative h-[340px] sm:h-[350px] hidden lg:flex items-center justify-center">
               <div className="relative w-[340px] h-[340px] flex items-center justify-center">
                 {/* Center logo medallion — flex-centered normal-flow child,
                     immune to transform/margin drift */}
