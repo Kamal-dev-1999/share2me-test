@@ -219,6 +219,7 @@ app.get('/api/ice-servers', async (_req, res) => {
 });
 
 app.use('/poc', express.static('public'));
+app.use('/download', express.static('public'));
 
 app.get('/ping', (_req, res) => res.status(200).send('pong'));
 
