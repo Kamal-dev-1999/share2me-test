@@ -60,9 +60,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const email = profile?.email || token.email;
       token.adminAuthorized = isEmailAdminAuthorized(email);
 
-      // Handle programmatic session updates: update({ planType: 'PRO' })
-      if (trigger === "update" && session?.planType) {
-        token.planType = session.planType;
+      // Handle programmatic session updates: update({ planType: 'PRO', name: 'New Name' })
+      if (trigger === "update") {
+        if (session?.planType) token.planType = session.planType;
+        if (session?.name) token.name = session.name;
       }
 
       const now = Date.now();
@@ -109,6 +110,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               token.shareCode = vendorData.share2me_id;
               token.planType = vendorData.plan_type || "FREE";
               token.vendorSetupCompleted = !!vendorData.vendor_setup_completed;
+              if (vendorData.name) {
+                token.name = vendorData.name;
+              }
               token.lastPlanCheck = now;
             } else {
               console.error(
@@ -130,6 +134,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.planType = token.planType || "FREE";
         session.user.vendorSetupCompleted = !!token.vendorSetupCompleted;
         session.user.adminAuthorized = !!token.adminAuthorized;
+        if (token.name) {
+          session.user.name = token.name as string;
+        }
       }
       return session;
     },

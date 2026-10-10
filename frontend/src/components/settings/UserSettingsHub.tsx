@@ -1534,7 +1534,7 @@ export function UserSettingsHub({
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 10 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl p-5 sm:p-6 shadow-2xl w-full max-w-md border border-black/10 flex flex-col gap-4 text-[#111827]"
+              className="bg-white rounded-[32px] p-5 sm:p-6 shadow-2xl w-full max-w-md border border-black/10 flex flex-col gap-4 text-[#111827]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">

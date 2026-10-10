@@ -148,7 +148,7 @@ function HomeContent() {
           <SideRail embedded />
           <div className="flex-1 min-w-0">
 
-          {/* Top bar */}
+          {/* To pbar */}
           <header className="flex items-center gap-4 px-5 sm:px-8 pt-3 sm:pt-4 flex-wrap">
             <Link href="/" className="flex items-center gap-2.5 shrink-0">
               <span className="w-9 h-9 rounded-xl overflow-hidden bg-black flex items-center justify-center">

@@ -24,14 +24,14 @@ router.post('/upsert', async (req, res) => {
   try {
     // Check if exists first by auth_provider_id
     let existing = await query(
-      `SELECT id, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed FROM vendors WHERE auth_provider_id = $1`,
+      `SELECT id, name, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed FROM vendors WHERE auth_provider_id = $1`,
       [providerId]
     );
 
     // If not found by providerId, check by email (handles legacy accounts)
     if (existing.rowCount === 0 && email) {
       existing = await query(
-        `SELECT id, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed FROM vendors WHERE email = $1`,
+        `SELECT id, name, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed FROM vendors WHERE email = $1`,
         [email]
       );
       if (existing.rowCount > 0) {

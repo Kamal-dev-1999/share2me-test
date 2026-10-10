@@ -824,6 +824,7 @@ export default function G2pDashboard({
           msg: "Profile updated successfully!",
         });
         user.username = displayName.trim();
+        await updateSession?.({ name: displayName.trim() });
         setTimeout(() => setProfileUpdateStatus(null), 3000);
       } else {
         const data = await res.json();
@@ -2402,7 +2403,7 @@ export default function G2pDashboard({
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 md:p-8"
           >
-            <div className="w-full max-w-4xl relative flex flex-col items-center">
+            <div className="w-full max-w-4xl relative flex flex-col items-center bg-[#1c1936]/90 backdrop-blur-3xl border border-white/10 rounded-[32px] p-6 sm:p-10 shadow-2xl">
               <button
                 onClick={() => setIsUpgradeModalOpen(false)}
                 className="absolute -top-12 right-0 md:top-0 md:-right-12 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-md"

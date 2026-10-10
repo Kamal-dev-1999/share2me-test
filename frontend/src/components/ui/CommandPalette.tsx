@@ -61,7 +61,7 @@ export function CommandPalette() {
               animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, scale: 0.95, y: -20, filter: "blur(4px)" }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="relative w-full max-w-xl mx-4 bg-white/90 backdrop-blur-3xl border border-white/60 shadow-[0_24px_80px_rgba(0,0,0,0.2)] rounded-2xl overflow-hidden"
+              className="relative w-full max-w-xl mx-4 bg-white/90 backdrop-blur-3xl border border-white/60 shadow-[0_24px_80px_rgba(0,0,0,0.2)] rounded-[32px] overflow-hidden"
             >
               <div className="flex items-center px-4 py-4 border-b border-gray-200/50">
                 <Search className="w-5 h-5 text-gray-400 mr-3" />
