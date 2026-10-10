@@ -2,13 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Loader2, Download, ExternalLink, Settings, Sparkles } from "lucide-react";
 import confetti from "canvas-confetti";
-
-export function getBackendUrl() {
-  if (typeof window !== "undefined") {
-    return process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL || "http://localhost:5000";
-  }
-  return process.env.EXPRESS_BACKEND_URL || "http://localhost:5000";
-}
+import { getBackendUrl } from "@/lib/backendUrl";
 
 export function AgentSetupModal({
   user,
