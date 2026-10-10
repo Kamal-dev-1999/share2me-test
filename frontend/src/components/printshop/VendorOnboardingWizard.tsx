@@ -42,8 +42,14 @@ export function VendorOnboardingWizard({
   const [isCheckingAgent, setIsCheckingAgent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [agentToken] = useState(user.print_agent_token || "LOADING_TOKEN...");
+  const [agentToken, setAgentToken] = useState(user.print_agent_token || "LOADING_TOKEN...");
   const [isCopied, setIsCopied] = useState(false);
+
+  useEffect(() => {
+    if (user.print_agent_token) {
+      setAgentToken(user.print_agent_token);
+    }
+  }, [user.print_agent_token]);
 
   // Poll for agent status in Step 3
   useEffect(() => {

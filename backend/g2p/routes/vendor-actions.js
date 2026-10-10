@@ -93,6 +93,18 @@ router.get('/me', async (req, res) => {
     if (vRes.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
     
     const row = vRes.rows[0];
+
+    // Auto-generate token if missing (backwards compatibility)
+    if (!row.print_agent_token) {
+      const updateRes = await query(
+        'UPDATE vendors SET print_agent_token = gen_random_uuid() WHERE id = $1 RETURNING print_agent_token', 
+        [req.vendorId]
+      );
+      if (updateRes.rowCount > 0) {
+        row.print_agent_token = updateRes.rows[0].print_agent_token;
+      }
+    }
+
     const isExpired = row.subscription_ends_at && new Date(row.subscription_ends_at) < new Date();
     const effectivePlan = (row.plan_type === 'PRO' && !isExpired) ? 'PRO' : 'FREE';
     row.plan_type = effectivePlan;
