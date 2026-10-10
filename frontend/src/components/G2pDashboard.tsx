@@ -51,6 +51,7 @@ import { PrintShopPanel } from "@/components/printshop/PrintShopPanel";
 import { PaymentsPanel } from "@/components/printshop/PaymentsPanel";
 import { PrintJobNotifier } from "@/components/printshop/PrintJobNotifier";
 import { VendorOnboardingWizard } from "@/components/printshop/VendorOnboardingWizard";
+import { AgentSetupModal } from "@/components/printshop/AgentSetupModal";
 import {
   AreaChart,
   Area,
@@ -411,6 +412,8 @@ export default function G2pDashboard({
     ok: boolean;
     msg: string;
   } | null>(null);
+
+  const [showAgentSetup, setShowAgentSetup] = useState(false);
 
   const [persona, setPersona] = useState<string>(initialPersona);
   useEffect(() => {
@@ -1117,6 +1120,18 @@ export default function G2pDashboard({
 
   return (
     <div className="flex flex-col md:flex-row w-full md:h-[calc(100vh-3rem)] text-[#111827] font-sans gap-4 md:gap-6">
+      
+      {/* Agent Setup Modal */}
+      <AnimatePresence>
+        {showAgentSetup && token && (
+          <AgentSetupModal
+            user={{ ...user, print_agent_token: printAgentToken }}
+            token={token}
+            onClose={() => setShowAgentSetup(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {isShopkeeper && profileLoaded && !vendorSetupCompleted && token && (
         <VendorOnboardingWizard
           user={{
@@ -1961,7 +1976,7 @@ export default function G2pDashboard({
                 user={user}
                 token={token}
                 isShopkeeper={isShopkeeper}
-                onRetriggerSetup={() => setVendorSetupCompleted(false)}
+                onRetriggerSetup={() => setShowAgentSetup(true)}
                 isPro={isPro}
                 planType={planType}
                 monthlyStats={monthlyStats}
