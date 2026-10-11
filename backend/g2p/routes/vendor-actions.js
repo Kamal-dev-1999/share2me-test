@@ -24,14 +24,14 @@ router.post('/upsert', async (req, res) => {
   try {
     // Check if exists first by auth_provider_id
     let existing = await query(
-      `SELECT id, name, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed FROM vendors WHERE auth_provider_id = $1`,
+      `SELECT id, name, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed, print_agent_token FROM vendors WHERE auth_provider_id = $1`,
       [providerId]
     );
 
     // If not found by providerId, check by email (handles legacy accounts)
     if (existing.rowCount === 0 && email) {
       existing = await query(
-        `SELECT id, name, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed FROM vendors WHERE email = $1`,
+        `SELECT id, name, share2me_id, email, plan_type, subscription_ends_at, vendor_setup_completed, print_agent_token FROM vendors WHERE email = $1`,
         [email]
       );
       if (existing.rowCount > 0) {
@@ -45,6 +45,12 @@ router.post('/upsert', async (req, res) => {
 
     if (existing.rowCount > 0) {
       const row = existing.rows[0];
+      if (!row.print_agent_token) {
+        const tokenRes = await query('UPDATE vendors SET print_agent_token = gen_random_uuid() WHERE id = $1 RETURNING print_agent_token', [row.id]);
+        if (tokenRes.rowCount > 0) {
+          row.print_agent_token = tokenRes.rows[0].print_agent_token;
+        }
+      }
       if (email && !row.email) {
         // Backfill email if it was previously missing
         await query(`UPDATE vendors SET email = $1 WHERE id = $2`, [email, row.id]);
@@ -60,9 +66,9 @@ router.post('/upsert', async (req, res) => {
     const share2me_id = crypto.randomBytes(3).toString('hex').toUpperCase();
 
     const insertRes = await query(`
-      INSERT INTO vendors (name, email, auth_provider_id, share2me_id)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, share2me_id, plan_type, vendor_setup_completed
+      INSERT INTO vendors (name, email, auth_provider_id, share2me_id, print_agent_token)
+      VALUES ($1, $2, $3, $4, gen_random_uuid())
+      RETURNING id, share2me_id, plan_type, vendor_setup_completed, print_agent_token
     `, [name, email || null, providerId, share2me_id]);
     
     res.json(insertRes.rows[0]);
@@ -78,18 +84,33 @@ router.use(async (req, res, next) => {
   const vendor = await verifyVendorJWT(token);
   if (!vendor) return res.status(401).json({ error: 'unauthorized' });
   req.vendorId = vendor.id || vendor.vendorId || vendor.sub;
+  req.vendorEmail = vendor.email;
   next();
 });
 
 // Get current vendor profile details
 router.get('/me', async (req, res) => {
   try {
-    const vRes = await query(`
+    let vRes = await query(`
       SELECT id, name, share2me_id, persona, persona_selected, plan_type, phone, company, website, bio,
              stripe_account_id, charges_enabled, subscription_tier, subscription_status,
              subscription_starts_at, subscription_ends_at, vendor_setup_completed, print_agent_token
-      FROM vendors WHERE id = $1
-    `, [req.vendorId]);
+      FROM vendors WHERE id::text = $1
+    `, [String(req.vendorId)]);
+    
+    // Fallback: If not found by vendorId, try finding by email
+    if (vRes.rowCount === 0 && req.vendorEmail) {
+      vRes = await query(`
+        SELECT id, name, share2me_id, persona, persona_selected, plan_type, phone, company, website, bio,
+               stripe_account_id, charges_enabled, subscription_tier, subscription_status,
+               subscription_starts_at, subscription_ends_at, vendor_setup_completed, print_agent_token
+        FROM vendors WHERE email = $1
+      `, [req.vendorEmail]);
+      if (vRes.rowCount > 0) {
+        req.vendorId = vRes.rows[0].id;
+      }
+    }
+
     if (vRes.rowCount === 0) return res.status(404).json({ error: 'vendor_not_found' });
     
     const row = vRes.rows[0];
@@ -115,8 +136,8 @@ router.get('/me', async (req, res) => {
 
     const monthlyFilesRes = await query(`
       SELECT GREATEST(
-        COALESCE((SELECT COUNT(*)::int FROM g2p_analytics_events WHERE vendor_id = $1 AND event_type = 'upload_received' AND created_at >= date_trunc('month', NOW())), 0),
-        COALESCE((SELECT COUNT(f.id)::int FROM files f JOIN requests r ON r.id = f.request_id WHERE r.vendor_id = $1 AND f.created_at >= date_trunc('month', NOW())), 0)
+        COALESCE((SELECT COUNT(*)::int FROM g2p_analytics_events WHERE vendor_id = $1::text AND event_type = 'upload_received' AND created_at >= date_trunc('month', NOW())), 0),
+        COALESCE((SELECT COUNT(f.id)::int FROM files f JOIN requests r ON r.id = f.request_id WHERE r.vendor_id = $1::uuid AND f.created_at >= date_trunc('month', NOW())), 0)
       ) as count
     `, [req.vendorId]);
     const monthlyFilesReceived = parseInt(monthlyFilesRes.rows[0]?.count || 0, 10);
@@ -536,8 +557,8 @@ router.get('/analytics', async (req, res) => {
     
     const monthlyFilesRes = await query(`
       SELECT GREATEST(
-        COALESCE((SELECT COUNT(*)::int FROM g2p_analytics_events WHERE vendor_id = $1 AND event_type = 'upload_received' AND created_at >= date_trunc('month', NOW())), 0),
-        COALESCE((SELECT COUNT(f.id)::int FROM files f JOIN requests r ON r.id = f.request_id WHERE r.vendor_id = $1 AND f.created_at >= date_trunc('month', NOW())), 0)
+        COALESCE((SELECT COUNT(*)::int FROM g2p_analytics_events WHERE vendor_id = $1::text AND event_type = 'upload_received' AND created_at >= date_trunc('month', NOW())), 0),
+        COALESCE((SELECT COUNT(f.id)::int FROM files f JOIN requests r ON r.id = f.request_id WHERE r.vendor_id = $1::uuid AND f.created_at >= date_trunc('month', NOW())), 0)
       ) as count
     `, [req.vendorId]);
     

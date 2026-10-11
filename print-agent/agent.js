@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const os = require('os');
 const { exec, execSync, spawn } = require('child_process');
 
-const DEFAULT_SERVER_URL = 'https://api.share2me.in';
+const DEFAULT_SERVER_URL = 'https://share2me-backend-916674186483.asia-south1.run.app';
 const SERVER_URL = process.env.SERVER_URL || DEFAULT_SERVER_URL;
 const CONFIG_DIR = path.join(os.homedir(), '.share2me');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
@@ -384,8 +384,8 @@ async function startAgent() {
         req.on('end', () => {
           try {
             const data = JSON.parse(body);
-            if (data.token) {
-              token = data.token;
+            if (data.token && data.token !== 'LOADING_TOKEN...' && data.token.trim().length > 10) {
+              token = data.token.trim();
               serverUrl = data.serverUrl || DEFAULT_SERVER_URL;
               saveConfig(token, serverUrl);
               res.writeHead(200, { 'Content-Type': 'application/json' });

@@ -79,8 +79,8 @@ router.post('/presign', async (req, res) => {
     if (planType === 'FREE') {
       const monthlyFilesRes = await client.query(`
         SELECT GREATEST(
-          COALESCE((SELECT COUNT(*)::int FROM g2p_analytics_events WHERE vendor_id = $1 AND event_type = 'upload_received' AND created_at >= date_trunc('month', NOW())), 0),
-          COALESCE((SELECT COUNT(f.id)::int FROM files f JOIN requests r ON r.id = f.request_id WHERE r.vendor_id = $1 AND f.created_at >= date_trunc('month', NOW())), 0)
+          COALESCE((SELECT COUNT(*)::int FROM g2p_analytics_events WHERE vendor_id = $1::text AND event_type = 'upload_received' AND created_at >= date_trunc('month', NOW())), 0),
+          COALESCE((SELECT COUNT(f.id)::int FROM files f JOIN requests r ON r.id = f.request_id WHERE r.vendor_id = $1::uuid AND f.created_at >= date_trunc('month', NOW())), 0)
         ) as count
       `, [vendorId]);
       

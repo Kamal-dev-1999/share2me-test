@@ -42,25 +42,51 @@ export function VendorOnboardingWizard({
   const [isCheckingAgent, setIsCheckingAgent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [agentToken, setAgentToken] = useState(user.print_agent_token || "LOADING_TOKEN...");
+  const [agentToken, setAgentToken] = useState(
+    user.print_agent_token && user.print_agent_token !== "LOADING_TOKEN..."
+      ? user.print_agent_token
+      : ""
+  );
   const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
-    if (user.print_agent_token) {
+    if (user.print_agent_token && user.print_agent_token !== "LOADING_TOKEN...") {
       setAgentToken(user.print_agent_token);
     }
   }, [user.print_agent_token]);
+
+  // Self-healing fetch: If token is still missing in Step 3, fetch it from /me
+  useEffect(() => {
+    if (step === 3 && !agentToken && token) {
+      fetch(`${getBackendUrl()}/g2p/vendor/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((profile) => {
+          if (profile?.print_agent_token) {
+            setAgentToken(profile.print_agent_token);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [step, agentToken, token]);
 
   // Poll for agent status in Step 3
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (step === 3 && !isAgentOnline) {
-      
+      const isValidToken = Boolean(
+        agentToken &&
+        agentToken !== "LOADING_TOKEN..." &&
+        agentToken.trim().length > 10
+      );
+
       let autoConfigSuccess = false;
 
       // Auto-configure local agent if running
       const autoConfigureAgent = async () => {
-        if (autoConfigSuccess) return;
+        if (!isValidToken || autoConfigSuccess) return;
         try {
           const res = await fetch('http://127.0.0.1:13337/auth', {
             method: 'POST',
@@ -84,7 +110,7 @@ export function VendorOnboardingWizard({
       interval = setInterval(async () => {
         setIsCheckingAgent(true);
         // Only keep trying to auto-configure if we haven't successfully reached the agent yet
-        if (!autoConfigSuccess) {
+        if (!autoConfigSuccess && isValidToken) {
           autoConfigureAgent();
         }
         

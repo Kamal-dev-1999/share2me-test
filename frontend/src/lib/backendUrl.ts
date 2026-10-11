@@ -9,7 +9,7 @@
 export const CLOUD_RUN_BACKEND_URL =
   process.env.NEXT_PUBLIC_CLOUD_RUN_BACKEND_URL ||
   process.env.CLOUD_RUN_BACKEND_URL ||
-  "https://share2me-backend-ic7b2itmta-el.a.run.app";
+  "https://share2me-backend-916674186483.asia-south1.run.app";
 
 export function getBackendUrl(): string {
   if (typeof window !== "undefined") {

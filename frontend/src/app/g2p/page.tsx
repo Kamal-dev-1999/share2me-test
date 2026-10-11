@@ -63,6 +63,7 @@ function G2PContent() {
     shareCode?: string;
     planType?: string;
     vendorSetupCompleted?: boolean;
+    print_agent_token?: string;
   }
 
   const sessionUser = session?.user as ExtendedSessionUser | undefined;
@@ -81,6 +82,7 @@ function G2PContent() {
               ? "PRO"
               : sessionUser?.planType || "FREE",
           vendorSetupCompleted: Boolean(sessionUser?.vendorSetupCompleted),
+          print_agent_token: sessionUser?.print_agent_token || "",
           googleId: "",
           createdAt: new Date().toISOString(),
         }
