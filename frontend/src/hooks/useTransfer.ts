@@ -277,6 +277,11 @@ export function useTransfer(socket: Socket | null) {
   const [receivedText,      setReceivedText]       = useState<string | null>(null);
   const [receiverBytes,     setReceiverBytes]      = useState(0);
 
+  const senderPhaseRef   = useRef<TransferPhase>(senderPhase);
+  const receiverPhaseRef = useRef<TransferPhase>(receiverPhase);
+  senderPhaseRef.current   = senderPhase;
+  receiverPhaseRef.current = receiverPhase;
+
   // ── Internal sender refs ─────────────────────────────────────────────────────
   const snd = useRef({
     worker:               null as Worker | null,
@@ -868,6 +873,16 @@ export function useTransfer(socket: Socket | null) {
       };
     };
 
+    rcv.current.pc.onconnectionstatechange = () => {
+      const state = rcv.current.pc?.connectionState;
+      if (state === "failed") {
+        setReceiverStatus("Direct P2P connection failed. Please check network/firewall and try again.");
+        setReceiverPhase("error");
+      } else if (state === "disconnected") {
+        setReceiverStatus("P2P connection interrupted.");
+      }
+    };
+
     rcv.current.pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket?.emit("signal", { otc: rcv.current.otc, type: "ice", data: event.candidate });
@@ -911,6 +926,29 @@ export function useTransfer(socket: Socket | null) {
       // Server notifies both peers when the room is being destroyed after transfer.
       // Nothing to act on in the UI — phases are already "done" by this point.
     });
+    socket.on("peer_disconnected", (msg) => {
+      if (role.current === "sender") {
+        if (snd.current.otc && (!msg?.otc || msg.otc === snd.current.otc)) {
+          if (senderPhaseRef.current === "done") return;
+          setSenderStatus("Receiver disconnected. Waiting for receiver to connect…");
+          setSenderPhase("ready");
+          if (snd.current.pc) {
+            try { snd.current.pc.close(); } catch { /* ignore */ }
+            snd.current.pc = null;
+          }
+        }
+      } else if (role.current === "receiver") {
+        if (rcv.current.otc && (!msg?.otc || msg.otc === rcv.current.otc)) {
+          if (receiverPhaseRef.current === "done") return;
+          setReceiverStatus("Sender disconnected.");
+          setReceiverPhase("error");
+          if (rcv.current.pc) {
+            try { rcv.current.pc.close(); } catch { /* ignore */ }
+            rcv.current.pc = null;
+          }
+        }
+      }
+    });
 
     return () => {
       socket.off("signal");
@@ -920,6 +958,7 @@ export function useTransfer(socket: Socket | null) {
       socket.off("metadata_relay");
       socket.off("transfer_complete");
       socket.off("room_closing");
+      socket.off("peer_disconnected");
     };
   }, [socket, handleSignal, handleReceiverPub, handleWrappedKey, resendMissingChunks]);
 
@@ -1056,6 +1095,16 @@ export function useTransfer(socket: Socket | null) {
     };
 
     s.dc.onclose = () => setSenderStatus("Data channel closed.");
+
+    s.pc.onconnectionstatechange = () => {
+      const state = s.pc?.connectionState;
+      if (state === "failed") {
+        setSenderStatus("Direct P2P connection failed. Please check network/firewall and try again.");
+        setSenderPhase("error");
+      } else if (state === "disconnected") {
+        setSenderStatus("P2P connection interrupted.");
+      }
+    };
 
     s.pc.onicecandidate = (event) => {
       if (event.candidate) {

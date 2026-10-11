@@ -128,6 +128,7 @@ function attachP2PSockets(io, metrics, bannedIPs) {
       nackTracker.clear();
       const otc = socket.roomOTC;
       if (!otc) return;
+      socket.to(otc).emit('peer_disconnected', { otc, socketId: socket.id });
       const room = io.sockets.adapter.rooms.get(otc);
       if (!room || room.size === 0) { otcToRoom.delete(otc); metrics.roomsDestroyed++; }
     });

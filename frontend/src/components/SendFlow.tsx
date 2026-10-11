@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Upload, FileText, Loader2, Wifi,
   ClipboardPaste, Type, FileUp, X, CheckCircle2,
-  Sparkles, Smartphone, Laptop, ArrowRight, RefreshCw
+  Sparkles, Smartphone, Laptop, ArrowRight, RefreshCw,
+  Zap, AlertCircle
 } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -74,38 +75,79 @@ export function SendFlow({
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Trigger sound when receiver connects
+  // Auto-transfer state with localStorage persistence (defaults to true for instant seamless transfer)
+  const [autoTransfer, setAutoTransfer] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("share2me_auto_transfer");
+      if (saved !== null) {
+        return saved === "true";
+      }
+    }
+    return true;
+  });
+
+  const handleToggleAutoTransfer = (enabled: boolean) => {
+    setAutoTransfer(enabled);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("share2me_auto_transfer", enabled ? "true" : "false");
+    }
+  };
+
+  const autoTransferTriggeredRef = useRef<string | null>(null);
+
+  // Auto-transfer effect: automatically triggers onStartSend when receiver connects & keys exchange
+  useEffect(() => {
+    if (phase === "key_exchange" && autoTransfer && otc) {
+      if (autoTransferTriggeredRef.current !== otc) {
+        autoTransferTriggeredRef.current = otc;
+        onStartSend();
+      }
+    }
+  }, [phase, autoTransfer, otc, onStartSend]);
+
+  // Reset auto-trigger ref when OTC changes or reset to idle
+  useEffect(() => {
+    if (!otc || phase === "idle") {
+      autoTransferTriggeredRef.current = null;
+    }
+  }, [otc, phase]);
+
+  // Trigger chime and optional manual reminder nudge when receiver connects
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (phase === "key_exchange") {
-      timer = setTimeout(() => {
-        setShowNudge(true);
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-          if (AudioContext) {
-            const audioCtx = new AudioContext();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.type = "sine";
-            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1);
-            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.1);
-          }
-        } catch (e) {
-          console.warn("Audio generation failed", e);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContext) {
+          const audioCtx = new AudioContext();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1);
+          gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          oscillator.start();
+          oscillator.stop(audioCtx.currentTime + 0.1);
         }
-      }, 5000);
+      } catch (e) {
+        console.warn("Audio generation failed", e);
+      }
+
+      // If auto-transfer is disabled, show reminder nudge after 5s if user hasn't clicked
+      if (!autoTransfer) {
+        timer = setTimeout(() => {
+          setShowNudge(true);
+        }, 5000);
+      }
     } else {
       setShowNudge(false);
     }
     return () => clearTimeout(timer);
-  }, [phase]);
+  }, [phase, autoTransfer]);
 
   // Close nudge modal on Escape
   useEffect(() => {
@@ -232,7 +274,8 @@ export function SendFlow({
   const isPreparing    = phase === "preparing";
   const isTransferring = phase === "transferring";
   const isDone         = phase === "done";
-  const isWaiting      = Boolean(otc && !isTransferring && !isDone);
+  const isError        = phase === "error";
+  const isWaiting      = Boolean(otc && !isTransferring && !isDone && !isError);
 
   const canPrepare = isIdle && !isZipping && (transferType === "file" ? files.length > 0 : textInput.trim().length > 0);
   const totalSizeBytes = files.reduce((acc, f) => acc + f.size, 0);
@@ -433,6 +476,29 @@ export function SendFlow({
             </div>
           )}
 
+          {isError && (
+            <div className="w-full p-6 sm:p-7 rounded-[28px] bg-red-50/90 border border-red-200/90 text-red-900 flex flex-col items-center text-center gap-3.5 shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <h4 className="text-base font-bold">Transfer Connection Failed</h4>
+                <p className="text-xs sm:text-sm text-red-700/80 max-w-md">
+                  {status || "A signaling or direct connection error occurred. Please verify your network and retry."}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  window.location.reload();
+                }}
+                className="mt-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry Transfer</span>
+              </button>
+            </div>
+          )}
+
           {/* ── PAIRING CARD (WHEN ROOM OTC IS READY) ── */}
           {isWaiting && (
             <motion.div
@@ -490,15 +556,70 @@ export function SendFlow({
 
               {/* Connected Receiver Banner / Begin Transfer CTA */}
               <div className="pt-5 border-t border-gray-100 flex flex-col gap-3.5 w-full">
+                {/* Auto-Transfer Setting Toggle Bar */}
+                <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-white border border-gray-200/80 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                      autoTransfer ? "bg-emerald-50 text-emerald-600 border border-emerald-200/70" : "bg-gray-100 text-gray-500 border border-gray-200"
+                    }`}>
+                      <Zap className="w-4 h-4 fill-current" />
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-gray-900">Auto-Transfer</span>
+                        {autoTransfer ? (
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                            Instant
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                            Manual
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-gray-500">
+                        {autoTransfer
+                          ? "Automatically beam files once receiver connects"
+                          : "Require clicking 'Begin Direct Transfer' to send"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Accessible iOS-style toggle */}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={autoTransfer}
+                    onClick={() => handleToggleAutoTransfer(!autoTransfer)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                      autoTransfer ? "bg-emerald-600" : "bg-gray-200"
+                    }`}
+                  >
+                    <span className="sr-only">Toggle Auto-Transfer</span>
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        autoTransfer ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+
                 {/* Status Indicator Bar */}
                 <div className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all ${
-                  phase === "ready" || phase === "key_exchange"
+                  phase === "connecting"
+                    ? "bg-indigo-50/80 border-indigo-200/90 text-indigo-900"
+                    : phase === "key_exchange"
                     ? "bg-emerald-50/80 border-emerald-200/90 text-emerald-900"
                     : "bg-gray-50 border-gray-200/80 text-gray-600"
                 }`}>
                   <div className="flex items-center gap-2.5">
                     <span className="relative flex h-2.5 w-2.5">
-                      {phase === "ready" || phase === "key_exchange" ? (
+                      {phase === "connecting" ? (
+                        <>
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.7)]" />
+                        </>
+                      ) : phase === "key_exchange" ? (
                         <>
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
@@ -508,13 +629,21 @@ export function SendFlow({
                       )}
                     </span>
                     <span className="text-xs font-bold">
-                      {phase === "ready" || phase === "key_exchange"
-                        ? "Receiver Connected! Ready to stream directly."
+                      {phase === "connecting"
+                        ? "Establishing peer-to-peer data channel…"
+                        : phase === "key_exchange"
+                        ? (autoTransfer
+                            ? "Receiver Connected! Starting transfer automatically…"
+                            : "Receiver Connected! Ready to stream directly.")
                         : "Waiting for receiver device to enter code or scan QR…"}
                     </span>
                   </div>
 
-                  {phase === "ready" || phase === "key_exchange" ? (
+                  {phase === "connecting" ? (
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-md hidden sm:inline-block">
+                      Connecting
+                    </span>
+                  ) : phase === "key_exchange" ? (
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md hidden sm:inline-block">
                       P2P Link Ready
                     </span>
@@ -525,18 +654,43 @@ export function SendFlow({
                   )}
                 </div>
 
-                {/* If receiver connected, show prominent Full-Width Start Transfer CTA Button */}
-                {(phase === "ready" || phase === "key_exchange") && (
+                {/* If connecting, show connecting spinner button */}
+                {phase === "connecting" && (
                   <motion.button
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    onClick={onStartSend}
-                    className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-bold rounded-2xl shadow-[0_10px_25px_rgba(16,185,129,0.3)] hover:shadow-[0_12px_30px_rgba(16,185,129,0.4)] hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2.5 transition-all cursor-pointer font-display tracking-tight"
+                    disabled
+                    className="w-full py-4 px-6 bg-indigo-600 text-white text-sm font-bold rounded-2xl shadow-[0_10px_25px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2.5 font-display tracking-tight cursor-wait opacity-90"
                   >
-                    <span>Begin Direct Transfer</span>
-                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Connecting Direct P2P Channel…</span>
                   </motion.button>
+                )}
+
+                {/* If receiver connected in key_exchange */}
+                {phase === "key_exchange" && (
+                  autoTransfer ? (
+                    <motion.button
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      disabled
+                      className="w-full py-4 px-6 bg-emerald-600 text-white text-sm font-bold rounded-2xl shadow-[0_10px_25px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2.5 font-display tracking-tight cursor-wait opacity-95"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Auto-Starting Direct Transfer…</span>
+                    </motion.button>
+                  ) : (
+                    <motion.button
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={onStartSend}
+                      className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-bold rounded-2xl shadow-[0_10px_25px_rgba(16,185,129,0.3)] hover:shadow-[0_12px_30px_rgba(16,185,129,0.4)] hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2.5 transition-all cursor-pointer font-display tracking-tight"
+                    >
+                      <span>Begin Direct Transfer</span>
+                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                    </motion.button>
+                  )
                 )}
               </div>
             </motion.div>
@@ -656,7 +810,7 @@ export function SendFlow({
 
       {/* Receiver Connection Nudge Popup — Dead-Center Viewport Modal */}
       <AnimatePresence>
-        {showNudge && !isTransferring && !isDone && (
+        {showNudge && !autoTransfer && !isTransferring && !isDone && (
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
             {/* Backdrop with blur & dismiss on click outside */}
             <motion.div
