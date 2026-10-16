@@ -114,7 +114,12 @@ export function AdManager() {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
         registrations.forEach((reg) => {
           const scriptUrl = reg.active?.scriptURL || "";
-          if (scriptUrl.includes("sw.js") || scriptUrl.includes("monetag")) {
+          if (
+            scriptUrl.includes("sw.js") ||
+            scriptUrl.includes("monetag") ||
+            scriptUrl.includes("nap5k") ||
+            scriptUrl.includes("quge5")
+          ) {
             reg.unregister().catch(() => {});
           }
         });
@@ -126,8 +131,7 @@ export function AdManager() {
   // Wait until NextAuth resolves AND confirm the user is not PRO before
   // injecting any ad scripts. A single guard keeps TypeScript's flow analysis
   // happy (two consecutive if-return blocks cause TS7027 "Unreachable code").
-  // Monetag attaches a permanent click listener the instant it is parsed, so
-  // we must never render it while status is still "loading".
+  // Gatekeeper ensures PRO users never receive any ad scripts or banners.
   if (status === "loading" || isPro) {
     return null;
   }
@@ -135,10 +139,10 @@ export function AdManager() {
   // ── Free / Guest users: serve standard ad tags ────────────────────────────
   return (
     <>
-      {/* Monetag MultiTag (Zone 281066 for share2me.in) */}
+      {/* Monetag In-Page Push Banner (Zone 12048031) - Clean placeholder banner, NO on-click popunders */}
       <Script
-        src="https://quge5.com/88/tag.min.js"
-        data-zone="281066"
+        src="https://nap5k.com/tag.min.js"
+        data-zone="12048031"
         strategy="afterInteractive"
         data-cfasync="false"
       />
