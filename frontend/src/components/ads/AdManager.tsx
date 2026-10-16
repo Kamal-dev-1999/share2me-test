@@ -118,6 +118,8 @@ export function AdManager() {
             scriptUrl.includes("sw.js") ||
             scriptUrl.includes("monetag") ||
             scriptUrl.includes("nap5k") ||
+            scriptUrl.includes("n6wxm") ||
+            scriptUrl.includes("5gvci") ||
             scriptUrl.includes("quge5")
           ) {
             reg.unregister().catch(() => {});
@@ -136,19 +138,38 @@ export function AdManager() {
     return null;
   }
 
-  // ── Free / Guest users: serve standard ad tags ────────────────────────────
+  // ── Free / Guest users: serve standard ad tags with optimal loading ────────
   return (
     <>
-      {/* Monetag In-Page Push Banner (Zone 12048031) - Clean placeholder banner, NO on-click popunders */}
+      {/* 1. Monetag In-Page Push Banner (Zone 12048031) - Clean placeholder banner */}
       <Script
+        id="monetag-in-page-push"
         src="https://nap5k.com/tag.min.js"
         data-zone="12048031"
         strategy="afterInteractive"
         data-cfasync="false"
       />
 
-      {/* Google AdSense */}
+      {/* 2. Monetag Vignette Banner (Zone 12048272) - Dismissible overlay banner */}
       <Script
+        id="monetag-vignette"
+        src="https://n6wxm.com/vignette.min.js"
+        data-zone="12048272"
+        strategy="lazyOnload"
+        data-cfasync="false"
+      />
+
+      {/* 3. Monetag Push Notifications (Zone 12048270) - Native browser push opt-in */}
+      <Script
+        id="monetag-push-tag"
+        src="https://5gvci.com/act/files/tag.min.js?z=12048270"
+        strategy="lazyOnload"
+        data-cfasync="false"
+      />
+
+      {/* 4. Google AdSense */}
+      <Script
+        id="google-adsense"
         async
         src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3981074780272106"
         strategy="lazyOnload"
