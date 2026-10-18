@@ -23,17 +23,6 @@ const s3 = new S3Client(s3Config);
 const BUCKET_NAME = (process.env.S3_BLOGS_BUCKET || 'share2me-auto-blogs-prod')
   .replace(/[^a-z0-9-]/g, '');
 
-// Public base URL for the S3 bucket — images are served from here
-const S3_PUBLIC_BASE =
-  process.env.S3_PUBLIC_BASE_URL ||
-  `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com`;
-
-// Gemini Imagen models in priority order — both accessible on the free tier
-const IMAGE_MODELS = [
-  'imagen-3.0-generate-002',
-  'imagen-3.0-fast-generate-001',
-];
-
 // Gemini text-generation candidate models — verified live against the API (2026-10-18)
 const TEXT_MODELS = [
   'gemini-3.8-flash',       // ✅ verified working
@@ -141,68 +130,17 @@ async function generateContentWithRetry(prompt) {
 }
 
 /**
- * Generate an image using Gemini Imagen API.
- * Returns base64-encoded PNG bytes string, or null on failure (blog still saves without image).
- *
- * @param {string} promptText - Descriptive editorial image prompt from blog JSON
- * @param {'1:1'|'4:3'|'16:9'|'9:16'|'3:4'} aspectRatio
+ * Helper to build an editorial-grade, personalized image URL using Pollinations FLUX / Turbo
  */
-async function generateGeminiImage(promptText, aspectRatio = '16:9') {
-  // Sanitize prompt — remove forbidden style words and quotes
+function buildEditorialImageUrl(promptText, width = 1200, height = 630) {
+  // Sanitize and append high-end editorial photo tokens
   const cleanPrompt = promptText
     .replace(/['"]/g, '')
     .replace(/\b(abstract|cyberpunk|glowing neon|futuristic glowing|hologram|neon laser|laser beams|matrix code)\b/gi, '')
     .trim();
-
   const styledPrompt = `${cleanPrompt}, editorial technology photography, natural soft studio lighting, sharp focus, 35mm lens, high-end tech publication aesthetic, clean professional composition`;
-
-  for (const model of IMAGE_MODELS) {
-    try {
-      console.log(`Generating image using ${model} (aspectRatio: ${aspectRatio})...`);
-      const response = await ai.models.generateImages({
-        model,
-        prompt: styledPrompt,
-        config: {
-          numberOfImages: 1,
-          aspectRatio,
-          outputMimeType: 'image/png',
-        },
-      });
-
-      const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
-      if (imageBytes) {
-        console.log(`Successfully generated image using ${model}`);
-        return imageBytes; // base64 string
-      }
-      console.warn(`[Gemini Image] ${model} returned empty image data.`);
-    } catch (err) {
-      console.warn(`[Gemini Image] Model ${model} failed: ${err.message}`);
-      await new Promise((r) => setTimeout(r, 1500)); // brief back-off before next model
-    }
-  }
-
-  console.error('[Gemini Image] All image models failed — skipping image for this slot.');
-  return null;
-}
-
-/**
- * Upload a base64 PNG image buffer to S3 and return its public URL.
- *
- * @param {string} base64Data - base64-encoded PNG
- * @param {string} s3Key      - e.g. "images/2026-10-18-cover-abc123.png"
- * @returns {Promise<string>} Public URL of the uploaded image
- */
-async function uploadImageToS3(base64Data, s3Key) {
-  const imageBuffer = Buffer.from(base64Data, 'base64');
-  await s3.send(new PutObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: s3Key,
-    Body: imageBuffer,
-    ContentType: 'image/png',
-  }));
-  const publicUrl = `${S3_PUBLIC_BASE}/${s3Key}`;
-  console.log(`Uploaded image → ${publicUrl}`);
-  return publicUrl;
+  const seed = Math.floor(Math.random() * 9000000) + 1000000;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(styledPrompt)}?width=${width}&height=${height}&model=turbo&nologo=true&seed=${seed}`;
 }
 
 async function generateAndUploadBlog() {
@@ -227,26 +165,17 @@ async function generateAndUploadBlog() {
     const titleSlug = blogData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const uniqueId = crypto.randomBytes(4).toString('hex');
 
-    // ── Step 3: Generate & upload cover image via Gemini Imagen ───────────────
+    // ── Step 3: Build & attach cover image URL ───────────────────────────────
+    console.log("Attaching editorial cover image...");
     const coverPrompt = blogData.coverImagePrompt || `${blogData.title} in a modern tech workspace setting`;
-    const coverImageBytes = await generateGeminiImage(coverPrompt, '16:9');
-    if (coverImageBytes) {
-      const coverKey = `images/${dateStr}-cover-${uniqueId}.png`;
-      const coverUrl = await uploadImageToS3(coverImageBytes, coverKey);
-      // Prepend cover image markdown to intro (same pattern as before)
-      blogData.intro = `![Cover](${coverUrl})\n\n${(blogData.intro || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
-    }
+    const coverUrl = buildEditorialImageUrl(coverPrompt, 1200, 630);
+    blogData.intro = `![Cover](${coverUrl})\n\n${(blogData.intro || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
 
-    // ── Step 4: Generate & upload section images via Gemini Imagen ────────────
+    // ── Step 4: Build & attach section images ────────────────────────────────
     if (Array.isArray(blogData.sections)) {
-      for (let i = 0; i < blogData.sections.length; i++) {
-        const section = blogData.sections[i];
-        if (!section.imagePrompt) continue;
-
-        const sectionImageBytes = await generateGeminiImage(section.imagePrompt, '4:3');
-        if (sectionImageBytes) {
-          const sectionKey = `images/${dateStr}-section${i}-${uniqueId}.png`;
-          const sectionUrl = await uploadImageToS3(sectionImageBytes, sectionKey);
+      for (const section of blogData.sections) {
+        if (section.imagePrompt) {
+          const sectionUrl = buildEditorialImageUrl(section.imagePrompt, 1000, 500);
           section.content = `![${section.heading}](${sectionUrl})\n\n${(section.content || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
         }
       }
@@ -263,7 +192,7 @@ async function generateAndUploadBlog() {
       ContentType: 'application/json',
       Metadata: {
         'generated-by': modelName,
-        'image-engine': 'gemini-imagen',
+        'image-engine': 'pollinations-turbo',
         'date': new Date().toISOString(),
       },
     }));
