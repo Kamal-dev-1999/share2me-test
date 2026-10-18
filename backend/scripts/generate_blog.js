@@ -36,9 +36,9 @@ const IMAGE_MODELS = [
 
 // Gemini text-generation candidate models in priority order
 const TEXT_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
+  'gemini-3.8-flash',         // Current recommended model (per API deprecation notice)
+  'gemini-2.5-flash-latest',  // Fallback alias
+  'gemini-flash-latest',      // Generic latest flash fallback
 ];
 
 /**
