@@ -34,11 +34,12 @@ const IMAGE_MODELS = [
   'imagen-3.0-fast-generate-001',
 ];
 
-// Gemini text-generation candidate models in priority order
+// Gemini text-generation candidate models — verified live against the API (2026-10-18)
 const TEXT_MODELS = [
-  'gemini-3.8-flash',         // Current recommended model (per API deprecation notice)
-  'gemini-2.5-flash-latest',  // Fallback alias
-  'gemini-flash-latest',      // Generic latest flash fallback
+  'gemini-3.8-flash',       // ✅ verified working
+  'gemini-3.5-flash',       // ✅ verified working
+  'gemini-3-flash-preview', // ✅ verified working
+  'gemini-3.1-flash-lite',  // ✅ verified working (lightweight fallback)
 ];
 
 /**
