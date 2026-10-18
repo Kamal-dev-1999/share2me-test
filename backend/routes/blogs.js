@@ -110,6 +110,36 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * GET /api/blogs/images/:key
+ * Stream blog images securely from the S3 bucket with aggressive caching
+ */
+router.get('/images/:key', async (req, res) => {
+  const { key } = req.params;
+  // Basic sanitization — alphanumeric, hyphens, underscores, dots
+  if (!/^[a-zA-Z0-9_.-]+$/.test(key)) {
+    return res.status(400).json({ error: 'Invalid image key' });
+  }
+
+  try {
+    const getCommand = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: `images/${key}`,
+    });
+
+    const objResponse = await s3.send(getCommand);
+    res.setHeader('Content-Type', objResponse.ContentType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    objResponse.Body.pipe(res);
+  } catch (error) {
+    if (error.name === 'NoSuchKey') {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    console.error(`[Blogs] Image ${key} error:`, error);
+    res.status(500).json({ error: 'Failed to fetch image' });
+  }
+});
+
+/**
  * GET /api/blogs/:slug
  * Fetch a specific blog by slug
  */

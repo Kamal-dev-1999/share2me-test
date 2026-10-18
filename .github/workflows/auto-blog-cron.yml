@@ -40,3 +40,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: 'ap-south-1' # Default for this project, adjust if needed
           S3_BLOGS_BUCKET: ${{ secrets.S3_BLOGS_BUCKET }}
+          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY || 'sk_syEQVBgQ6bK9U1UPM00z0UBoWypLQnwF' }}

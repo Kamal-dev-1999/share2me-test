@@ -23,6 +23,9 @@ const s3 = new S3Client(s3Config);
 const BUCKET_NAME = (process.env.S3_BLOGS_BUCKET || 'share2me-auto-blogs-prod')
   .replace(/[^a-z0-9-]/g, '');
 
+// Pollinations API Key for unlimited FLUX generation
+const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || 'sk_syEQVBgQ6bK9U1UPM00z0UBoWypLQnwF';
+
 // Gemini text-generation candidate models — verified live against the API (2026-10-18)
 const TEXT_MODELS = [
   'gemini-3.8-flash',       // ✅ verified working
@@ -130,9 +133,11 @@ async function generateContentWithRetry(prompt) {
 }
 
 /**
- * Helper to build an editorial-grade, personalized image URL using Pollinations FLUX / Turbo
+ * Helper to generate and download an editorial image using Pollinations FLUX with the API key,
+ * upload the resulting buffer to S3, and return the secure serving path.
+ * Falls back to direct Pollinations URL if upload or download fails.
  */
-function buildEditorialImageUrl(promptText, width = 1200, height = 630) {
+async function generateAndUploadEditorialImage(promptText, s3Key, width = 1200, height = 630) {
   // Sanitize and append high-end editorial photo tokens
   const cleanPrompt = promptText
     .replace(/['"]/g, '')
@@ -140,7 +145,37 @@ function buildEditorialImageUrl(promptText, width = 1200, height = 630) {
     .trim();
   const styledPrompt = `${cleanPrompt}, editorial technology photography, natural soft studio lighting, sharp focus, 35mm lens, high-end tech publication aesthetic, clean professional composition`;
   const seed = Math.floor(Math.random() * 9000000) + 1000000;
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(styledPrompt)}?width=${width}&height=${height}&model=turbo&nologo=true&seed=${seed}`;
+  
+  const pollinationsUrl = `https://gen.pollinations.ai/image/${encodeURIComponent(styledPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}`;
+
+  try {
+    console.log(`Generating FLUX image via Pollinations (${width}x${height})...`);
+    const headers = {};
+    if (POLLINATIONS_API_KEY) {
+      headers['Authorization'] = `Bearer ${POLLINATIONS_API_KEY}`;
+    }
+
+    const res = await fetch(pollinationsUrl, { headers });
+    if (res.ok) {
+      const buffer = Buffer.from(await res.arrayBuffer());
+      await s3.send(new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: `images/${s3Key}`,
+        Body: buffer,
+        ContentType: 'image/jpeg',
+      }));
+      console.log(`✅ Uploaded FLUX image to S3: images/${s3Key}`);
+      // Return public path routed through backend Express endpoint
+      return `/api/blogs/images/${s3Key}`;
+    } else {
+      console.warn(`[Pollinations] Response status ${res.status}, falling back to direct URL.`);
+    }
+  } catch (err) {
+    console.warn(`[Image Pipeline] Error: ${err.message}, falling back to direct URL.`);
+  }
+
+  // Graceful fallback URL
+  return `https://gen.pollinations.ai/image/${encodeURIComponent(styledPrompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
 }
 
 async function generateAndUploadBlog() {
@@ -165,19 +200,22 @@ async function generateAndUploadBlog() {
     const titleSlug = blogData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const uniqueId = crypto.randomBytes(4).toString('hex');
 
-    // ── Step 3: Build & attach cover image URL ───────────────────────────────
-    console.log("Attaching editorial cover image...");
+    // ── Step 3: Build & attach cover image ───────────────────────────────────
+    console.log("Generating & attaching editorial cover image...");
     const coverPrompt = blogData.coverImagePrompt || `${blogData.title} in a modern tech workspace setting`;
-    const coverUrl = buildEditorialImageUrl(coverPrompt, 1200, 630);
+    const coverKey = `${dateStr}-cover-${uniqueId}.jpg`;
+    const coverUrl = await generateAndUploadEditorialImage(coverPrompt, coverKey, 1200, 630);
     blogData.intro = `![Cover](${coverUrl})\n\n${(blogData.intro || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
 
     // ── Step 4: Build & attach section images ────────────────────────────────
     if (Array.isArray(blogData.sections)) {
-      for (const section of blogData.sections) {
-        if (section.imagePrompt) {
-          const sectionUrl = buildEditorialImageUrl(section.imagePrompt, 1000, 500);
-          section.content = `![${section.heading}](${sectionUrl})\n\n${(section.content || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
-        }
+      for (let i = 0; i < blogData.sections.length; i++) {
+        const section = blogData.sections[i];
+        if (!section.imagePrompt) continue;
+
+        const sectionKey = `${dateStr}-section${i}-${uniqueId}.jpg`;
+        const sectionUrl = await generateAndUploadEditorialImage(section.imagePrompt, sectionKey, 1000, 500);
+        section.content = `![${section.heading}](${sectionUrl})\n\n${(section.content || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
       }
     }
 
@@ -192,7 +230,7 @@ async function generateAndUploadBlog() {
       ContentType: 'application/json',
       Metadata: {
         'generated-by': modelName,
-        'image-engine': 'pollinations-turbo',
+        'image-engine': 'pollinations-flux-s3',
         'date': new Date().toISOString(),
       },
     }));

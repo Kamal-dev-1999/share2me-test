@@ -166,6 +166,10 @@ const nextConfig = {
         source: "/api/tools/:path*",
         destination: `${backendUrl}/api/tools/:path*`,
       },
+      {
+        source: "/api/blogs/:path*",
+        destination: `${backendUrl}/api/blogs/:path*`,
+      },
     ];
   },
 };
