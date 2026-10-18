@@ -23,6 +23,24 @@ const s3 = new S3Client(s3Config);
 const BUCKET_NAME = (process.env.S3_BLOGS_BUCKET || 'share2me-auto-blogs-prod')
   .replace(/[^a-z0-9-]/g, '');
 
+// Public base URL for the S3 bucket — images are served from here
+const S3_PUBLIC_BASE =
+  process.env.S3_PUBLIC_BASE_URL ||
+  `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com`;
+
+// Gemini Imagen models in priority order — both accessible on the free tier
+const IMAGE_MODELS = [
+  'imagen-3.0-generate-002',
+  'imagen-3.0-fast-generate-001',
+];
+
+// Gemini text-generation candidate models in priority order
+const TEXT_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+];
+
 /**
  * Fetch top headlines from Hacker News to determine current trending tech topics
  */
@@ -43,20 +61,6 @@ async function getTrendingTopics() {
     console.error("Failed to fetch trending topics, using fallback.", err);
     return "AI advancements, WebRTC, End-to-End Encryption, WebAssembly, edge computing";
   }
-}
-
-/**
- * Helper to build an editorial-grade, personalized image URL using Pollinations FLUX
- */
-function buildFluxImageUrl(promptText, width = 1200, height = 630) {
-  // Sanitize and append high-end editorial photo tokens
-  const cleanPrompt = promptText
-    .replace(/['"]/g, '')
-    .replace(/\b(abstract|cyberpunk|glowing neon|futuristic glowing|hologram|neon laser|laser beams|matrix code)\b/gi, '')
-    .trim();
-  const styledPrompt = `${cleanPrompt}, editorial technology photography, natural soft studio lighting, sharp focus, 35mm lens, high-end tech publication aesthetic, clean professional composition`;
-  const seed = Math.floor(Math.random() * 9000000) + 1000000;
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(styledPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}`;
 }
 
 /**
@@ -102,16 +106,13 @@ You MUST output ONLY valid JSON matching this exact structure, with no markdown 
 Ensure the output is raw, valid JSON.
 `;
 
-const CANDIDATE_MODELS = [
-  'gemini-3-flash-preview',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-];
-
+/**
+ * Generate blog text content with retry across candidate Gemini text models
+ */
 async function generateContentWithRetry(prompt) {
   let lastError = null;
 
-  for (const model of CANDIDATE_MODELS) {
+  for (const model of TEXT_MODELS) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         console.log(`Generating content using model: ${model} (attempt ${attempt})...`);
@@ -125,7 +126,7 @@ async function generateContentWithRetry(prompt) {
         }
       } catch (err) {
         lastError = err;
-        console.warn(`[Gemini] Model ${model} attempt ${attempt} failed: ${err.message}`);
+        console.warn(`[Gemini Text] Model ${model} attempt ${attempt} failed: ${err.message}`);
         if (err.status === 503 || err.status === 429 || (err.message && err.message.includes('high demand'))) {
           await new Promise((r) => setTimeout(r, 2500 * attempt));
         } else {
@@ -138,57 +139,135 @@ async function generateContentWithRetry(prompt) {
   throw lastError || new Error("All candidate Gemini models failed to generate content.");
 }
 
+/**
+ * Generate an image using Gemini Imagen API.
+ * Returns base64-encoded PNG bytes string, or null on failure (blog still saves without image).
+ *
+ * @param {string} promptText - Descriptive editorial image prompt from blog JSON
+ * @param {'1:1'|'4:3'|'16:9'|'9:16'|'3:4'} aspectRatio
+ */
+async function generateGeminiImage(promptText, aspectRatio = '16:9') {
+  // Sanitize prompt — remove forbidden style words and quotes
+  const cleanPrompt = promptText
+    .replace(/['"]/g, '')
+    .replace(/\b(abstract|cyberpunk|glowing neon|futuristic glowing|hologram|neon laser|laser beams|matrix code)\b/gi, '')
+    .trim();
+
+  const styledPrompt = `${cleanPrompt}, editorial technology photography, natural soft studio lighting, sharp focus, 35mm lens, high-end tech publication aesthetic, clean professional composition`;
+
+  for (const model of IMAGE_MODELS) {
+    try {
+      console.log(`Generating image using ${model} (aspectRatio: ${aspectRatio})...`);
+      const response = await ai.models.generateImages({
+        model,
+        prompt: styledPrompt,
+        config: {
+          numberOfImages: 1,
+          aspectRatio,
+          outputMimeType: 'image/png',
+        },
+      });
+
+      const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
+      if (imageBytes) {
+        console.log(`Successfully generated image using ${model}`);
+        return imageBytes; // base64 string
+      }
+      console.warn(`[Gemini Image] ${model} returned empty image data.`);
+    } catch (err) {
+      console.warn(`[Gemini Image] Model ${model} failed: ${err.message}`);
+      await new Promise((r) => setTimeout(r, 1500)); // brief back-off before next model
+    }
+  }
+
+  console.error('[Gemini Image] All image models failed — skipping image for this slot.');
+  return null;
+}
+
+/**
+ * Upload a base64 PNG image buffer to S3 and return its public URL.
+ *
+ * @param {string} base64Data - base64-encoded PNG
+ * @param {string} s3Key      - e.g. "images/2026-10-18-cover-abc123.png"
+ * @returns {Promise<string>} Public URL of the uploaded image
+ */
+async function uploadImageToS3(base64Data, s3Key) {
+  const imageBuffer = Buffer.from(base64Data, 'base64');
+  await s3.send(new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: s3Key,
+    Body: imageBuffer,
+    ContentType: 'image/png',
+  }));
+  const publicUrl = `${S3_PUBLIC_BASE}/${s3Key}`;
+  console.log(`Uploaded image → ${publicUrl}`);
+  return publicUrl;
+}
+
 async function generateAndUploadBlog() {
   try {
+    // ── Step 1: Fetch trending topics ────────────────────────────────────────
     const trendingTopics = await getTrendingTopics();
 
+    // ── Step 2: Generate blog text via Gemini ────────────────────────────────
     console.log("Generating blog content using Gemini...");
     const { text: contentText, modelName } = await generateContentWithRetry(getPrompt(trendingTopics));
 
     let content = contentText;
     if (!content) throw new Error("Generated content is empty.");
 
-    // Strip markdown formatting if AI wraps it in ```json
+    // Strip markdown code fences if the model wrapped the JSON
     content = content.replace(/^```json\n?/, '').replace(/```$/, '').trim();
 
     // Parse to ensure it's valid JSON
     const blogData = JSON.parse(content);
 
-    // Build personalized cover image using FLUX
-    const coverPrompt = blogData.coverImagePrompt || `${blogData.title} in a modern tech workspace setting`;
-    const coverUrl = buildFluxImageUrl(coverPrompt, 1200, 630);
-    blogData.intro = `![Cover](${coverUrl})\n\n${(blogData.intro || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
+    const dateStr = new Date().toISOString().split('T')[0];
+    const titleSlug = blogData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const uniqueId = crypto.randomBytes(4).toString('hex');
 
-    // Add section images if provided
+    // ── Step 3: Generate & upload cover image via Gemini Imagen ───────────────
+    const coverPrompt = blogData.coverImagePrompt || `${blogData.title} in a modern tech workspace setting`;
+    const coverImageBytes = await generateGeminiImage(coverPrompt, '16:9');
+    if (coverImageBytes) {
+      const coverKey = `images/${dateStr}-cover-${uniqueId}.png`;
+      const coverUrl = await uploadImageToS3(coverImageBytes, coverKey);
+      // Prepend cover image markdown to intro (same pattern as before)
+      blogData.intro = `![Cover](${coverUrl})\n\n${(blogData.intro || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
+    }
+
+    // ── Step 4: Generate & upload section images via Gemini Imagen ────────────
     if (Array.isArray(blogData.sections)) {
-      for (const section of blogData.sections) {
-        if (section.imagePrompt) {
-          const sectionUrl = buildFluxImageUrl(section.imagePrompt, 1000, 500);
+      for (let i = 0; i < blogData.sections.length; i++) {
+        const section = blogData.sections[i];
+        if (!section.imagePrompt) continue;
+
+        const sectionImageBytes = await generateGeminiImage(section.imagePrompt, '4:3');
+        if (sectionImageBytes) {
+          const sectionKey = `images/${dateStr}-section${i}-${uniqueId}.png`;
+          const sectionUrl = await uploadImageToS3(sectionImageBytes, sectionKey);
           section.content = `![${section.heading}](${sectionUrl})\n\n${(section.content || '').replace(/^!\[.*?\]\(.*?\)\n*/, '').trim()}`;
         }
       }
     }
 
-    const titleSlug = blogData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const dateStr = new Date().toISOString().split('T')[0];
-    const uniqueId = crypto.randomBytes(4).toString('hex');
+    // ── Step 5: Upload final blog JSON to S3 ─────────────────────────────────
     const fileName = `${dateStr}-${titleSlug}-${uniqueId}.json`;
-
     console.log(`Uploading blog "${fileName}" to S3...`);
-    const putCommand = new PutObjectCommand({
+
+    await s3.send(new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: `blogs/${fileName}`,
       Body: JSON.stringify(blogData, null, 2),
       ContentType: 'application/json',
       Metadata: {
         'generated-by': modelName,
-        'image-engine': 'pollinations-flux',
-        'date': new Date().toISOString()
-      }
-    });
+        'image-engine': 'gemini-imagen',
+        'date': new Date().toISOString(),
+      },
+    }));
 
-    await s3.send(putCommand);
-    console.log(`Successfully uploaded blog to s3://${BUCKET_NAME}/blogs/${fileName}`);
+    console.log(`✅ Successfully uploaded blog to s3://${BUCKET_NAME}/blogs/${fileName}`);
 
   } catch (error) {
     console.error("Error generating or uploading blog:", error);
