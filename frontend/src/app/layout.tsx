@@ -163,7 +163,7 @@ export const metadata: Metadata = {
     },
   },
   other: {
-    'google-adsense-account': 'ca-pub-3981074780272106',
+    // 'google-adsense-account': 'ca-pub-3981074780272106',
     // 'monetag': 'e7a411684746076c8866b84b61029822',  // disabled — re-enable when needed
   },
 };
@@ -182,8 +182,8 @@ export default function RootLayout({
       <head>
         {/* <meta name="monetag" content="e7a411684746076c8866b84b61029822" /> */}
         {/* <meta name="monetag" content="693bcd3157f3fb9f70477feb7fae2765" /> */}
-        {/* Monetag tags disabled — re-enable when ad monetization is needed */}
-        <meta name="google-adsense-account" content="ca-pub-3981074780272106" />
+        {/* <meta name="google-adsense-account" content="ca-pub-3981074780272106" /> */}
+        {/* Ad tags disabled — re-enable when ad monetization is needed */}
         <script
           suppressHydrationWarning
           type="application/ld+json"
