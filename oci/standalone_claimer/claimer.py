@@ -142,7 +142,7 @@ def check_existing_instance(compute_client, compartment_id, display_name):
         print(f"[!] Warning checking existing instances: {e}")
     return None
 
-def bind_reserved_public_ip(compute_client, network_client, compartment_id, instance_id):
+def bind_reserved_public_ip(compute_client, network_client, compartment_id, instance_id, ip_display_name):
     """Attaches or creates a Reserved Public IP for the newly launched instance."""
     print("\n[*] Waiting for primary VNIC attachment...")
     vnic_id = None
@@ -170,7 +170,7 @@ def bind_reserved_public_ip(compute_client, network_client, compartment_id, inst
     primary_private_ip_id = private_ips[0].id
     print(f"[+] Found VNIC Private IP ID: {primary_private_ip_id}")
 
-    # Check if a Reserved IP named 'share2me-reserved-ip' already exists
+    # Check if a Reserved IP named ip_display_name already exists
     public_ips = network_client.list_public_ips(
         scope="REGION",
         compartment_id=compartment_id
@@ -178,7 +178,7 @@ def bind_reserved_public_ip(compute_client, network_client, compartment_id, inst
     
     target_ip = None
     for pip in public_ips:
-        if pip.display_name == "share2me-reserved-ip" and pip.lifetime == "RESERVED":
+        if pip.display_name == ip_display_name and pip.lifetime == "RESERVED":
             target_ip = pip
             break
             
@@ -190,11 +190,11 @@ def bind_reserved_public_ip(compute_client, network_client, compartment_id, inst
         res = network_client.update_public_ip(target_ip.id, update_details).data
         return res.ip_address
     else:
-        print("[*] Allocating new permanent Reserved Static Public IP...")
+        print(f"[*] Allocating new permanent Reserved Static Public IP '{ip_display_name}'...")
         create_details = oci.core.models.CreatePublicIpDetails(
             compartment_id=compartment_id,
             lifetime="RESERVED",
-            display_name="share2me-reserved-ip",
+            display_name=ip_display_name,
             private_ip_id=primary_private_ip_id
         )
         res = network_client.create_public_ip(create_details).data
@@ -250,8 +250,8 @@ def main():
     create_vnic_details = oci.core.models.CreateVnicDetails(
         subnet_id=cfg["subnet_id"],
         assign_public_ip=False,  # Bound to static Reserved IP upon launch
-        display_name="share2me-primary-vnic",
-        hostname_label="share2me",
+        display_name=f"{cfg['display_name']}-vnic",
+        hostname_label="share2me-2",
         nsg_ids=cfg["nsg_ids"]
     )
 
@@ -298,7 +298,8 @@ def main():
             print("==================================================================")
 
             # Automatically bind Reserved Static Public IP
-            public_ip = bind_reserved_public_ip(compute_client, network_client, cfg["tenancy"], instance.id)
+            ip_name = f"{cfg['display_name']}-ip"
+            public_ip = bind_reserved_public_ip(compute_client, network_client, cfg["tenancy"], instance.id, ip_name)
             
             # Save details file
             details = {
@@ -308,7 +309,7 @@ def main():
                 "claimed_at": now,
                 "ssh_command": f"ssh ubuntu@{public_ip}" if public_ip else "N/A"
             }
-            with open(os.path.join(SCRIPT_DIR, "instance_details.json"), "w", encoding="utf-8") as out_f:
+            with open(os.path.join(SCRIPT_DIR, f"{cfg['display_name']}_details.json"), "w", encoding="utf-8") as out_f:
                 json.dump(details, out_f, indent=2)
 
             print(f"\n✅ Server successfully provisioned and reserved!")

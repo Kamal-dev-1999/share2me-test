@@ -59,8 +59,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_SIGNAL_URL: https://api.share2.me
+        # NEXT_PUBLIC_SIGNAL_URL intentionally removed — backendUrl.ts now returns
+        # same-origin ("") for all production hosts, so this value is never used
+        # and must NOT be baked into the bundle to prevent backend URL leakage.
         NEXT_PUBLIC_GA_MEASUREMENT_ID: G-CCBEZ2KK0S
+        # BACKEND_URL passed as build arg so next.config.mjs rewrites resolve
+        # correctly at build time (rewrites evaluate during `next build`, not at runtime).
+        BACKEND_URL: http://backend:8000
     container_name: share2me-frontend
     restart: unless-stopped
     ports:
@@ -70,9 +75,15 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - BACKEND_URL=http://backend:8000
+      # AUTH_SECRET must be set at runtime — NextAuth v5 validates it on every boot.
+      # The Dockerfile ARG bakes it into the image but the runner stage also needs it.
+      - AUTH_SECRET=u5wF2eK9L3R8n7Q1x4b6M5v9J8t2d1Zp
     depends_on:
       backend:
-        condition: service_healthy
+        # Relaxed from service_healthy → service_started.
+        # Prevents full site outage when backend healthcheck blips during rolling deploys.
+        # Next.js SSR rewrites use Docker DNS with automatic retry — no healthcheck needed.
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
       interval: 15s

@@ -19,12 +19,22 @@ COPY . .
 
 # NEXT_PUBLIC_* vars are baked into the static bundle at build time.
 # Pass via --build-arg in the deploy script or docker-compose.
-ARG NEXT_PUBLIC_SIGNAL_URL=https://api.share2me.in
-ENV NEXT_PUBLIC_SIGNAL_URL=${NEXT_PUBLIC_SIGNAL_URL}
+#
+# NOTE: NEXT_PUBLIC_SIGNAL_URL intentionally removed — backendUrl.ts now returns
+# same-origin ("") for all production hosts. Including it here would embed the
+# backend subdomain in the JS bundle, leaking it to the browser.
 ARG NEXT_PUBLIC_GA_MEASUREMENT_ID=G-CCBEZ2KK0S
 ENV NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID}
+
 ARG AUTH_SECRET=u5wF2eK9L3R8n7Q1x4b6M5v9J8t2d1Zp
 ENV AUTH_SECRET=${AUTH_SECRET}
+
+# BACKEND_URL: server-side only (no NEXT_PUBLIC_ prefix = never embedded in bundle).
+# Used by next.config.mjs rewrites which run at BUILD TIME, not runtime.
+# Must be declared as ARG here so `next build` can resolve it.
+ARG BACKEND_URL=http://backend:8000
+ENV BACKEND_URL=${BACKEND_URL}
+
 ENV NEXT_TELEMETRY_DISABLED=1
 # Activates output: 'standalone' in next.config.mjs
 ENV DOCKER_BUILD=1

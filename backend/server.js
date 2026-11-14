@@ -23,6 +23,13 @@ const { otcToRoom, attachP2PSockets } = require('./p2p/socket');
 const RateLimiter = require('./lib/RateLimiter');
 
 const app    = express();
+
+// Trust the first reverse-proxy hop (Caddy on the same host).
+// Without this, req.ip returns 127.0.0.1 for every request behind Caddy,
+// breaking rate limiting and IP-based logging. If Cloudflare is added in front
+// later, change this to 2 (two hops: Cloudflare → Caddy → Express).
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
 
 const cors = require('cors');

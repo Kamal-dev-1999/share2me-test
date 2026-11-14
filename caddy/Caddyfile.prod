@@ -1,99 +1,91 @@
 # ─── Share2Me Production Caddyfile (Oracle Cloud Infrastructure) ──────────────
 # Handles automatic TLS certificate issuance (Let's Encrypt / ZeroSSL)
 # for all custom domains, and provides HTTP direct IP fallback for testing.
+#
+# Architecture:
+#   Browser → Caddy (80/443) → frontend:3000 (Next.js)  [pages + /api/auth]
+#                             → backend:8000  (Express)  [API + socket.io]
+#
+# URL hiding: all client traffic enters on share2.me only.
+# Backend IP/host is never transmitted to the browser.
 
 {
     email admin@share2.me
 }
 
-# ── Production Frontend Domains (Next.js) ────────────────────────────────────
-share2.me, www.share2.me, share2me.in, www.share2me.in {
-    reverse_proxy 127.0.0.1:3000 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
+# ── Shared routing snippet — used by all three entry points ───────────────────
+# Keeps IP-fallback and production domains in perfect sync (no drift).
+(app_routes) {
+    encode zstd gzip
+
+    # Named matcher: paths that belong to the Express backend.
+    # IMPORTANT: /api/auth/* is intentionally excluded — NextAuth lives on Next.js.
+    # IMPORTANT: /g2p/nearby and /g2p/<code> are Next.js pages — excluded here.
+    @backend path \
+        /health*          \
+        /ping*            \
+        /socket.io/*      \
+        /api/ice-servers* \
+        /api/blogs*       \
+        /api/admin*       \
+        /api/tools*       \
+        /g2p/printshop*   \
+        /g2p/requests*    \
+        /g2p/files*       \
+        /g2p/vendor*      \
+        /g2p/billing*     \
+        /g2p/health*      \
+        /download/*       \
+        /poc/*
+
+    handle @backend {
+        reverse_proxy 127.0.0.1:8000 {
+            # Caddy sets X-Forwarded-For automatically — do NOT override it
+            # here or Cloudflare real-IP passthrough breaks in future.
+            transport http {
+                keepalive            30s
+                keepalive_idle_conns 100
+            }
+        }
     }
 
-    # HSTS & Security Headers
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        Referrer-Policy "strict-origin-when-cross-origin"
+    # Everything else → Next.js frontend.
+    # Covers: /, all pages, /api/auth/* (NextAuth), /g2p/nearby, /g2p/<code>
+    handle {
+        reverse_proxy 127.0.0.1:3000
     }
 }
 
-# ── Production API & Signaling Domains (Socket.io) ───────────────────────────
+# ── Production HTTPS domains ──────────────────────────────────────────────────
+# Caddy auto-provisions Let's Encrypt / ZeroSSL certs once DNS points here.
+share2.me, www.share2.me, share2me.in, www.share2me.in {
+    import app_routes
+
+    header {
+        # HSTS: 1 year, include subdomains.
+        # NOTE: "preload" omitted — add only after all subdomains are on HTTPS permanently.
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "DENY"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+    }
+}
+
+# ── API subdomain — kept for backward compat with old cached bundles ──────────
+# Once NEXT_PUBLIC_SIGNAL_URL is removed from the build and all clients use
+# same-origin socket connections, this block can be turned into a redirect.
 api.share2.me, api.share2me.in {
     reverse_proxy 127.0.0.1:8000 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-
-        # Long-lived WebSocket keepalive
         transport http {
-            keepalive 30s
+            keepalive            30s
             keepalive_idle_conns 100
         }
     }
 }
 
-# ── Direct IP Fallback (HTTP 80) ─────────────────────────────────────────────
-# Allows immediate verification via http://130.210.22.28 before DNS propagates
+# ── Direct IP fallback (HTTP :80) ─────────────────────────────────────────────
+# http://130.210.22.28 for pre-DNS verification. Uses same routing as HTTPS.
 :80 {
-    # Backend health check & ping endpoints
-    handle /health* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    handle /ping* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    # Socket.io signaling endpoint (WebSockets)
-    handle /socket.io/* {
-        reverse_proxy 127.0.0.1:8000 {
-            transport http {
-                keepalive 30s
-            }
-        }
-    }
-
-    # Backend API endpoints
-    handle /api/ice-servers* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    handle /api/blogs* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    handle /api/admin* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    handle /api/tools* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    # G2P & download routes
-    handle /g2p/* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    handle /download/* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    handle /poc/* {
-        reverse_proxy 127.0.0.1:8000
-    }
-
-    # Default to Next.js Frontend app (including /api/auth for NextAuth)
-    handle {
-        reverse_proxy 127.0.0.1:3000
-    }
+    import app_routes
 }
 

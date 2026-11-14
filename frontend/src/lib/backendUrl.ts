@@ -1,9 +1,16 @@
 /**
- * Centralized backend URL resolver with fallback mechanism.
- * Priority:
- * 1. If loaded from a Cloud Run domain (*.run.app), automatically connect to the Cloud Run backend domain.
- * 2. If loaded from localhost, use localhost dev backend.
- * 3. If loaded from production custom domain (share2me.in), use custom backend domain (api.share2me.in) or fallback to Cloud Run domain.
+ * Centralized backend URL resolver.
+ *
+ * Production architecture (OCI):
+ *   Browser → share2.me (Caddy) → backend:8000 internally
+ *   getBackendUrl() returns "" so all fetch('/api/...') calls are same-origin.
+ *   The backend IP, port, and api.share2.me subdomain are NEVER sent to the browser.
+ *
+ * Local development:
+ *   Returns http://localhost:3000 (dev Express server).
+ *
+ * Cloud Run (GCP legacy):
+ *   Returns the Cloud Run backend URL directly (no Caddy proxy in that env).
  */
 
 export const CLOUD_RUN_BACKEND_URL =
@@ -15,58 +22,29 @@ export function getBackendUrl(): string {
   if (typeof window !== "undefined") {
     const host = window.location.hostname.toLowerCase();
 
-    // 1. Direct OCI IP access: connect to same host
-    if (host === "130.210.22.28") {
-      return window.location.origin;
-    }
-
-    // 2. If client is on Cloud Run (*.run.app), route directly to Cloud Run backend
-    if (host.endsWith(".run.app")) {
-      return CLOUD_RUN_BACKEND_URL;
-    }
-
-    // 3. Local development
+    // 1. Local development — connect directly to dev backend
     if (host === "localhost" || host === "127.0.0.1") {
       return process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
     }
 
-    // 4. Custom domain production: allow api.share2.me / api.share2me.in now that OCI hosts them
-    const envUrl =
-      process.env.NEXT_PUBLIC_EXPRESS_URL ||
-      process.env.NEXT_PUBLIC_SIGNAL_URL ||
-      process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL ||
-      process.env.NEXT_PUBLIC_BACKEND_URL;
-
-    if (
-      envUrl &&
-      envUrl.trim() &&
-      !envUrl.includes("onrender.com")
-    ) {
-      return envUrl.trim();
+    // 2. Cloud Run (GCP legacy) — route directly to Cloud Run backend
+    if (host.endsWith(".run.app")) {
+      return CLOUD_RUN_BACKEND_URL;
     }
 
-    return CLOUD_RUN_BACKEND_URL;
+    // 3. All production hosts: OCI IP (130.210.22.28), share2.me, share2me.in
+    //    Return "" = same-origin relative URLs.
+    //    Caddy proxies /api/* and /socket.io/* to backend:8000 internally.
+    //    The browser never sees: 130.210.22.28, :8000, api.share2.me, backend:8000
+    return "";
   }
 
-  // Next.js server-side (Node.js runtime / SSR)
+  // Server-side rendering (Node.js / Next.js SSR)
+  // BACKEND_URL is a server-side-only env var — never embedded in the browser bundle.
   if (process.env.BACKEND_URL) {
     return process.env.BACKEND_URL;
   }
 
-  const envUrl =
-    process.env.NEXT_PUBLIC_EXPRESS_URL ||
-    process.env.NEXT_PUBLIC_SIGNAL_URL ||
-    process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL;
-
-  if (
-    envUrl &&
-    envUrl.trim() &&
-    !envUrl.includes("onrender.com")
-  ) {
-    return envUrl.trim();
-  }
-
-  // Docker internal network default
+  // Docker internal network default (fallback)
   return "http://backend:8000";
 }

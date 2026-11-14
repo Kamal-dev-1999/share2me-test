@@ -156,7 +156,13 @@ const nextConfig = {
   },
 
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
+    // BACKEND_URL is a server-side-only env var (no NEXT_PUBLIC_ prefix).
+    // It is declared as an ARG in the Dockerfile and available during `next build`.
+    // In Docker: http://backend:8000 (internal network, never sent to browser).
+    // Locally: falls back to NEXT_PUBLIC_EXPRESS_URL or localhost:3000.
+    const backendUrl = process.env.BACKEND_URL
+      || process.env.NEXT_PUBLIC_EXPRESS_URL
+      || "http://backend:8000";
     return [
       {
         source: "/api/admin/:path*",

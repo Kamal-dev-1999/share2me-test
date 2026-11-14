@@ -10,11 +10,11 @@
     "ocid1.networksecuritygroup.oc1.ap-mumbai-1.aaaaaaaadvjnlnj2wavdjbjvcmvcggx4hujzciulid5dh4srfilx3xsbwkua"
   ],
   "image_id": "ocid1.image.oc1.ap-mumbai-1.aaaaaaaa4sogqgbnshyvaejsymmzrq424rjlxzp2rdmmi3dftvd4tiqvoifq",
-  "display_name": "share2me-server-prod",
+  "display_name": "share2me-server-prod-2",
   "shape": "VM.Standard.A1.Flex",
   "ocpus": 2,
   "memory_in_gbs": 12,
   "boot_volume_size_in_gbs": 100,
   "ssh_public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH3mb+jySUIJdGhCZYflwtUxFn5RhKcQfJFYuQ+jPUnI kamal173",
-  "poll_interval_seconds": 5
+  "poll_interval_seconds": 35
 }
