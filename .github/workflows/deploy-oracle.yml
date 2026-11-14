@@ -1,0 +1,126 @@
+name: Deploy to Oracle Cloud (OCI Always Free)
+
+on:
+  push:
+    branches:
+      - oracle-cloud
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'caddy/**'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/deploy-oracle.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: oci-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Services to OCI ARM VM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.OCI_HOST || '130.210.22.28' }}" >> ~/.ssh/known_hosts
+
+      - name: Sync Application to OCI Server
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST || '130.210.22.28' }}
+          OCI_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          echo "==> Syncing repository files to OCI VM (/opt/share2me/app)..."
+          ssh -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST "mkdir -p /opt/share2me/app"
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude '.next' \
+            --exclude 'backend/node_modules' \
+            --exclude 'oci/' \
+            --exclude 'aws/' \
+            --exclude 'gcp/' \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            ./ $OCI_USER@$OCI_HOST:/opt/share2me/app/
+
+      - name: Build & Deploy Containers on OCI VM
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST || '130.210.22.28' }}
+          OCI_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST << 'EOF'
+            set -euo pipefail
+            cd /opt/share2me/app
+
+            # Setup .env.backend if not already present
+            if [ ! -f .env.backend ]; then
+              if [ -f backend/.env ]; then
+                cp backend/.env .env.backend
+                echo "[INFO] Copied backend/.env to .env.backend"
+              else
+                touch .env.backend
+              fi
+            fi
+
+            # Build and deploy Docker containers
+            echo "==> Building and launching Docker containers..."
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            # Update and reload Caddy
+            echo "==> Updating Caddy edge proxy configuration..."
+            sudo cp caddy/Caddyfile.prod /etc/caddy/Caddyfile
+            sudo caddy validate --config /etc/caddy/Caddyfile
+            sudo systemctl reload caddy
+
+            # Prune dangling builder cache/images to keep disk usage low
+            docker image prune -f
+          EOF
+
+      - name: Verify Live Deployment Health
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST || '130.210.22.28' }}
+          OCI_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          echo "==> Running health checks..."
+          ssh -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST << 'EOF'
+            set -e
+            echo "[*] Waiting for backend to become healthy..."
+            for i in {1..30}; do
+              if curl -sf http://127.0.0.1:8000/health > /dev/null; then
+                echo "✅ Backend is HEALTHY (127.0.0.1:8000/health)"
+                break
+              fi
+              echo "Waiting for backend ($i/30)..."
+              sleep 2
+            done
+
+            echo "[*] Waiting for frontend to become healthy..."
+            for i in {1..30}; do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || true)
+              if [ "$STATUS" = "200" ] || [ "$STATUS" = "308" ]; then
+                echo "✅ Frontend is HEALTHY (127.0.0.1:3000/ -> HTTP $STATUS)"
+                break
+              fi
+              echo "Waiting for frontend ($i/30, status=$STATUS)..."
+              sleep 2
+            done
+
+            echo "[*] Checking Edge Caddy access..."
+            EDGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:80/ || true)
+            echo "✅ Caddy Edge Gateway responded with HTTP $EDGE_STATUS"
+
+            echo ""
+            echo "=========================================================="
+            echo " 🎉 Share2Me OCI Deployment Succeeded!"
+            echo " Public IP: 130.210.22.28"
+            echo "=========================================================="
+            docker compose -f /opt/share2me/app/docker-compose.prod.yml ps
+          EOF

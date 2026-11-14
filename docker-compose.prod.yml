@@ -1,0 +1,89 @@
+# ─── Share2Me Production Docker Compose (Oracle Cloud Infrastructure) ───────────
+# Optimized for Always Free Ampere A1 (2 OCPUs, 12 GB RAM, 100 GB Disk)
+#
+# Security:
+# - All service ports (3000, 8000) bind strictly to 127.0.0.1 (localhost only).
+# - Only Caddy on the host exposes ports 80 and 443 to the public internet.
+# - Redis has NO host port exposure (isolated strictly inside Docker bridge).
+
+services:
+
+  # ── Redis (Socket.io state store & session cache) ─────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: share2me-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - share2me_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ── Backend: Express + Socket.io Signaling Server ─────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: share2me-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+      - REDIS_URL=redis://redis:6379
+      - ALLOWED_ORIGINS=https://share2.me,https://www.share2.me,https://share2me.in,https://www.share2me.in,http://130.210.22.28
+    env_file:
+      - .env.backend
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - share2me_net
+
+  # ── Frontend: Next.js Standalone ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SIGNAL_URL: https://api.share2.me
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: G-CCBEZ2KK0S
+    container_name: share2me-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    networks:
+      - share2me_net
+
+volumes:
+  redis_data:
+
+networks:
+  share2me_net:
+    driver: bridge

@@ -1,0 +1,69 @@
+# ─── Share2Me Production Caddyfile (Oracle Cloud Infrastructure) ──────────────
+# Handles automatic TLS certificate issuance (Let's Encrypt / ZeroSSL)
+# for all custom domains, and provides HTTP direct IP fallback for testing.
+
+{
+    email admin@share2.me
+}
+
+# ── Production Frontend Domains (Next.js) ────────────────────────────────────
+share2.me, www.share2.me, share2me.in, www.share2me.in {
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # HSTS & Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
+
+# ── Production API & Signaling Domains (Socket.io) ───────────────────────────
+api.share2.me, api.share2me.in {
+    reverse_proxy 127.0.0.1:8000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Long-lived WebSocket keepalive
+        transport http {
+            keepalive 30s
+            keepalive_idle_conns 100
+        }
+    }
+}
+
+# ── Direct IP Fallback (HTTP 80) ─────────────────────────────────────────────
+# Allows immediate verification via http://130.210.22.28 before DNS propagates
+:80 {
+    # Backend health check endpoint
+    handle /health* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # Ping endpoint
+    handle /ping* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # Socket.io signaling endpoint
+    handle /socket.io/* {
+        reverse_proxy 127.0.0.1:8000 {
+            transport http {
+                keepalive 30s
+            }
+        }
+    }
+
+    # Default to Frontend Next.js app
+    handle {
+        reverse_proxy 127.0.0.1:3000
+    }
+}
