@@ -11,6 +11,8 @@
 const DEV_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://130.210.22.28',
+  'https://130.210.22.28',
   'https://share2me-test.vercel.app',
   'https://share2me.vercel.app',
   'https://share2me.in',
@@ -56,7 +58,8 @@ function isOriginAllowed(origin) {
       host.endsWith('.run.app') ||
       host.endsWith('.vercel.app') ||
       host === 'localhost' ||
-      host === '127.0.0.1'
+      host === '127.0.0.1' ||
+      host === '130.210.22.28'
     ) {
       return true;
     }

@@ -15,18 +15,22 @@ export function getBackendUrl(): string {
   if (typeof window !== "undefined") {
     const host = window.location.hostname.toLowerCase();
 
-    // 1. If client is on Cloud Run (*.run.app), route directly to Cloud Run backend
+    // 1. Direct OCI IP access: connect to same host
+    if (host === "130.210.22.28") {
+      return window.location.origin;
+    }
+
+    // 2. If client is on Cloud Run (*.run.app), route directly to Cloud Run backend
     if (host.endsWith(".run.app")) {
       return CLOUD_RUN_BACKEND_URL;
     }
 
-    // 2. Local development
+    // 3. Local development
     if (host === "localhost" || host === "127.0.0.1") {
       return process.env.NEXT_PUBLIC_EXPRESS_URL || "http://localhost:3000";
     }
 
-    // 3. Custom domain production: if custom domain backend URL is set,
-    // use it unless it is the unmapped api.share2me.in or onrender
+    // 4. Custom domain production: allow api.share2.me / api.share2me.in now that OCI hosts them
     const envUrl =
       process.env.NEXT_PUBLIC_EXPRESS_URL ||
       process.env.NEXT_PUBLIC_SIGNAL_URL ||
@@ -36,9 +40,7 @@ export function getBackendUrl(): string {
     if (
       envUrl &&
       envUrl.trim() &&
-      !envUrl.includes("onrender.com") &&
-      !envUrl.includes("api.share2me.in") &&
-      !envUrl.includes("api.share2.me")
+      !envUrl.includes("onrender.com")
     ) {
       return envUrl.trim();
     }
@@ -47,8 +49,11 @@ export function getBackendUrl(): string {
   }
 
   // Next.js server-side (Node.js runtime / SSR)
+  if (process.env.BACKEND_URL) {
+    return process.env.BACKEND_URL;
+  }
+
   const envUrl =
-    process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_EXPRESS_URL ||
     process.env.NEXT_PUBLIC_SIGNAL_URL ||
     process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL ||
@@ -57,13 +62,11 @@ export function getBackendUrl(): string {
   if (
     envUrl &&
     envUrl.trim() &&
-    !envUrl.includes("onrender.com") &&
-    !envUrl.includes("api.share2me.in") &&
-    !envUrl.includes("api.share2.me")
+    !envUrl.includes("onrender.com")
   ) {
     return envUrl.trim();
   }
 
-  // Fallback to Cloud Run backend
-  return CLOUD_RUN_BACKEND_URL;
+  // Docker internal network default
+  return "http://backend:8000";
 }

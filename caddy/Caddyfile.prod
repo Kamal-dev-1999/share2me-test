@@ -43,17 +43,16 @@ api.share2.me, api.share2me.in {
 # ── Direct IP Fallback (HTTP 80) ─────────────────────────────────────────────
 # Allows immediate verification via http://130.210.22.28 before DNS propagates
 :80 {
-    # Backend health check endpoint
+    # Backend health check & ping endpoints
     handle /health* {
         reverse_proxy 127.0.0.1:8000
     }
 
-    # Ping endpoint
     handle /ping* {
         reverse_proxy 127.0.0.1:8000
     }
 
-    # Socket.io signaling endpoint
+    # Socket.io signaling endpoint (WebSockets)
     handle /socket.io/* {
         reverse_proxy 127.0.0.1:8000 {
             transport http {
@@ -62,7 +61,37 @@ api.share2.me, api.share2me.in {
         }
     }
 
-    # Default to Frontend Next.js app
+    # Backend API endpoints
+    handle /api/ice-servers* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    handle /api/blogs* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    handle /api/admin* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    handle /api/tools* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # G2P & download routes
+    handle /g2p/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    handle /download/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    handle /poc/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # Default to Next.js Frontend app (including /api/auth for NextAuth)
     handle {
         reverse_proxy 127.0.0.1:3000
     }
