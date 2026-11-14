@@ -29,6 +29,7 @@ gcp-key.json
 # OCI & Infrastructure Secrets
 *.tok
 .terraform/
+.env.backend
 oci/terraform/.terraform/
 oci/terraform/terraform.tfstate*
 oci/terraform/oci_api_key.pem

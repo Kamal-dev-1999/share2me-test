@@ -45,11 +45,29 @@ jobs:
             --exclude 'node_modules' \
             --exclude '.next' \
             --exclude 'backend/node_modules' \
+            --exclude '.env*' \
+            --exclude '*/.env*' \
             --exclude 'oci/' \
             --exclude 'aws/' \
             --exclude 'gcp/' \
             -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519" \
             ./ $OCI_USER@$OCI_HOST:/opt/share2me/app/
+
+      - name: Sync Backend Secrets (if configured in GitHub)
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST || '130.210.22.28' }}
+          OCI_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+          OCI_BACKEND_ENV: ${{ secrets.OCI_BACKEND_ENV }}
+        run: |
+          if [ -n "$OCI_BACKEND_ENV" ]; then
+            echo "==> Updating .env.backend from GitHub Secrets..."
+            echo "$OCI_BACKEND_ENV" > /tmp/.env.backend
+            scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 /tmp/.env.backend $OCI_USER@$OCI_HOST:/opt/share2me/app/.env.backend
+            rm -f /tmp/.env.backend
+            echo "✅ .env.backend updated successfully."
+          else
+            echo "==> OCI_BACKEND_ENV not set in GitHub Secrets; preserving existing .env.backend on OCI server."
+          fi
 
       - name: Build & Deploy Containers on OCI VM
         env:
@@ -60,15 +78,20 @@ jobs:
             set -euo pipefail
             cd /opt/share2me/app
 
-            # Setup .env.backend if not already present
-            if [ ! -f .env.backend ]; then
-              if [ -f backend/.env ]; then
+            # Validate .env.backend
+            if [ ! -s .env.backend ]; then
+              if [ -s backend/.env ]; then
                 cp backend/.env .env.backend
-                echo "[INFO] Copied backend/.env to .env.backend"
+                echo "[INFO] Restored .env.backend from backend/.env"
               else
-                touch .env.backend
+                echo "❌ [ERROR] /opt/share2me/app/.env.backend is missing or empty!"
+                echo "Please configure OCI_BACKEND_ENV in GitHub Repository Secrets or upload .env.backend to the server."
+                exit 1
               fi
             fi
+
+            chmod 600 .env.backend
+            cp .env.backend backend/.env
 
             # Build and deploy Docker containers
             echo "==> Building and launching Docker containers..."
@@ -92,26 +115,44 @@ jobs:
           echo "==> Running health checks..."
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST << 'EOF'
             set -e
+            cd /opt/share2me/app
+
             echo "[*] Waiting for backend to become healthy..."
-            for i in {1..30}; do
+            BACKEND_OK=0
+            for i in {1..35}; do
               if curl -sf http://127.0.0.1:8000/health > /dev/null; then
                 echo "✅ Backend is HEALTHY (127.0.0.1:8000/health)"
+                BACKEND_OK=1
                 break
               fi
-              echo "Waiting for backend ($i/30)..."
+              echo "Waiting for backend ($i/35)..."
               sleep 2
             done
 
+            if [ $BACKEND_OK -ne 1 ]; then
+              echo "❌ Backend failed to respond to health check!"
+              docker compose -f docker-compose.prod.yml logs backend --tail=50
+              exit 1
+            fi
+
             echo "[*] Waiting for frontend to become healthy..."
-            for i in {1..30}; do
+            FRONTEND_OK=0
+            for i in {1..35}; do
               STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || true)
               if [ "$STATUS" = "200" ] || [ "$STATUS" = "308" ]; then
                 echo "✅ Frontend is HEALTHY (127.0.0.1:3000/ -> HTTP $STATUS)"
+                FRONTEND_OK=1
                 break
               fi
-              echo "Waiting for frontend ($i/30, status=$STATUS)..."
+              echo "Waiting for frontend ($i/35, status=$STATUS)..."
               sleep 2
             done
+
+            if [ $FRONTEND_OK -ne 1 ]; then
+              echo "❌ Frontend failed to respond to health check!"
+              docker compose -f docker-compose.prod.yml logs frontend --tail=50
+              exit 1
+            fi
 
             echo "[*] Checking Edge Caddy access..."
             EDGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:80/ || true)

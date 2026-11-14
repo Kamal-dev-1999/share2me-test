@@ -87,3 +87,4 @@ volumes:
 networks:
   share2me_net:
     driver: bridge
+

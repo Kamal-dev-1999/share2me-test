@@ -1,0 +1,20 @@
+{
+  "tenancy": "ocid1.tenancy.oc1..aaaaaaaa3apeakk5cat3uuzxp2xgbv3r5ux6cb2frdylillb7k3nl42ckc2a",
+  "user": "ocid1.user.oc1..aaaaaaaabgmtwdnheozajrbr2waui4ghfwjunlvahfwl2dksqfazcjrshc2a",
+  "fingerprint": "ea:9d:83:0f:86:79:80:6c:a6:ae:1f:c0:81:09:36:5e",
+  "key_file": "./oci_api_key.pem",
+  "region": "ap-mumbai-1",
+  "availability_domain": "UVsX:AP-MUMBAI-1-AD-1",
+  "subnet_id": "ocid1.subnet.oc1.ap-mumbai-1.aaaaaaaasexemjuf5h5w6hqmcybdnlmpp57rbew3rwirzwemqv3vqfqtffca",
+  "nsg_ids": [
+    "ocid1.networksecuritygroup.oc1.ap-mumbai-1.aaaaaaaadvjnlnj2wavdjbjvcmvcggx4hujzciulid5dh4srfilx3xsbwkua"
+  ],
+  "image_id": "ocid1.image.oc1.ap-mumbai-1.aaaaaaaa4sogqgbnshyvaejsymmzrq424rjlxzp2rdmmi3dftvd4tiqvoifq",
+  "display_name": "share2me-server-prod",
+  "shape": "VM.Standard.A1.Flex",
+  "ocpus": 2,
+  "memory_in_gbs": 12,
+  "boot_volume_size_in_gbs": 100,
+  "ssh_public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH3mb+jySUIJdGhCZYflwtUxFn5RhKcQfJFYuQ+jPUnI kamal173",
+  "poll_interval_seconds": 5
+}

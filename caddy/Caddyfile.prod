@@ -67,3 +67,4 @@ api.share2.me, api.share2me.in {
         reverse_proxy 127.0.0.1:3000
     }
 }
+

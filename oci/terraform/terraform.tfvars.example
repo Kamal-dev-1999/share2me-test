@@ -1,0 +1,81 @@
+# ─── OCI Authentication Credentials ──────────────────────────────────────────
+# 1. Tenancy OCID: OCI Console -> Tenancy Details
+tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# 2. User OCID: OCI Console -> Profile -> My Profile
+user_ocid    = "ocid1.user.oc1..aaaaaaaaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# 3. Fingerprint: Generated when you upload/generate your API Key in Profile -> API Keys
+fingerprint  = "12:34:56:78:90:ab:cd:ef:12:34:56:78:90:ab:cd:ef"
+
+# 4. Path to your downloaded .pem private key
+private_key_path = "./oci_api_key.pem"
+
+# 5. OCI Region (Must match your tenancy Home Region for Always Free resources)
+region = "ap-mumbai-1"
+
+# ─── SSH Key ──────────────────────────────────────────────────────────────────
+# Your personal public SSH key (e.g. from ~/.ssh/id_ed25519.pub or id_rsa.pub)
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+# Optional: Restrict SSH to your IP for maximum security (e.g. ["203.0.113.50/32"])
+# Default is open: ["0.0.0.0/0"]
+ssh_allowed_cidrs = ["0.0.0.0/0"]
+
+# ─── Project & Domain Settings ────────────────────────────────────────────────
+project_name       = "share2me"
+environment        = "prod"
+frontend_domain    = "share2.me"
+backend_domain     = "api.share2.me"
+additional_domains = ["www.share2.me", "share2me.in", "www.share2me.in"]
+acme_email         = "admin@share2.me"
+
+# ─── Compute Specs (Always Free Ampere A1 Caps) ───────────────────────────────
+instance_shape          = "VM.Standard.A1.Flex"
+instance_ocpus          = 2    # 2 OCPUs is the 2026 Always Free Limit
+instance_memory_in_gbs  = 12   # 12 GB RAM is the 2026 Always Free Limit
+boot_volume_size_in_gbs = 100  # Up to 200 GB across all volumes is Always Free
+
+# ─── Application Secrets (Injected to .env on the server with chmod 600) ──────
+# Metered TURN / ICE Server API Key
+metered_api_key        = ""
+
+# Stripe Payment Secrets
+stripe_secret_key      = ""
+stripe_webhook_secret  = ""
+
+# Supabase PostgreSQL Connection URL
+database_url           = ""
+
+# Gemini API Key for Blog Generation
+gemini_api_key         = ""
+
+# Pollinations API Key for Blog Image Generation
+pollinations_api_key   = "sk_syEQVBgQ6bK9U1UPM00z0UBoWypLQnwF"
+
+# NextAuth / JWT Secret
+auth_secret            = ""
+
+# Google OAuth
+google_client_id       = ""
+google_client_secret   = ""
+
+# Razorpay Payments
+razorpay_key_id        = ""
+razorpay_key_secret    = ""
+
+# Authorized Admin Emails
+authorized_admin_emails = "kamaltripathi1431@gmail.com,admin@share2.me,rishabh@share2.me"
+
+# Internal ML Secret for AI microservice authentication
+internal_ml_secret     = "dc89162ed90f970e58c0f77d214ae497ad396fc0afa580e3210312dcf97305fb"
+
+# Google Analytics
+google_analytics_id    = "G-CCBEZ2KK0S"
+
+# SMTP Email Configuration
+smtp_host              = ""
+smtp_port              = "587"
+smtp_user              = ""
+smtp_pass              = ""
+
