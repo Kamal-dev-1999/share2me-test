@@ -38,7 +38,7 @@ jobs:
           OCI_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
         run: |
           echo "==> Syncing repository files to OCI VM (/opt/share2me/app)..."
-          ssh -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST "mkdir -p /opt/share2me/app"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST "mkdir -p /opt/share2me/app"
           rsync -avz --delete \
             --exclude '.git' \
             --exclude '.github' \
@@ -48,7 +48,7 @@ jobs:
             --exclude 'oci/' \
             --exclude 'aws/' \
             --exclude 'gcp/' \
-            -e "ssh -i ~/.ssh/id_ed25519" \
+            -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519" \
             ./ $OCI_USER@$OCI_HOST:/opt/share2me/app/
 
       - name: Build & Deploy Containers on OCI VM
@@ -56,7 +56,7 @@ jobs:
           OCI_HOST: ${{ secrets.OCI_HOST || '130.210.22.28' }}
           OCI_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST << 'EOF'
             set -euo pipefail
             cd /opt/share2me/app
 
@@ -90,7 +90,7 @@ jobs:
           OCI_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
         run: |
           echo "==> Running health checks..."
-          ssh -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $OCI_USER@$OCI_HOST << 'EOF'
             set -e
             echo "[*] Waiting for backend to become healthy..."
             for i in {1..30}; do
