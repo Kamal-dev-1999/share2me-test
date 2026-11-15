@@ -35,17 +35,12 @@ function isOriginAllowed(origin) {
 
   const trimmed = origin.trim();
 
-  // 1. Explicit list match
+  // 1. Explicit list match (from env or DEV_ORIGINS)
   if (EXPLICIT_ORIGINS.includes(trimmed)) {
     return true;
   }
 
-  // 2. Cloud Run domains
-  if (trimmed.endsWith('.run.app') || trimmed.includes('.a.run.app')) {
-    return true;
-  }
-
-  // 3. Domain suffix checks via URL hostname
+  // 2. Domain suffix checks via URL hostname
   try {
     const url = new URL(trimmed);
     const host = url.hostname.toLowerCase();
@@ -55,8 +50,9 @@ function isOriginAllowed(origin) {
       host.endsWith('.share2me.in') ||
       host === 'share2.me' ||
       host.endsWith('.share2.me') ||
-      host.endsWith('.run.app') ||
-      host.endsWith('.vercel.app') ||
+      host === 'share2me.vercel.app' ||
+      host === 'share2me-test.vercel.app' ||
+      /^share2me(-[a-z0-9-]+)?\.vercel\.app$/.test(host) ||
       host === 'localhost' ||
       host === '127.0.0.1' ||
       host === '130.210.22.28'
@@ -64,9 +60,8 @@ function isOriginAllowed(origin) {
       return true;
     }
   } catch (_e) {
-    // If URL parsing fails, check string patterns
+    // If URL parsing fails, check strict string patterns
     if (
-      trimmed.endsWith('.run.app') ||
       trimmed.endsWith('.share2me.in') ||
       trimmed.endsWith('.share2.me')
     ) {

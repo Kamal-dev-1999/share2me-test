@@ -142,6 +142,7 @@ ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS batch_id UUID;
 ALTER TABLE printshop_jobs ADD COLUMN IF NOT EXISTS razorpay_order_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_printshop_jobs_batch ON printshop_jobs(batch_id);
 CREATE INDEX IF NOT EXISTS idx_printshop_jobs_order ON printshop_jobs(razorpay_order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_printshop_jobs_payment_id_unique ON printshop_jobs(payment_id) WHERE payment_id IS NOT NULL;
 
 -- Print Agent Token
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS print_agent_token UUID UNIQUE DEFAULT gen_random_uuid();
@@ -201,4 +202,12 @@ ALTER TABLE vendors ADD COLUMN IF NOT EXISTS subscription_starts_at TIMESTAMPTZ;
 
 -- Vendor Onboarding state
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS vendor_setup_completed BOOLEAN DEFAULT false;
+
+-- OTP Brute-force protection
+ALTER TABLE vendor_otps ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0;
+
+-- Custom QR Branding
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS qr_fg_color TEXT DEFAULT '#000000';
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS qr_bg_color TEXT DEFAULT '#ffffff';
+ALTER TABLE printshop_settings ADD COLUMN IF NOT EXISTS qr_logo_url TEXT;
 

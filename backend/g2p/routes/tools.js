@@ -238,9 +238,9 @@ router.get('/jobs/:job_id/download', async (req, res) => {
     // ── OWNERSHIP CHECK ───────────────────────────────────────────────────────
     const sessionToken = req.headers['x-session-token'];
     const owner = jobOwners.get(job_id);
-    // If a session token was stored at enqueue time, the downloader must present it
-    if (owner && sessionToken && owner !== sessionToken) {
-      return res.status(403).json({ error: 'You do not have permission to download this output.' });
+    // If a session token was stored at enqueue time, the downloader must present a matching token
+    if (owner && (!sessionToken || owner !== sessionToken)) {
+      return res.status(403).json({ error: 'Unauthorized: Missing or invalid session token.' });
     }
 
     const { output_key } = req.query;

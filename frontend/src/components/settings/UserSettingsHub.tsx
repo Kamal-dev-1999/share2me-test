@@ -6,7 +6,8 @@ import {
   Store, Printer, CreditCard, Sparkles, Clock, MapPin,
   ImageIcon, Trash2, Upload, Check, CheckCircle2, AlertCircle,
   ShieldCheck, ChevronDown, Lock, Crown, RotateCcw,
-  Loader2, Copy, Building2, Phone, Globe, User, X, ArrowRight
+  Loader2, Copy, Building2, Phone, Globe, User, X, ArrowRight,
+  Eye, EyeOff
 } from "lucide-react";
 import QRCode from "react-qr-code";
 import {
@@ -153,11 +154,13 @@ export function UserSettingsHub({
 
   // Agent Status
   const [agentOnline, setAgentOnline] = useState(false);
+  const [showUpi, setShowUpi] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (activeTab === "storefront") {
       const checkAgent = async () => {
+        if (typeof document !== "undefined" && document.hidden) return;
         try {
           const res = await fetch(`${getBackendUrl()}/g2p/vendor/agent-status`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -171,7 +174,7 @@ export function UserSettingsHub({
         }
       };
       checkAgent();
-      interval = setInterval(checkAgent, 5000);
+      interval = setInterval(checkAgent, 20000); // 20s background check
     }
     return () => clearInterval(interval);
   }, [activeTab, token]);
@@ -230,8 +233,10 @@ export function UserSettingsHub({
     getShopSettings(token).then((data) => {
       setShopSettings(data);
       setInitialShopSettings(data);
-      if (data.latitude && data.longitude) {
-        fetchAddressFromCoords(data.latitude, data.longitude);
+      if (data.locationName) {
+        setGpsAddress(data.locationName);
+      } else if (data.latitude && data.longitude) {
+        setGpsAddress(`Pinned (${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)})`);
       }
       if (data.shopImages) {
         setShopImages(data.shopImages);
@@ -1121,19 +1126,34 @@ export function UserSettingsHub({
                 {billing?.upi_id ? (
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-sm font-bold text-[#111827] truncate">
-                      {billing.upi_id}
+                      {showUpi ? billing.upi_id : (
+                        billing.upi_id.includes("@")
+                          ? `${billing.upi_id.split("@")[0].slice(0, 2)}${"•".repeat(Math.max(billing.upi_id.split("@")[0].length - 4, 3))}${billing.upi_id.split("@")[0].slice(-2)}@${billing.upi_id.split("@")[1]}`
+                          : "••••••••"
+                      )}
                     </span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(billing.upi_id!);
-                        setCopiedUpi(true);
-                        setTimeout(() => setCopiedUpi(false), 2000);
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-black/5 text-[#111827]/60 hover:text-[#111827] transition-colors"
-                      title="Copy UPI ID"
-                    >
-                      {copiedUpi ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowUpi(!showUpi)}
+                        className="p-1.5 rounded-lg hover:bg-black/5 text-[#111827]/60 hover:text-[#111827] transition-colors"
+                        title={showUpi ? "Hide UPI ID" : "Show UPI ID"}
+                      >
+                        {showUpi ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(billing.upi_id!);
+                          setCopiedUpi(true);
+                          setTimeout(() => setCopiedUpi(false), 2000);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-black/5 text-[#111827]/60 hover:text-[#111827] transition-colors"
+                        title="Copy UPI ID"
+                      >
+                        {copiedUpi ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between py-1">
@@ -1254,9 +1274,9 @@ export function UserSettingsHub({
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
-                    { value: "PERSONAL", label: "Personal", limit: "50MB" },
-                    { value: "EDUCATOR", label: "Educator", limit: "200MB" },
-                    { value: "PRINT_SHOP", label: "Print Shop", limit: "500MB" },
+                    { value: "PERSONAL", label: "Personal", limit: isPro ? "500MB (Pro)" : "50MB" },
+                    { value: "EDUCATOR", label: "Educator", limit: isPro ? "500MB (Pro)" : "50MB" },
+                    { value: "PRINT_SHOP", label: "Print Shop", limit: isPro ? "500MB (Pro)" : "50MB" },
                   ].map((opt) => (
                     <button
                       key={opt.value}
@@ -1276,6 +1296,11 @@ export function UserSettingsHub({
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-[#111827]/60 mt-1.5">
+                  {isPro
+                    ? "✨ Share2Me Pro is active: You have 500MB per file upload limit."
+                    : "ℹ️ Free plan limit is 50MB per file. Pro unlocks 500MB per file across all personas."}
+                </p>
                 {personaUpdateStatus && (
                   <p className={`text-xs font-semibold mt-2 ${personaUpdateStatus.ok ? "text-emerald-600" : "text-red-500"}`}>
                     {personaUpdateStatus.msg}

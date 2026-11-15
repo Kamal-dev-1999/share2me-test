@@ -30,7 +30,12 @@ async function generatePresignedPutUrl(r2Key, mimeType, sizeBytes) {
   return await getSignedUrl(s3, command, { expiresIn: 15 * 60 });
 }
 
-async function generatePresignedGetUrl(r2Key, originalName = 'file', action = 'preview') {
+async function generatePresignedGetUrl(r2Key, originalName = 'file', action = 'preview', expiresIn = 900) {
+  if (typeof originalName === 'number') {
+    expiresIn = originalName;
+    originalName = 'file';
+    action = 'preview';
+  }
   const commandInput = {
     Bucket: R2_BUCKET,
     Key: r2Key,
@@ -39,16 +44,16 @@ async function generatePresignedGetUrl(r2Key, originalName = 'file', action = 'p
   // If action is download, force the browser to treat it as an attachment
   if (action === 'download') {
     // Strip quotes and newlines to prevent header injection
-    const safeName = originalName.replace(/["\n\r]/g, '');
+    const safeName = String(originalName).replace(/["\n\r]/g, '');
     commandInput.ResponseContentDisposition = `attachment; filename="${safeName}"`;
   } else {
     // Force inline for preview
     commandInput.ResponseContentDisposition = 'inline';
   }
 
+  const ttl = Math.min(Math.max(Number(expiresIn) || 900, 60), 86400);
   const command = new GetObjectCommand(commandInput);
-  // Set to 24 hours (86400) to protect against local system clock drift instantly expiring URLs
-  return await getSignedUrl(s3, command, { expiresIn: 86400 });
+  return await getSignedUrl(s3, command, { expiresIn: ttl });
 }
 
 async function verifyObjectExistsAndSize(r2Key) {

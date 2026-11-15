@@ -7,6 +7,9 @@ const { verifyVendorJWT } = require('../lib/auth');
 const Razorpay = require('razorpay');
 const nodemailer = require('nodemailer');
 const { SignJWT, jwtVerify } = require('jose');
+const RateLimiter = require('../../lib/RateLimiter');
+
+const otpVerifyLimiter = new RateLimiter(5 * 60 * 1000, 5); // 5 attempts per 5 mins
 
 function getJwtSecret() {
   const secretStr = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET;
@@ -128,20 +131,24 @@ router.post('/bank/request-edit', async (req, res) => {
 // POST /billing/bank/verify-otp
 router.post('/bank/verify-otp', async (req, res) => {
   try {
+    if (otpVerifyLimiter.isRateLimited(req.vendorId)) {
+      return res.status(429).json({ error: 'rate_limited', message: 'Too many OTP verification attempts. Please wait 5 minutes.' });
+    }
+
     const { otp } = req.body;
     if (!otp || typeof otp !== 'string' || otp.trim().length !== 6) {
       return res.status(400).json({ error: 'invalid_otp_format', message: 'Please provide a valid 6-digit OTP.' });
     }
 
     const otpRes = await query(
-      `SELECT id, otp_hash FROM vendor_otps 
-       WHERE vendor_id = $1 AND used = FALSE AND expires_at > NOW() 
+      `SELECT id, otp_hash, COALESCE(attempts, 0) as attempts FROM vendor_otps 
+       WHERE vendor_id = $1 AND used = FALSE AND expires_at > NOW() AND COALESCE(attempts, 0) < 3
        ORDER BY created_at DESC LIMIT 1`,
       [req.vendorId]
     );
 
     if (otpRes.rowCount === 0) {
-      return res.status(400).json({ error: 'invalid_otp', message: 'OTP is invalid or has expired.' });
+      return res.status(400).json({ error: 'invalid_otp', message: 'OTP is invalid, expired, or locked due to too many failed attempts.' });
     }
 
     const activeOtp = otpRes.rows[0];
@@ -153,7 +160,16 @@ router.post('/bank/verify-otp', async (req, res) => {
     const isMatch = suppliedBuf.length === storedBuf.length && crypto.timingSafeEqual(suppliedBuf, storedBuf);
 
     if (!isMatch) {
-      return res.status(400).json({ error: 'invalid_otp', message: 'Incorrect OTP entered.' });
+      const newAttempts = Number(activeOtp.attempts || 0) + 1;
+      const isBurned = newAttempts >= 3;
+      await query(
+        `UPDATE vendor_otps SET attempts = $1, used = CASE WHEN $2 = TRUE THEN TRUE ELSE used END WHERE id = $3`,
+        [newAttempts, isBurned, activeOtp.id]
+      );
+      if (isBurned) {
+        return res.status(400).json({ error: 'otp_locked', message: 'Incorrect OTP. Maximum attempts reached. Please request a new OTP.' });
+      }
+      return res.status(400).json({ error: 'invalid_otp', message: `Incorrect OTP entered. ${3 - newAttempts} attempts remaining.` });
     }
 
     // Mark as used
@@ -296,6 +312,23 @@ router.post('/subscription/verify-payment', async (req, res) => {
     if (expectedBuf.length !== receivedBuf.length || !crypto.timingSafeEqual(expectedBuf, receivedBuf)) {
       console.warn(`[Billing] Signature mismatch for order ${razorpay_order_id}`);
       return res.status(400).json({ error: 'signature_mismatch', message: 'Payment verification failed. Invalid signature.' });
+    }
+
+    // Direct Razorpay API verification of capture status and subscription amount
+    try {
+      const payment = await getRazorpay().payments.fetch(razorpay_payment_id);
+      if (payment.status !== 'captured' && payment.status !== 'authorized') {
+        return res.status(400).json({ error: 'payment_not_captured', message: 'Payment has not been captured.' });
+      }
+      if (payment.order_id && payment.order_id !== razorpay_order_id) {
+        return res.status(400).json({ error: 'order_mismatch', message: 'Payment does not belong to this order.' });
+      }
+      if (payment.amount < 49900) {
+        return res.status(400).json({ error: 'amount_mismatch', message: 'Payment amount is less than required subscription amount.' });
+      }
+    } catch (rzpErr) {
+      console.error('[Billing] Razorpay API verification error:', rzpErr);
+      return res.status(400).json({ error: 'payment_verification_failed', message: 'Could not verify payment with Razorpay.' });
     }
 
     // Check if order exists in vendor_subscriptions

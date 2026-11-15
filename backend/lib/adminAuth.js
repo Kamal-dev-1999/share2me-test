@@ -14,6 +14,17 @@ function getAuthorizedAdminEmails() {
   return rawEnv.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
 }
 
+function getExpectedAdminSecret() {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('[FATAL] AUTH_SECRET environment variable is missing.');
+    }
+    return 'placeholder_jwt_secret_local_dev_only';
+  }
+  return secret;
+}
+
 function adminAuthMiddleware(req, res, next) {
   try {
     const authHeader = req.headers['authorization'];
@@ -22,7 +33,7 @@ function adminAuthMiddleware(req, res, next) {
 
     // Check shared secret or NextAuth authorization header (timing-safe)
     const crypto = require('crypto');
-    const expectedSecret = process.env.AUTH_SECRET || 'placeholder_jwt_secret_local_dev_only';
+    const expectedSecret = getExpectedAdminSecret();
     let isSecretValid = false;
 
     if (authHeader && authHeader.startsWith('Bearer ')) {

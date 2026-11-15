@@ -233,6 +233,9 @@ export interface ShopkeeperSettings {
   latitude?: number | null;
   longitude?: number | null;
   shopImages?: { r2Key: string; url: string }[];
+  qrFgColor?: string;
+  qrBgColor?: string;
+  qrLogoUrl?: string | null;
 }
 
 export async function getShopSettings(token: string): Promise<ShopkeeperSettings> {
@@ -240,10 +243,30 @@ export async function getShopSettings(token: string): Promise<ShopkeeperSettings
 }
 
 export async function saveShopSettings(
-  settings: { bwPrice: number; colorPrice: number; locationName: string; isAccepting?: boolean; razorpay_account_id?: string | null; charges_enabled?: boolean; retentionHours?: number; shopImages?: string[] },
+  settings: {
+    bwPrice: number;
+    colorPrice: number;
+    locationName: string;
+    isAccepting?: boolean;
+    razorpay_account_id?: string | null;
+    charges_enabled?: boolean;
+    retentionHours?: number;
+    shopImages?: string[] | { r2Key: string; url?: string }[];
+    qrFgColor?: string;
+    qrBgColor?: string;
+    qrLogoUrl?: string | null;
+  },
   token: string
 ): Promise<void> {
-  await apiPut('/settings', settings, token);
+  const payload = {
+    ...settings,
+    shopImages: Array.isArray(settings.shopImages)
+      ? settings.shopImages
+          .map((img) => (typeof img === "string" ? img : img?.r2Key))
+          .filter((k): k is string => typeof k === "string")
+      : undefined,
+  };
+  await apiPut('/settings', payload, token);
 }
 
 export async function saveShopLocation(lat: number, lng: number, token: string): Promise<{ success: boolean; location_updated_at: string }> {
