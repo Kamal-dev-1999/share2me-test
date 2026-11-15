@@ -11,6 +11,9 @@
 
 {
     email admin@share2.me
+    servers {
+        protocols h1 h2
+    }
 }
 
 # ── Shared routing snippet — used by all three entry points ───────────────────
