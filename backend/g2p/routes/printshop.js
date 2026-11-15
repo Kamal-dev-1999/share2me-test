@@ -149,6 +149,7 @@ router.get('/shop/:code', async (req, res) => {
              COALESCE(ps.color_price, 5.0) as color_price, 
              ps.location_name, ps.qr_r2_key, 
              ps.upi_id, ps.upi_name,
+             ps.qr_fg_color, ps.qr_bg_color, ps.qr_logo_url,
              COALESCE(ps.is_accepting, true) as is_accepting,
              COALESCE(NULLIF(TRIM(v.company), ''), v.name) as shop_name, v.charges_enabled
       FROM vendors v
@@ -183,6 +184,9 @@ router.get('/shop/:code', async (req, res) => {
       isPrintShop: true,
       upiId: shop.upi_id || null,
       upiName: shop.upi_name || null,
+      qrFgColor: shop.qr_fg_color || '#000000',
+      qrBgColor: shop.qr_bg_color || '#ffffff',
+      qrLogoUrl: shop.qr_logo_url || null,
     });
   } catch (err) {
     console.error('[PrintShop] GET /shop/:code error:', err);
@@ -315,6 +319,9 @@ router.post('/jobs', async (req, res) => {
       
       const order = await getRazorpay().orders.create(orderOptions);
       razorpayOrderId = order.id;
+
+      // Persist order ID to printshop_jobs so verification can strictly validate
+      await query('UPDATE printshop_jobs SET razorpay_order_id = $1 WHERE id = $2', [razorpayOrderId, newJob.id]);
     }
 
     // Notify the shopkeeper in real-time
@@ -622,6 +629,28 @@ router.post('/verify-payment-bulk', async (req, res) => {
       }
     }
 
+    // Check if this payment ID was already used outside this batch (replay attack prevention)
+    const existingBulkPayment = await query(
+      `SELECT id FROM printshop_jobs WHERE payment_id = $1 AND NOT (id = ANY($2::uuid[]))`,
+      [razorpay_payment_id, jobIds]
+    );
+    if (existingBulkPayment.rowCount > 0) {
+      return res.status(409).json({ error: 'payment_already_used', message: 'This payment ID has already been used.' });
+    }
+
+    try {
+      const payment = await getRazorpay().payments.fetch(razorpay_payment_id);
+      if (payment.status !== 'captured' && payment.status !== 'authorized') {
+        return res.status(400).json({ error: 'payment_not_captured', message: 'Payment has not been captured.' });
+      }
+      if (payment.order_id && payment.order_id !== razorpay_order_id) {
+        return res.status(400).json({ error: 'order_mismatch', message: 'Payment does not belong to this order.' });
+      }
+    } catch (rzpErr) {
+      console.error('[PrintShop] Bulk Razorpay API verification error:', rzpErr);
+      return res.status(400).json({ error: 'payment_verification_failed', message: 'Could not verify payment with Razorpay.' });
+    }
+
     const updateRes = await query(`
       UPDATE printshop_jobs 
       SET payment_status = 'paid', payment_id = $1, razorpay_order_id = COALESCE(razorpay_order_id, $2), paid_at = NOW()
@@ -688,6 +717,34 @@ router.post('/verify-payment', async (req, res) => {
     // Security check: order ID verification
     if (job.razorpay_order_id && job.razorpay_order_id !== razorpay_order_id) {
       return res.status(400).json({ error: 'order_mismatch', message: 'Order ID does not match this job.' });
+    }
+
+    // Replay protection: check if payment ID is already recorded for another job
+    const existingPayment = await query(
+      `SELECT id FROM printshop_jobs WHERE payment_id = $1 AND id != $2`,
+      [razorpay_payment_id, jobId]
+    );
+    if (existingPayment.rowCount > 0) {
+      return res.status(409).json({ error: 'payment_already_used', message: 'This payment ID has already been used for another job.' });
+    }
+
+    // Direct Razorpay API verification of capture status and paid amount
+    try {
+      const payment = await getRazorpay().payments.fetch(razorpay_payment_id);
+      if (payment.status !== 'captured' && payment.status !== 'authorized') {
+        return res.status(400).json({ error: 'payment_not_captured', message: 'Payment has not been captured.' });
+      }
+      if (payment.order_id && payment.order_id !== razorpay_order_id) {
+        return res.status(400).json({ error: 'order_mismatch', message: 'Payment does not belong to this order.' });
+      }
+      const expectedPaise = Math.round(Number(job.total_amount) * 100);
+      const minExpected = Math.max(expectedPaise, 100);
+      if (payment.amount < minExpected) {
+        return res.status(400).json({ error: 'amount_mismatch', message: 'Payment amount is less than expected job total.' });
+      }
+    } catch (rzpErr) {
+      console.error('[Razorpay Verify] API verification failed:', rzpErr);
+      return res.status(400).json({ error: 'payment_verification_failed', message: 'Could not verify payment with Razorpay.' });
     }
 
     const updateRes = await query(`
@@ -1279,6 +1336,9 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
       longitude: row.longitude ? parseFloat(row.longitude) : null,
       qrImageUrl: row.payment_qr_url || null,
       qrId: row.payment_qr_id || null,
+      qrFgColor: row.qr_fg_color || '#000000',
+      qrBgColor: row.qr_bg_color || '#ffffff',
+      qrLogoUrl: row.qr_logo_url || null,
       shopImages: shopImagesData.filter(Boolean),
     });
   } catch (err) {
@@ -1289,20 +1349,27 @@ router.get('/settings', requireShopkeeper, async (req, res) => {
 
 // ─── PROTECTED: PUT /printshop/settings ───────────────────────────────────────
 router.put('/settings', requireShopkeeper, async (req, res) => {
-  const { bwPrice, colorPrice, locationName, isAccepting, retentionHours, shopImages } = req.body;
+  const { bwPrice, colorPrice, locationName, isAccepting, retentionHours, shopImages, qrFgColor, qrBgColor, qrLogoUrl } = req.body;
 
   const cleanBwPrice      = toPositiveFloat(bwPrice);
   const cleanColorPrice   = toPositiveFloat(colorPrice);
   const cleanLocation     = sanitizeText(locationName, 120);
   const cleanIsAccepting  = isAccepting === false ? false : true;
 
-  // Validate shopImages (must be array of strings, max 3)
+  const cleanQrFg = typeof qrFgColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(qrFgColor) ? qrFgColor : null;
+  const cleanQrBg = typeof qrBgColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(qrBgColor) ? qrBgColor : null;
+  const cleanQrLogo = typeof qrLogoUrl === 'string' ? sanitizeText(qrLogoUrl, 500) : null;
+
+  // Validate shopImages (must be array of strings or objects with r2Key, max 3)
   const cleanShopImages = Array.isArray(shopImages) 
-    ? shopImages.filter(k => typeof k === 'string').slice(0, 3) 
+    ? shopImages
+        .map(item => (typeof item === 'string' ? item : item?.r2Key))
+        .filter(k => typeof k === 'string')
+        .slice(0, 3) 
     : [];
 
-  if (cleanBwPrice === null || cleanColorPrice === null) {
-    return res.status(400).json({ error: 'invalid_price' });
+  if (cleanBwPrice === null || cleanColorPrice === null || cleanBwPrice < 0.50 || cleanColorPrice < 1.00) {
+    return res.status(400).json({ error: 'invalid_price', message: 'Minimum B&W price is ₹0.50 and Color is ₹1.00' });
   }
   if (cleanBwPrice > 999 || cleanColorPrice > 999) {
     return res.status(400).json({ error: 'price_too_high' });
@@ -1325,8 +1392,8 @@ router.put('/settings', requireShopkeeper, async (req, res) => {
     }
 
     await query(`
-      INSERT INTO printshop_settings (vendor_id, bw_price, color_price, location_name, is_accepting, retention_hours, shop_images, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
+      INSERT INTO printshop_settings (vendor_id, bw_price, color_price, location_name, is_accepting, retention_hours, shop_images, qr_fg_color, qr_bg_color, qr_logo_url, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, NOW())
       ON CONFLICT (vendor_id) DO UPDATE
         SET bw_price = EXCLUDED.bw_price,
             color_price = EXCLUDED.color_price,
@@ -1334,8 +1401,11 @@ router.put('/settings', requireShopkeeper, async (req, res) => {
             is_accepting = EXCLUDED.is_accepting,
             retention_hours = EXCLUDED.retention_hours,
             shop_images = EXCLUDED.shop_images,
+            qr_fg_color = COALESCE(EXCLUDED.qr_fg_color, printshop_settings.qr_fg_color),
+            qr_bg_color = COALESCE(EXCLUDED.qr_bg_color, printshop_settings.qr_bg_color),
+            qr_logo_url = COALESCE(EXCLUDED.qr_logo_url, printshop_settings.qr_logo_url),
             updated_at = NOW()
-    `, [req.vendorId, cleanBwPrice, cleanColorPrice, cleanLocation, cleanIsAccepting, cleanRetention, JSON.stringify(cleanShopImages)]);
+    `, [req.vendorId, cleanBwPrice, cleanColorPrice, cleanLocation, cleanIsAccepting, cleanRetention, JSON.stringify(cleanShopImages), cleanQrFg, cleanQrBg, cleanQrLogo]);
 
     res.json({ success: true, retentionHours: cleanRetention, isPro });
   } catch (err) {
@@ -1359,7 +1429,7 @@ router.post('/settings/images/presign', requireShopkeeper, async (req, res) => {
     }
 
     const { v4: uuidv4 } = require('uuid');
-    const ext = fileName.split('.').pop();
+    const ext = (fileName.split('.').pop() || 'png').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'png';
     const r2Key = `shop-images/${req.vendorId}/${uuidv4()}.${ext}`;
 
     const { PutObjectCommand } = require('@aws-sdk/client-s3');
@@ -1529,12 +1599,21 @@ router.get('/printers', requireShopkeeper, async (req, res) => {
 router.post('/print-batch', requireShopkeeper, async (req, res) => {
   try {
     const { jobIds, printerName } = req.body;
-    if (!Array.isArray(jobIds) || jobIds.length === 0 || !printerName) {
+    if (!Array.isArray(jobIds) || jobIds.length === 0 || !printerName || typeof printerName !== 'string') {
       return res.status(400).json({ error: 'invalid_payload' });
+    }
+
+    if (/[;&|`$\r\n]/.test(printerName)) {
+      return res.status(400).json({ error: 'invalid_printer_name' });
     }
 
     if (!isAgentOnline(req.vendorId)) {
       return res.status(400).json({ error: 'agent_offline' });
+    }
+
+    const agentPrinters = getAgentPrinters(req.vendorId);
+    if (!Array.isArray(agentPrinters) || !agentPrinters.includes(printerName)) {
+      return res.status(400).json({ error: 'invalid_printer', message: 'Specified printer is not available on the connected print agent.' });
     }
 
     // Fetch job details and sign URLs for the agent
@@ -1550,7 +1629,7 @@ router.post('/print-batch', requireShopkeeper, async (req, res) => {
     for (const job of jobsRes.rows) {
       if (!job.r2_key) continue;
       
-      const fileUrl = await generatePresignedGetUrl(job.r2_key, 60 * 15); // 15 mins
+      const fileUrl = await generatePresignedGetUrl(job.r2_key, job.document_name || 'document.pdf', 'preview', 900); // 15 mins
       
       const printConfig = job.print_config ? (typeof job.print_config === 'string' ? JSON.parse(job.print_config) : job.print_config) : {};
       

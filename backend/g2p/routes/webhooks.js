@@ -196,6 +196,19 @@ router.post('/razorpay', async (req, res) => {
 
       if (notes.plan_id === 'pro_monthly' && notes.vendor_id) {
         const vendorId = notes.vendor_id;
+
+        // Idempotency: check if this Razorpay order has already been processed as paid
+        if (orderId) {
+          const subCheck = await query(
+            'SELECT id, status FROM vendor_subscriptions WHERE razorpay_order_id = $1',
+            [orderId]
+          );
+          if (subCheck.rowCount > 0 && subCheck.rows[0].status === 'paid') {
+            console.log(`[Razorpay Webhook] Order ${orderId} already processed as paid. Skipping redundant subscription extension.`);
+            return res.status(200).send('Already processed');
+          }
+        }
+
         const vRes = await query('SELECT plan_type, subscription_ends_at FROM vendors WHERE id = $1', [vendorId]);
         if (vRes.rowCount > 0) {
           const vendor = vRes.rows[0];

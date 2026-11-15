@@ -4,6 +4,8 @@ node_modules
 .gitignore
 *.md
 .env*
+*.env
+*.env.*
 !.env.example
 Dockerfile
 .dockerignore

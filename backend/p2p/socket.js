@@ -82,6 +82,9 @@ function attachP2PSockets(io, metrics, bannedIPs) {
     // ── generic relay ──────────────────────────────────────────────────────────
     const handleRelay = (eventName, msg) => {
       if (!msg?.otc) return;
+      if (socket.roomOTC !== msg.otc) {
+        return; // Reject relaying signals into rooms the socket does not belong to
+      }
       if (!checkPayloadSize(msg)) { metrics.oversizedPayloads++; socket.disconnect(true); return; }
       if (signalLimiter.isRateLimited(socket.id)) { metrics.rateLimitHits++; socket.disconnect(true); return; }
       socket.to(msg.otc).emit(eventName, msg);
@@ -113,8 +116,8 @@ function attachP2PSockets(io, metrics, bannedIPs) {
 
     // ── transfer_complete: notify peers + schedule room cleanup ───────────────
     socket.on('transfer_complete', (msg) => {
+      if (!msg?.otc || socket.roomOTC !== msg.otc) return;
       handleRelay('transfer_complete', msg);
-      if (!msg?.otc) return;
       io.to(msg.otc).emit('room_closing', { otc: msg.otc, reason: 'transfer_complete' });
       setTimeout(() => {
         const socketsInRoom = io.sockets.adapter.rooms.get(msg.otc);

@@ -31,6 +31,36 @@ async function processHtmlToPdf(inputBuffer, emitProgress) {
 
     emitProgress(40, "Loading HTML content...");
     const page = await browser.newPage();
+
+    // Prevent SSRF and Local File Inclusion: Intercept requests to block internal IPs & metadata services
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      try {
+        const urlStr = req.url().toLowerCase();
+        if (urlStr.startsWith('file:') || urlStr.startsWith('gopher:') || urlStr.startsWith('ftp:')) {
+          return req.abort();
+        }
+        const parsed = new URL(urlStr);
+        const host = parsed.hostname;
+        if (
+          host === '169.254.169.254' ||
+          host === 'metadata.google.internal' ||
+          host === 'localhost' ||
+          host === '127.0.0.1' ||
+          host === '::1' ||
+          host === '0.0.0.0' ||
+          host.startsWith('10.') ||
+          host.startsWith('192.168.') ||
+          (host.startsWith('172.') && /^172\.(1[6-9]|2\d|3[01])\./.test(host))
+        ) {
+          return req.abort();
+        }
+        req.continue();
+      } catch (_e) {
+        req.abort();
+      }
+    });
+
     const htmlContent = inputBuffer.toString('utf-8');
     
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });

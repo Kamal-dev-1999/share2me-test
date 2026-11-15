@@ -14,7 +14,14 @@ router.post('/upsert', async (req, res) => {
   // Shared-secret check: Only frontend possessing AUTH_JWT_SECRET can call this endpoint
   const authHeader = req.headers.authorization || '';
   const secret = process.env.AUTH_JWT_SECRET;
-  if (!secret || authHeader !== `Bearer ${secret}`) {
+  if (!secret) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  const expectedHeader = `Bearer ${secret}`;
+  if (
+    authHeader.length !== expectedHeader.length ||
+    !crypto.timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedHeader))
+  ) {
     return res.status(403).json({ error: 'forbidden' });
   }
 

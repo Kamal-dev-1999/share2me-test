@@ -65,6 +65,7 @@ import {
   Cell,
 } from "recharts";
 import { getBackendUrl } from "@/lib/backendUrl";
+import { getShopSettings, saveShopSettings } from "@/lib/printShop";
 import { useSession } from "next-auth/react";
 import confetti from "canvas-confetti";
 import { AnimatedCopyIcon } from "@/components/ui/AnimatedCopyIcon";
@@ -434,6 +435,7 @@ export default function G2pDashboard({
   const isPro = planType
     ? ["PRO", "PREMIUM"].includes(planType.toUpperCase())
     : false;
+  const isShopkeeper = persona === "PRINT_SHOP";
   const [subscriptionDetails, setSubscriptionDetails] = useState<{
     status: string;
     endsAt: string | null;
@@ -696,7 +698,7 @@ export default function G2pDashboard({
   const [qrSaved, setQrSaved] = useState(false);
   const [debouncedLogoUrl, setDebouncedLogoUrl] = useState("");
 
-  // Load from LocalStorage on mount
+  // Load from LocalStorage and backend DB on mount
   useEffect(() => {
     const savedFg = localStorage.getItem("g2p_qrFgColor");
     const savedBg = localStorage.getItem("g2p_qrBgColor");
@@ -707,12 +709,40 @@ export default function G2pDashboard({
       setQrLogoUrl(savedLogo);
       setDebouncedLogoUrl(savedLogo);
     }
-  }, []);
 
-  const saveQrSettings = () => {
+    if (token && isShopkeeper) {
+      getShopSettings(token).then((data) => {
+        if (data?.qrFgColor) setQrFgColor(data.qrFgColor);
+        if (data?.qrBgColor) setQrBgColor(data.qrBgColor);
+        if (data?.qrLogoUrl) {
+          setQrLogoUrl(data.qrLogoUrl);
+          setDebouncedLogoUrl(data.qrLogoUrl);
+        }
+      }).catch(() => {});
+    }
+  }, [token, isShopkeeper]);
+
+  const saveQrSettings = async () => {
     localStorage.setItem("g2p_qrFgColor", qrFgColor);
     localStorage.setItem("g2p_qrBgColor", qrBgColor);
     localStorage.setItem("g2p_qrLogoUrl", qrLogoUrl);
+
+    if (token && isShopkeeper) {
+      try {
+        const current = await getShopSettings(token).catch(() => null);
+        if (current) {
+          await saveShopSettings({
+            ...current,
+            shopImages: current.shopImages?.map((img) => img.r2Key),
+            qrFgColor,
+            qrBgColor,
+            qrLogoUrl,
+          }, token);
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
     setIsSettingsOpen(false);
   };
 
@@ -1102,8 +1132,6 @@ export default function G2pDashboard({
       const timeB = new Date(b.uploadedAt).getTime();
       return sortOrder === "latest" ? timeB - timeA : timeA - timeB;
     });
-
-  const isShopkeeper = persona === "PRINT_SHOP";
 
   // Auto-route Print Shop vendors to their primary tab on persona change
   useEffect(() => {
