@@ -24,6 +24,7 @@
     @backend path \
         /health*          \
         /ping*            \
+        /metrics*         \
         /socket.io/*      \
         /api/ice-servers* \
         /api/blogs*       \
@@ -34,12 +35,14 @@
         /g2p/files*       \
         /g2p/vendor*      \
         /g2p/billing*     \
+        /g2p/tools*       \
         /g2p/health*      \
         /download/*       \
         /poc/*
 
     handle @backend {
-        reverse_proxy 127.0.0.1:8000 {
+        # Proxy over OCI private VCN to VM 2 (10.0.1.218:8000)
+        reverse_proxy 10.0.1.218:8000 {
             # Caddy sets X-Forwarded-For automatically — do NOT override it
             # here or Cloudflare real-IP passthrough breaks in future.
             transport http {
@@ -75,7 +78,7 @@ share2.me, www.share2.me, share2me.in, www.share2me.in {
 # Once NEXT_PUBLIC_SIGNAL_URL is removed from the build and all clients use
 # same-origin socket connections, this block can be turned into a redirect.
 api.share2.me, api.share2me.in {
-    reverse_proxy 127.0.0.1:8000 {
+    reverse_proxy 10.0.1.218:8000 {
         transport http {
             keepalive            30s
             keepalive_idle_conns 100

@@ -1,0 +1,39 @@
+# ─── Share2Me Frontend Docker Compose (OCI VM 1: Edge Gateway & Frontend) ───────
+# Deployed to: share2me-server-prod (130.210.22.28 / Internal: 10.0.1.107)
+#
+# Workload:
+# - Next.js Standalone Production SSR & Static Asset Server
+# - Communicates with VM 2 (10.0.1.218:8000) over private OCI VCN for SSR rewrites
+
+services:
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: G-CCBEZ2KK0S
+        # VM 2's private IP for Next.js build-time SSR rewrite evaluation:
+        BACKEND_URL: http://10.0.1.218:8000
+    container_name: share2me-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - BACKEND_URL=http://10.0.1.218:8000
+      - AUTH_SECRET=u5wF2eK9L3R8n7Q1x4b6M5v9J8t2d1Zp
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    networks:
+      - share2me_net
+
+networks:
+  share2me_net:
+    driver: bridge

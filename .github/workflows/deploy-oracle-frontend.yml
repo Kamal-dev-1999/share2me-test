@@ -1,0 +1,133 @@
+name: Deploy Frontend to OCI (VM 1)
+
+on:
+  push:
+    branches:
+      - oracle-cloud
+    paths:
+      - 'frontend/**'
+      - 'caddy/**'
+      - 'docker-compose.frontend.yml'
+      - '.github/workflows/deploy-oracle-frontend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: oci-frontend-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy-frontend:
+    name: Deploy Next.js & Caddy to OCI VM 1 (Edge Node)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.OCI_FRONTEND_HOST || secrets.OCI_HOST || '130.210.22.28' }}" >> ~/.ssh/known_hosts
+
+      - name: Sync Frontend & Caddy to VM 1
+        env:
+          VM1_HOST: ${{ secrets.OCI_FRONTEND_HOST || secrets.OCI_HOST || '130.210.22.28' }}
+          VM1_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          echo "==> Syncing Frontend & Caddy files to OCI VM 1 ($VM1_HOST)..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $VM1_USER@$VM1_HOST "mkdir -p /opt/share2me/app/frontend /opt/share2me/app/caddy"
+          rsync -avz \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude '.next' \
+            --exclude 'frontend/node_modules' \
+            --exclude 'frontend/.next' \
+            --exclude 'backend' \
+            --exclude '.env*' \
+            --exclude '*/.env*' \
+            --exclude 'oci/' \
+            --exclude 'aws/' \
+            --exclude 'gcp/' \
+            -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519" \
+            ./frontend/ $VM1_USER@$VM1_HOST:/opt/share2me/app/frontend/
+
+          rsync -avz \
+            -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519" \
+            ./caddy/ $VM1_USER@$VM1_HOST:/opt/share2me/app/caddy/
+
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 \
+            ./docker-compose.frontend.yml $VM1_USER@$VM1_HOST:/opt/share2me/app/docker-compose.frontend.yml
+
+      - name: Build & Deploy Frontend Container & Reload Caddy on VM 1
+        env:
+          VM1_HOST: ${{ secrets.OCI_FRONTEND_HOST || secrets.OCI_HOST || '130.210.22.28' }}
+          VM1_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $VM1_USER@$VM1_HOST << 'EOF'
+            set -euo pipefail
+            cd /opt/share2me/app
+
+            # Update and reload Caddy Edge Gateway
+            echo "==> Updating Caddy edge proxy configuration..."
+            sudo cp caddy/Caddyfile.prod /etc/caddy/Caddyfile
+            sudo caddy validate --config /etc/caddy/Caddyfile
+            sudo systemctl reload caddy
+
+            # Build and deploy Next.js frontend container
+            echo "==> Building and launching Next.js frontend container..."
+            docker compose -f docker-compose.frontend.yml up -d --build --remove-orphans
+
+            # Clean dangling build cache
+            docker image prune -f
+          EOF
+
+      - name: Verify Live Frontend Health
+        env:
+          VM1_HOST: ${{ secrets.OCI_FRONTEND_HOST || secrets.OCI_HOST || '130.210.22.28' }}
+          VM1_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          echo "==> Running frontend health checks..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $VM1_USER@$VM1_HOST << 'EOF'
+            set -e
+
+            echo "[*] Waiting for frontend to become healthy..."
+            FRONTEND_OK=0
+            for i in {1..35}; do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || true)
+              if [ "$STATUS" = "200" ] || [ "$STATUS" = "308" ]; then
+                echo "✅ Frontend is HEALTHY (127.0.0.1:3000/ -> HTTP $STATUS)"
+                FRONTEND_OK=1
+                break
+              fi
+              echo "Waiting for frontend ($i/35, status=$STATUS)..."
+              sleep 2
+            done
+
+            if [ $FRONTEND_OK -ne 1 ]; then
+              echo "❌ Frontend failed to respond to health check!"
+              docker compose -f /opt/share2me/app/docker-compose.frontend.yml logs frontend --tail=50
+              exit 1
+            fi
+
+            echo "[*] Checking Edge Caddy access..."
+            EDGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:80/ || true)
+            echo "✅ Caddy Edge Gateway responded with HTTP $EDGE_STATUS"
+
+            echo "[*] Checking Caddy to VM 2 Backend VCN connectivity..."
+            VCN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:80/health || true)
+            if [ "$VCN_STATUS" = "200" ]; then
+              echo "✅ Caddy successfully proxied to VM 2 backend (HTTP $VCN_STATUS)"
+            else
+              echo "⚠️ Warning: Caddy proxy to backend returned HTTP $VCN_STATUS"
+            fi
+
+            echo ""
+            echo "=========================================================="
+            echo " 🎉 Share2Me Frontend Deployment Succeeded!"
+            echo " Public IP: 130.210.22.28"
+            echo "=========================================================="
+            docker compose -f /opt/share2me/app/docker-compose.frontend.yml ps
+          EOF

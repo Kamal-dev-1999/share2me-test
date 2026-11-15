@@ -45,6 +45,6 @@ export function getBackendUrl(): string {
     return process.env.BACKEND_URL;
   }
 
-  // Docker internal network default (fallback)
-  return "http://backend:8000";
+  // Private VCN backend on VM 2 (fallback)
+  return "http://10.0.1.218:8000";
 }

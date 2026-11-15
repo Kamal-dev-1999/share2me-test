@@ -162,7 +162,7 @@ const nextConfig = {
     // Locally: falls back to NEXT_PUBLIC_EXPRESS_URL or localhost:3000.
     const backendUrl = process.env.BACKEND_URL
       || process.env.NEXT_PUBLIC_EXPRESS_URL
-      || "http://backend:8000";
+      || "http://10.0.1.218:8000";
     return [
       {
         source: "/api/admin/:path*",

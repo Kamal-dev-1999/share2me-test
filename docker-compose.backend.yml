@@ -1,0 +1,63 @@
+# ─── Share2Me Backend Docker Compose (OCI VM 2: Dedicated Backend Node) ───────────
+# Deployed to: share2me-server-prod-2 (137.23.62.66 / Internal: 10.0.1.218)
+#
+# Workload:
+# - Express REST API & WebRTC Socket.io Signaling Server
+# - Redis 7 In-Memory State & PubSub (isolated to Docker network)
+# - Zero public internet port exposure (secured by OCI NSG & Linux iptables)
+
+services:
+
+  # ── Redis (Socket.io state store & session cache) ─────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: share2me-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 1024mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - share2me_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ── Backend: Express + Socket.io Signaling Server ─────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: share2me-backend
+    restart: unless-stopped
+    ports:
+      # Bound to 8000:8000 so VM 1 (10.0.1.107) can connect over the private VCN.
+      # Public internet access to port 8000 is blocked by OCI NSG and Linux iptables.
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+      - REDIS_URL=redis://redis:6379
+      - ALLOWED_ORIGINS=https://share2.me,https://www.share2.me,https://share2me.in,https://www.share2me.in,http://130.210.22.28
+    env_file:
+      - .env.backend
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - share2me_net
+
+volumes:
+  redis_data:
+
+networks:
+  share2me_net:
+    driver: bridge

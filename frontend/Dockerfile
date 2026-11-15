@@ -32,7 +32,7 @@ ENV AUTH_SECRET=${AUTH_SECRET}
 # BACKEND_URL: server-side only (no NEXT_PUBLIC_ prefix = never embedded in bundle).
 # Used by next.config.mjs rewrites which run at BUILD TIME, not runtime.
 # Must be declared as ARG here so `next build` can resolve it.
-ARG BACKEND_URL=http://backend:8000
+ARG BACKEND_URL=http://10.0.1.218:8000
 ENV BACKEND_URL=${BACKEND_URL}
 
 ENV NEXT_TELEMETRY_DISABLED=1

@@ -1,0 +1,138 @@
+name: Deploy Backend to OCI (VM 2)
+
+on:
+  push:
+    branches:
+      - oracle-cloud
+    paths:
+      - 'backend/**'
+      - 'docker-compose.backend.yml'
+      - '.github/workflows/deploy-oracle-backend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: oci-backend-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy-backend:
+    name: Deploy Express & Redis to OCI VM 2 (Backend Node)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.OCI_BACKEND_HOST || '137.23.62.66' }}" >> ~/.ssh/known_hosts
+
+      - name: Sync Backend to VM 2
+        env:
+          VM2_HOST: ${{ secrets.OCI_BACKEND_HOST || '137.23.62.66' }}
+          VM2_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          echo "==> Syncing Backend files to OCI VM 2 ($VM2_HOST)..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $VM2_USER@$VM2_HOST "mkdir -p /opt/share2me/app/backend"
+          rsync -avz \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude 'backend/node_modules' \
+            --exclude 'backend/ml/models' \
+            --exclude 'frontend' \
+            --exclude '.env*' \
+            --exclude '*/.env*' \
+            --exclude 'oci/' \
+            --exclude 'aws/' \
+            --exclude 'gcp/' \
+            -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519" \
+            ./backend/ $VM2_USER@$VM2_HOST:/opt/share2me/app/backend/
+
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 \
+            ./docker-compose.backend.yml $VM2_USER@$VM2_HOST:/opt/share2me/app/docker-compose.backend.yml
+
+      - name: Sync Backend Secrets (if configured in GitHub Secrets)
+        env:
+          VM2_HOST: ${{ secrets.OCI_BACKEND_HOST || '137.23.62.66' }}
+          VM2_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+          OCI_BACKEND_ENV: ${{ secrets.OCI_BACKEND_ENV }}
+        run: |
+          if [ -n "$OCI_BACKEND_ENV" ]; then
+            echo "==> Updating .env.backend from GitHub Secrets..."
+            echo "$OCI_BACKEND_ENV" > /tmp/.env.backend
+            scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 /tmp/.env.backend $VM2_USER@$VM2_HOST:/opt/share2me/app/.env.backend
+            rm -f /tmp/.env.backend
+            echo "✅ .env.backend updated successfully."
+          else
+            echo "==> OCI_BACKEND_ENV not set in GitHub Secrets; preserving existing .env.backend on VM 2."
+          fi
+
+      - name: Build & Deploy Backend Container on VM 2
+        env:
+          VM2_HOST: ${{ secrets.OCI_BACKEND_HOST || '137.23.62.66' }}
+          VM2_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $VM2_USER@$VM2_HOST << 'EOF'
+            set -euo pipefail
+            cd /opt/share2me/app
+
+            # Validate .env.backend
+            if [ ! -s .env.backend ]; then
+              if [ -s backend/.env ]; then
+                cp backend/.env .env.backend
+                echo "[INFO] Restored .env.backend from backend/.env"
+              else
+                echo "❌ [ERROR] /opt/share2me/app/.env.backend is missing or empty!"
+                echo "Please configure OCI_BACKEND_ENV in GitHub Repository Secrets or upload .env.backend to VM 2."
+                exit 1
+              fi
+            fi
+
+            chmod 600 .env.backend
+
+            # Build and deploy Docker containers
+            echo "==> Building and launching backend & redis containers..."
+            docker compose -f docker-compose.backend.yml up -d --build --remove-orphans
+
+            # Prune dangling builder cache/images to keep disk usage low
+            docker image prune -f
+          EOF
+
+      - name: Verify Live Backend Health
+        env:
+          VM2_HOST: ${{ secrets.OCI_BACKEND_HOST || '137.23.62.66' }}
+          VM2_USER: ${{ secrets.OCI_USERNAME || 'ubuntu' }}
+        run: |
+          echo "==> Running backend health checks on VM 2..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 $VM2_USER@$VM2_HOST << 'EOF'
+            set -e
+
+            echo "[*] Waiting for backend to become healthy..."
+            BACKEND_OK=0
+            for i in {1..35}; do
+              if curl -sf http://127.0.0.1:8000/health > /dev/null; then
+                echo "✅ Backend is HEALTHY (127.0.0.1:8000/health)"
+                BACKEND_OK=1
+                break
+              fi
+              echo "Waiting for backend ($i/35)..."
+              sleep 2
+            done
+
+            if [ $BACKEND_OK -ne 1 ]; then
+              echo "❌ Backend failed to respond to health check!"
+              docker compose -f /opt/share2me/app/docker-compose.backend.yml logs backend --tail=50
+              exit 1
+            fi
+
+            echo ""
+            echo "=========================================================="
+            echo " 🎉 Share2Me Backend Deployment Succeeded!"
+            echo " Internal IP: 10.0.1.218:8000"
+            echo "=========================================================="
+            docker compose -f /opt/share2me/app/docker-compose.backend.yml ps
+          EOF
