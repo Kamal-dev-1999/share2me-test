@@ -5,7 +5,8 @@ let workerConfigured = false;
 async function getPdfjs() {
   const pdfjsLib = await import("pdfjs-dist");
   if (!workerConfigured) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    const v = pdfjsLib.version || "6.2.108";
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${v}/build/pdf.worker.min.mjs`;
     workerConfigured = true;
   }
   return pdfjsLib;

@@ -422,10 +422,16 @@ async function handlePdfToJpgMainThread(
 
     // Point to the worker that Next.js serves from public/ (copy it there if needed)
     // Fallback: use CDN worker which is cross-origin safe
-    const workerSrc = `/pdf.worker.min.mjs`;
+    const v = pdfjsLib.version || "6.2.108";
+    const workerSrc = `https://unpkg.com/pdfjs-dist@${v}/build/pdf.worker.min.mjs`;
     pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
-    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(data.buffers[0]) }).promise;
+    const pdf = await pdfjsLib.getDocument({
+      data: new Uint8Array(data.buffers[0]),
+      cMapUrl: `https://unpkg.com/pdfjs-dist@${v}/cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${v}/standard_fonts/`,
+    }).promise;
     const scale = parseFloat((data.config.scale as string) || "2");
     const pageNum = parseInt((data.config.page as string) || "1", 10);
     const page = await pdf.getPage(pageNum);

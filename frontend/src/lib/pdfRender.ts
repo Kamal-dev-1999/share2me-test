@@ -19,7 +19,8 @@ let workerConfigured = false;
 async function getPdfjs(): Promise<any> {
   const pdfjsLib = await import("pdfjs-dist");
   if (!workerConfigured) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    const v = pdfjsLib.version || "6.2.108";
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${v}/build/pdf.worker.min.mjs`;
     workerConfigured = true;
   }
   return pdfjsLib;
@@ -40,11 +41,12 @@ export async function renderPdfToCanvases(
   const pdfjsLib = await getPdfjs();
   // pdfjs transfers (detaches) the buffer it receives — hand it a copy so the
   // caller's ArrayBuffer stays usable (pdf-lib needs it again later).
+  const v = pdfjsLib.version || "6.2.108";
   const loadingTask = pdfjsLib.getDocument({
     data: new Uint8Array(bytes.slice(0)),
-    cMapUrl: "https://unpkg.com/pdfjs-dist@6.2.108/cmaps/",
+    cMapUrl: `https://unpkg.com/pdfjs-dist@${v}/cmaps/`,
     cMapPacked: true,
-    standardFontDataUrl: "https://unpkg.com/pdfjs-dist@6.2.108/standard_fonts/",
+    standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${v}/standard_fonts/`,
   });
 
   const pdf = await loadingTask.promise;
