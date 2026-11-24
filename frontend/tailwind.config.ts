@@ -184,11 +184,11 @@ const config: Config = {
       },
 
       fontFamily: {
-        // Inter — the modern SaaS standard. System stack as instant fallback.
-        sans:    ["'Inter'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "sans-serif"],
-        display: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        body:    ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        mono:    ["'JetBrains Mono'", "ui-monospace", "monospace"],
+        // Inter — the modern SaaS standard. Self-hosted Next.js font variable with system fallback.
+        sans:    ["var(--font-inter)", "'Inter'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "sans-serif"],
+        display: ["var(--font-inter)", "'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        body:    ["var(--font-inter)", "'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        mono:    ["var(--font-mono)", "'JetBrains Mono'", "ui-monospace", "monospace"],
       },
       fontSize: {
         "display-lg":         ["48px", { lineHeight: "56px", letterSpacing: "-0.028em", fontWeight: "700" }],

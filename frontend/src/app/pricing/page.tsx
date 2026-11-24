@@ -19,7 +19,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { getBackendUrl } from "@/lib/backendUrl";
 import { useSession } from "next-auth/react";
-import confetti from "canvas-confetti";
 
 export default function PricingPage() {
   const { data: session, update: updateSession } = useSession();
@@ -114,7 +113,7 @@ export default function PricingPage() {
   }, []);
 
   // Multi-stage celebration effects
-  const triggerCelebration = useCallback(() => {
+  const triggerCelebration = useCallback(async () => {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       try {
         navigator.vibrate([100, 50, 100, 50, 200]);
@@ -122,6 +121,8 @@ export default function PricingPage() {
     }
 
     try {
+      const { default: confetti } = await import("canvas-confetti");
+
       // 1. Center cannon explosion
       confetti({
         particleCount: 90,

@@ -4,8 +4,6 @@ import {
   Key, Loader2, CheckCircle2, Camera, X, ArrowRight, Laptop, Smartphone,
   Download, RefreshCw, AlertCircle, QrCode, KeyRound
 } from "lucide-react";
-import jsQR from "jsqr";
-import confetti from "canvas-confetti";
 import { TransferPhase } from "@/hooks/useTransfer";
 import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedCopyIcon } from "@/components/ui/AnimatedCopyIcon";
@@ -97,6 +95,7 @@ export function ReceiveFlow({
   const streamRef  = useRef<MediaStream | null>(null);
   const rafRef     = useRef<number>(0);
   const scanningRef = useRef(false);
+  const jsQRRef    = useRef<any>(null);
 
   const [scanning,    setScanning]    = useState(false);
   const [videoReady,  setVideoReady]  = useState(false);
@@ -127,12 +126,14 @@ export function ReceiveFlow({
   // Confetti on done
   useEffect(() => {
     if (phase === "done") {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#10b981", "#8b5cf6", "#3b82f6"]
-      });
+      import("canvas-confetti").then(({ default: confetti }) => {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#10b981", "#8b5cf6", "#3b82f6"]
+        });
+      }).catch(() => {});
     }
   }, [phase]);
 
@@ -176,9 +177,13 @@ export function ReceiveFlow({
     setScanSuccess(false);
     setVideoReady(false);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
+      const [{ default: jsQR }, stream] = await Promise.all([
+        import("jsqr"),
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        }),
+      ]);
+      jsQRRef.current = jsQR;
       streamRef.current = stream;
       scanningRef.current = true;
       if (videoRef.current) {
@@ -202,7 +207,8 @@ export function ReceiveFlow({
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (ctx) {
+      const jsQR = jsQRRef.current;
+      if (ctx && jsQR) {
         ctx.drawImage(video, 0, 0, w, h);
         const imageData = ctx.getImageData(0, 0, w, h);
         const code = jsQR(imageData.data, w, h, { inversionAttempts: "dontInvert" });

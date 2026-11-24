@@ -67,7 +67,6 @@ import {
 import { getBackendUrl } from "@/lib/backendUrl";
 import { getShopSettings, saveShopSettings } from "@/lib/printShop";
 import { useSession } from "next-auth/react";
-import confetti from "canvas-confetti";
 import { AnimatedCopyIcon } from "@/components/ui/AnimatedCopyIcon";
 import { ScrambleText } from "@/components/ui/ScrambleText";
 import { CommandPalette } from "@/components/ui/CommandPalette";
@@ -193,7 +192,7 @@ function UploadRecordRow({
     for (let i = 0; i < record.files.length; i++) {
       await onAction(record.files[i], "download");
       if (i < record.files.length - 1) {
-        await new Promise((res) => setTimeout(res, 600)); // 600ms delay to prevent browser blocking
+        await new Promise((res) => setTimeout(res, 100)); // 100ms delay to prevent browser blocking
       }
     }
   };
@@ -472,7 +471,7 @@ export default function G2pDashboard({
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   // High-energy celebration effects (confetti cannon + vibration)
-  const triggerCelebration = useCallback(() => {
+  const triggerCelebration = useCallback(async () => {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       try {
         navigator.vibrate([100, 50, 100, 50, 200]);
@@ -480,6 +479,8 @@ export default function G2pDashboard({
     }
 
     try {
+      const { default: confetti } = await import("canvas-confetti");
+
       // 1. Immediate center cannon explosion
       confetti({
         particleCount: 90,

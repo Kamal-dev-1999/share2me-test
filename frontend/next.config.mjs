@@ -30,6 +30,9 @@ const nextConfig = {
     // data: URLs are generated locally by qrcode package — safe to allow
     unoptimized: true,
   },
+  experimental: {
+    optimizePackageImports: ["lucide-react", "framer-motion", "recharts", "@monaco-editor/react"],
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -38,12 +41,6 @@ const nextConfig = {
         path: false,
         os: false,
       };
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        "string_decoder/": false,
-        "string_decoder": false,
-        "https-proxy-agent": false,
-      };
     }
     return config;
   },
@@ -51,8 +48,18 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Immutable cache for heavy static public worker assets (do NOT include worker.js as it changes)
+        source: "/(pdf\\.worker\\.min\\.mjs|workers/pdf-lib\\.min\\.js|Share2Me-PrintAgent\\.exe)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
         // Prevent CDN edge from caching HTML pages so chunk hashes are always fresh on deployment
-        source: "/((?!_next/static|_next/image|favicon.ico).*)",
+        source: "/((?!_next/static|_next/image|favicon.ico|pdf\\.worker\\.min\\.mjs|workers/pdf-lib\\.min\\.js|Share2Me-PrintAgent\\.exe).*)",
         headers: [
           {
             key: "Cache-Control",

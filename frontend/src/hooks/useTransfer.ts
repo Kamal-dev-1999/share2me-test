@@ -107,7 +107,9 @@ const DC_LOW_WATER  = 1 * 1024 * 1024;  // 1 MB — resume threshold
  * so running 4 decryptions in parallel reduces receiver-side latency on
  * fast connections where frames arrive faster than a single decrypt completes.
  */
-const DECRYPT_CONCURRENCY = 4;
+const DECRYPT_CONCURRENCY = typeof navigator !== "undefined" && navigator.hardwareConcurrency
+  ? Math.min(8, Math.max(2, Math.floor(navigator.hardwareConcurrency / 2)))
+  : 4;
 
 /**
  * Adaptive chunk size table.
@@ -132,6 +134,12 @@ const CHUNK_SIZE_TABLE = {
 
 // ─── Binary Frame Helpers ─────────────────────────────────────────────────────
 
+function toUint8Array(input: string | ArrayBuffer | Uint8Array): Uint8Array {
+  if (typeof input === "string") return base64ToBytes(input);
+  if (input instanceof ArrayBuffer) return new Uint8Array(input);
+  return input;
+}
+
 /**
  * Build a binary DataChannel frame from a worker-produced chunk.
  *
@@ -140,20 +148,15 @@ const CHUNK_SIZE_TABLE = {
  *   Bytes  4– 7:  total  (Uint32)
  *   Bytes  8–19:  iv     (12 bytes, AES-GCM nonce)
  *   Bytes 20– N:  encrypted data (raw bytes)
- *
- * The base64-encoded data and iv strings coming from the worker are
- * decoded here. This conversion happens once per chunk on the sender side.
- * On the receiver side the frame is decoded back to base64 before being
- * passed to the worker — keeping the worker interface entirely unchanged.
  */
 function buildFrame(
   seq: number,
   total: number,
-  ivB64: string,
-  dataB64: string,
+  iv: string | ArrayBuffer | Uint8Array,
+  data: string | ArrayBuffer | Uint8Array,
 ): ArrayBuffer {
-  const ivBytes   = base64ToBytes(ivB64);
-  const dataBytes = base64ToBytes(dataB64);
+  const ivBytes   = toUint8Array(iv);
+  const dataBytes = toUint8Array(data);
 
   const frame = new ArrayBuffer(4 + 4 + 12 + dataBytes.byteLength);
   const view  = new DataView(frame);
@@ -168,23 +171,25 @@ function buildFrame(
 }
 
 interface ParsedFrame {
-  seq:    number;
-  total:  number;
-  ivB64:  string;   // base64 — passed directly to worker
-  dataB64: string;  // base64 — passed directly to worker
+  seq:     number;
+  total:   number;
+  iv:      ArrayBuffer;
+  data:    ArrayBuffer;
+  ivB64?:  string;
+  dataB64?: string;
 }
 
 /**
  * Parse a binary DataChannel frame back into its components.
- * Produces base64 strings so the worker interface needs no changes.
+ * Produces zero-copy ArrayBuffer slices directly for the worker.
  */
 function parseFrame(frame: ArrayBuffer): ParsedFrame {
   const view = new DataView(frame);
   const seq   = view.getUint32(0, false);
   const total = view.getUint32(4, false);
-  const ivB64   = bytesToBase64(new Uint8Array(frame, 8,  12));
-  const dataB64 = bytesToBase64(new Uint8Array(frame, 20));
-  return { seq, total, ivB64, dataB64 };
+  const iv    = frame.slice(8, 20);
+  const data  = frame.slice(20);
+  return { seq, total, iv, data };
 }
 
 // ─── Base64 Utilities ─────────────────────────────────────────────────────────
@@ -432,19 +437,19 @@ export function useTransfer(socket: Socket | null) {
     }
     if (!parts.length) return;
 
-    const totalSize = parts.reduce((s, p) => s + p.byteLength, 0);
-    const buf       = new Uint8Array(totalSize);
-    let   offset    = 0;
-    for (const p of parts) { buf.set(p, offset); offset += p.byteLength; }
-
     if (r.metadata?.textMode) {
+      const totalSize = parts.reduce((s, p) => s + p.byteLength, 0);
+      const buf       = new Uint8Array(totalSize);
+      let   offset    = 0;
+      for (const p of parts) { buf.set(p, offset); offset += p.byteLength; }
       const text = new TextDecoder("utf-8").decode(buf);
       setReceivedText(text);
       setReceiverPhase("done");
       setReceiverStatus("Text received.");
       setReceiverProgress(100);
     } else {
-      const blob = new Blob([buf]);
+      // Direct Blob from parts array avoids allocating duplicate contiguous flat buffer in JS heap
+      const blob = new Blob(parts as any);
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
       a.href     = url;
@@ -535,12 +540,21 @@ export function useTransfer(socket: Socket | null) {
       r.decryptRunning++;
       r.expectedTotal = frame.total || r.expectedTotal;
 
-      r.worker.postMessage({
-        type:    "decryptChunk",
-        seq:     frame.seq,
-        dataB64: frame.dataB64,
-        ivB64:   frame.ivB64,
-      });
+      if (frame.data instanceof ArrayBuffer && frame.iv instanceof ArrayBuffer) {
+        r.worker.postMessage({
+          type: "decryptChunk",
+          seq:  frame.seq,
+          data: frame.data,
+          iv:   frame.iv,
+        }, [frame.data, frame.iv]);
+      } else {
+        r.worker.postMessage({
+          type:    "decryptChunk",
+          seq:     frame.seq,
+          dataB64: frame.dataB64,
+          ivB64:   frame.ivB64,
+        });
+      }
     }
   }, []);
 
@@ -749,9 +763,6 @@ export function useTransfer(socket: Socket | null) {
       // NACK resends) reuse the already-built ArrayBuffer with zero re-encoding cost.
       const frame = buildFrame(msg.seq, msg.total, msg.iv, msg.data);
       snd.current.frames.push({ seq: msg.seq, total: msg.total, frame });
-      // Keep original base64 strings only if needed for debug; they are NOT used
-      // for sending any more.
-      snd.current.chunks.push({ seq: msg.seq, total: msg.total, data: msg.data, iv: msg.iv });
 
       // ── Streaming: if DC is open, send this chunk immediately ────────────────
       // This is the key change from the original: we don't wait for chunksReady.
@@ -1002,15 +1013,13 @@ export function useTransfer(socket: Socket | null) {
       worker.addEventListener("message", handleSenderWorkerMessage);
       snd.current.worker = worker;
 
-      file.arrayBuffer().then((buffer) => {
-        worker.postMessage({
-          type:       "prepareSenderTransfer",
-          fileName:   file.name,
-          fileBuffer: buffer,
-          // Use session-adaptive chunk size (starts at 256 KB, adjusts after first transfer)
-          chunkSize:  sessionChunkSize,
-          transferId: res.otc,
-        }, [buffer]); // Transfer ownership — zero-copy, no GC pressure on large files
+      worker.postMessage({
+        type:       "prepareSenderTransfer",
+        fileName:   file.name,
+        file:       file,
+        // Use session-adaptive chunk size (starts at 256 KB, adjusts after first transfer)
+        chunkSize:  sessionChunkSize,
+        transferId: res.otc,
       });
     });
   }, [socket, handleSenderWorkerMessage]);

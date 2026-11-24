@@ -1,7 +1,21 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 import { SideRail } from "@/components/SideRail";
 import { Providers } from "@/components/Providers";
@@ -178,7 +192,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="light" suppressHydrationWarning>
+    <html lang="en" className={`light ${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         {/* <meta name="monetag" content="e7a411684746076c8866b84b61029822" /> */}
         {/* <meta name="monetag" content="693bcd3157f3fb9f70477feb7fae2765" /> */}
@@ -335,7 +349,6 @@ export default function RootLayout({
         </Providers>
         <AnalyticsTracker />
         <WebVitals />
-        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
         <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
         <GoogleTagManager gtmId="GTM-KS4LVZSF" />
       </body>

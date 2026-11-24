@@ -7,9 +7,7 @@ import {
   Zap, AlertCircle
 } from "lucide-react";
 import Image from "next/image";
-import QRCode from "qrcode";
 import * as fflate from "fflate";
-import confetti from "canvas-confetti";
 import { TransferPhase } from "@/hooks/useTransfer";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadToolOutput } from "@/lib/toolOutputStore";
@@ -163,12 +161,14 @@ export function SendFlow({
   // Confetti on done
   useEffect(() => {
     if (phase === "done") {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#10b981", "#8b5cf6", "#3b82f6"]
-      });
+      import("canvas-confetti").then(({ default: confetti }) => {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#10b981", "#8b5cf6", "#3b82f6"]
+        });
+      }).catch(() => {});
     }
   }, [phase]);
 
@@ -195,12 +195,14 @@ export function SendFlow({
     if (!otc) { setQrDataUrl(null); return; }
     const origin = typeof window !== "undefined" ? window.location.origin : "https://share2me.in";
     const shareUrl = `${origin}/p2p?mode=receive&code=${otc}`;
-    QRCode.toDataURL(shareUrl, {
-      width: 220,
-      margin: 1,
-      errorCorrectionLevel: "M",
-      color: { dark: "#0f172a", light: "#ffffff" },
-    }).then(setQrDataUrl).catch(() => {});
+    import("qrcode").then(({ default: QRCode }) => {
+      QRCode.toDataURL(shareUrl, {
+        width: 220,
+        margin: 1,
+        errorCorrectionLevel: "M",
+        color: { dark: "#0f172a", light: "#ffffff" },
+      }).then(setQrDataUrl).catch(() => {});
+    }).catch(() => {});
   }, [otc]);
 
   const handleFiles = useCallback((selectedFiles: FileList | File[]) => {
@@ -239,29 +241,51 @@ export function SendFlow({
       } else {
         setIsZipping(true);
         try {
-          const zipData: Record<string, Uint8Array> = {};
+          const zipChunks: Uint8Array[] = [];
+          const zip = new fflate.Zip((err, chunk, isFinal) => {
+            if (err) {
+              setIsZipping(false);
+              alert("Failed to zip files");
+              return;
+            }
+            if (chunk) zipChunks.push(chunk);
+            if (isFinal) {
+              setIsZipping(false);
+              const zipFile = new File(zipChunks as any, "Shared_Files.zip", { type: "application/zip" });
+              onCreateRoom(zipFile);
+            }
+          });
+
+          const usedNames = new Set<string>();
           for (const f of files) {
-            const buffer = await f.arrayBuffer();
             let name = f.name;
             let counter = 1;
-            while (zipData[name]) {
-              const parts = f.name.split('.');
+            while (usedNames.has(name)) {
+              const parts = f.name.split(".");
               if (parts.length > 1) {
                 const ext = parts.pop();
-                name = `${parts.join('.')}_${counter}.${ext}`;
+                name = `${parts.join(".")}_${counter}.${ext}`;
               } else {
                 name = `${f.name}_${counter}`;
               }
               counter++;
             }
-            zipData[name] = new Uint8Array(buffer);
+            usedNames.add(name);
+
+            const entry = new fflate.ZipPassThrough(name);
+            zip.add(entry);
+
+            const reader = f.stream().getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                entry.push(new Uint8Array(0), true);
+                break;
+              }
+              entry.push(value, false);
+            }
           }
-          fflate.zip(zipData, { level: 0 }, (err, data) => {
-            setIsZipping(false);
-            if (err) { alert("Failed to zip files"); return; }
-            const zipFile = new File([data], "Shared_Files.zip", { type: "application/zip" });
-            onCreateRoom(zipFile);
-          });
+          zip.end();
         } catch {
           setIsZipping(false);
           alert("Error reading files for zip");
