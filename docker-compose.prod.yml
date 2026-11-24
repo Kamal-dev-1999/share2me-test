@@ -75,9 +75,8 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - BACKEND_URL=http://backend:8000
-      # AUTH_SECRET must be set at runtime — NextAuth v5 validates it on every boot.
-      # The Dockerfile ARG bakes it into the image but the runner stage also needs it.
-      - AUTH_SECRET=u5wF2eK9L3R8n7Q1x4b6M5v9J8t2d1Zp
+      # AUTH_SECRET is read dynamically from the environment / .env file
+      - AUTH_SECRET=${AUTH_SECRET}
     depends_on:
       backend:
         # Relaxed from service_healthy → service_started.
