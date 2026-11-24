@@ -22,6 +22,7 @@ async function processAi(inputBuffer, action, config, emitProgress) {
   if (!apiKey) throw new Error('GEMINI_API_KEY is missing from environment');
 
   const ai = new GoogleGenAI({ apiKey });
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   let markdownOutput = '';
 
   if (action === 'ocr') {
@@ -42,7 +43,7 @@ async function processAi(inputBuffer, action, config, emitProgress) {
       const mimeType = getMimeType(inputBuffer);
       try {
         const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model,
           contents: [
             "Extract and transcribe all text from this document perfectly. Preserve the layout as best as you can using Markdown. Do not summarize or add conversational text.",
             { inlineData: { data: inputBuffer.toString("base64"), mimeType } }
@@ -70,7 +71,7 @@ async function processAi(inputBuffer, action, config, emitProgress) {
     const mimeType = getMimeType(inputBuffer);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model,
         contents: [
           "Extract all text, tables, and content from this document and format it strictly as GitHub Flavored Markdown. Preserve headings, lists, and structure perfectly. Do not add any conversational text.",
           { inlineData: { data: inputBuffer.toString("base64"), mimeType } }
@@ -110,7 +111,7 @@ async function processAi(inputBuffer, action, config, emitProgress) {
     emitProgress(70, `Generating ${action}...`);
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model,
         contents: prompt,
       });
       markdownOutput = response.text;

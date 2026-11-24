@@ -38,19 +38,25 @@ function PickCard({ label, file, onFile }: { label: string; file: File | null; o
 function buildDiff(a: HTMLCanvasElement | undefined, b: HTMLCanvasElement | undefined): string {
   const w = Math.max(a?.width ?? 0, b?.width ?? 0);
   const h = Math.max(a?.height ?? 0, b?.height ?? 0);
+  if (w <= 0 || h <= 0) return "";
+
   const norm = (src?: HTMLCanvasElement) => {
     const c = document.createElement("canvas");
     c.width = w; c.height = h;
-    const ctx = c.getContext("2d", { willReadFrequently: true })!;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, h);
     if (src) ctx.drawImage(src, 0, 0, w, h);
     return ctx.getImageData(0, 0, w, h);
   };
   const da = norm(a), db = norm(b);
+  if (!da || !db) return "";
+
   const out = document.createElement("canvas");
   out.width = w; out.height = h;
-  const octx = out.getContext("2d")!;
+  const octx = out.getContext("2d");
+  if (!octx) return "";
   const img = octx.createImageData(w, h);
   const T = 40; // per-channel tolerance — ignores anti-aliasing noise
 
@@ -116,8 +122,14 @@ export function ComparePdfUI({ tool }: { tool: PdfTool }) {
         d.push(buildDiff(ra[i]?.canvas, rb[i]?.canvas));
       }
       setDiffs(d);
-    } catch {
-      setError("Couldn't compare these files. Make sure both are valid, non-encrypted PDFs.");
+    } catch (err: unknown) {
+      console.error("[ComparePdf] Error comparing documents:", err);
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("encrypt")) {
+        setError("One or both PDFs are password-protected. Please unlock them before comparing.");
+      } else {
+        setError(msg ? `Could not compare files: ${msg}` : "Couldn't compare these files. Make sure both are valid, non-encrypted PDFs.");
+      }
     } finally {
       setLoading(false);
     }

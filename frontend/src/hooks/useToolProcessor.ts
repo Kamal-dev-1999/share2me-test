@@ -147,6 +147,20 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
       const totalInputBytes = files.reduce((sum, f) => sum + f.size, 0);
       const toolInfo = getToolBySlug(slug);
 
+      if (slug === "protect-pdf") {
+        const pw = typeof config?.userPassword === "string" ? config.userPassword.trim() : "";
+        if (!pw) {
+          setState({
+            status: "error",
+            progress: 0,
+            progressMessage: "",
+            output: null,
+            error: { code: "CONFIG_ERROR", message: "A user password is required to encrypt the PDF." },
+          });
+          return;
+        }
+      }
+
       if (toolInfo?.processingTier === "server") {
         setState(prev => ({ ...prev, progressMessage: "Requesting upload link…" }));
         try {

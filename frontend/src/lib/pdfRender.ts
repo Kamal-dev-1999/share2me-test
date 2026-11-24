@@ -40,7 +40,14 @@ export async function renderPdfToCanvases(
   const pdfjsLib = await getPdfjs();
   // pdfjs transfers (detaches) the buffer it receives — hand it a copy so the
   // caller's ArrayBuffer stays usable (pdf-lib needs it again later).
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytes.slice(0)) }).promise;
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(bytes.slice(0)),
+    cMapUrl: "https://unpkg.com/pdfjs-dist@6.2.108/cmaps/",
+    cMapPacked: true,
+    standardFontDataUrl: "https://unpkg.com/pdfjs-dist@6.2.108/standard_fonts/",
+  });
+
+  const pdf = await loadingTask.promise;
   const total = Math.min(pdf.numPages, maxPages);
   const pages: RenderedPage[] = [];
 
@@ -50,12 +57,18 @@ export async function renderPdfToCanvases(
     const base = page.getViewport({ scale: 1 });
 
     const canvas = document.createElement("canvas");
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
-    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    const width = Math.max(1, Math.floor(viewport.width));
+    const height = Math.max(1, Math.floor(viewport.height));
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("Could not acquire 2D canvas context");
+
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+    ctx.fillRect(0, 0, width, height);
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
 
     pages.push({ canvas, widthPts: base.width, heightPts: base.height });
     onProgress?.(i, total);

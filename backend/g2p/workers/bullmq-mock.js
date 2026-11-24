@@ -99,6 +99,10 @@ async function processJob(jobId, data) {
     outputBuffer = await office.processPdfToPptx(inputBuffer, emitProgress);
     ext = '.pptx';
   }
+  else if (slug === 'protect-pdf') {
+    const qpdf = require('./engines/qpdf');
+    outputBuffer = await qpdf.processProtectPdf(inputBuffer, config, emitProgress);
+  }
   else {
     throw new Error(`Engine for slug ${slug} is not implemented yet.`);
   }

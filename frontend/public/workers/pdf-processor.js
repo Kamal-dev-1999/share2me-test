@@ -251,10 +251,13 @@ const TOOL_HANDLERS = {
 
       let x, y;
       switch (position) {
-        case 'bottom-right': x = width - textWidth - 36; y = 24; break;
-        case 'top-center': x = (width - textWidth) / 2; y = height - 36; break;
+        case 'bottom-left':   x = 36; y = 24; break;
+        case 'bottom-right':  x = width - textWidth - 36; y = 24; break;
+        case 'top-left':      x = 36; y = height - 36; break;
+        case 'top-center':    x = (width - textWidth) / 2; y = height - 36; break;
+        case 'top-right':     x = width - textWidth - 36; y = height - 36; break;
         case 'bottom-center':
-        default: x = (width - textWidth) / 2; y = 24;
+        default:              x = (width - textWidth) / 2; y = 24;
       }
 
       page.drawText(label, { x, y, size: fontSize, font, color: rgb(0, 0, 0) });
@@ -285,7 +288,9 @@ const TOOL_HANDLERS = {
       }
 
       const { width, height } = img.scale(1);
-      const pageSize = config.fitToPage !== false ? [width, height] : PageSizes.A4;
+      // fitToPage === true fits to A4; fitToPage === false retains original image dimensions
+      const shouldFitA4 = config.fitToPage === true || (config.fitToPage !== false && config.pageSize !== 'fit');
+      const pageSize = shouldFitA4 ? PageSizes.A4 : [width, height];
       const page = doc.addPage(pageSize);
 
       const maxW = page.getWidth();

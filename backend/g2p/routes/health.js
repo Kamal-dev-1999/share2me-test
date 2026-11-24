@@ -51,6 +51,12 @@ router.get('/', async (req, res) => {
     // Not failing the whole server if just R2 is missing locally, but flag it
   }
 
+  // 4. Tool Engine Capabilities
+  health.checks.capabilities = {
+    gemini: !!process.env.GEMINI_API_KEY,
+    r2: !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID),
+  };
+
   res.status(health.status === 'ok' ? 200 : 503).json(health);
 });
 
