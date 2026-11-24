@@ -104,6 +104,11 @@ const TOOL_3D_STYLES: Record<string, { bg: string; shadow: string; text: string 
     shadow: "shadow-[0_8px_20px_-4px_rgba(124,58,237,0.45)]",
     text: "text-white",
   },
+  "markdown-to-pdf": {
+    bg: "bg-gradient-to-br from-slate-500 via-indigo-600 to-violet-700",
+    shadow: "shadow-[0_8px_20px_-4px_rgba(79,70,229,0.45)]",
+    text: "text-white",
+  },
 
   // Convert from PDF
   "pdf-to-jpg": {
@@ -199,6 +204,7 @@ export default function ToolsLanding() {
           "compress-pdf": ["reduce", "shrink", "size", "optimize", "smaller"],
           "merge-pdf": ["combine", "join", "concat", "together"],
           "split-pdf": ["extract", "separate", "cut", "divide"],
+          "markdown-to-pdf": ["md", "markdown", "text", "readme", "notes", "docs", "paste"],
           "protect-pdf": ["lock", "password", "encrypt", "secure"],
           "unlock-pdf": ["decrypt", "password", "remove password"],
         };

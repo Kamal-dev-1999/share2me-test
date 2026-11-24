@@ -7,6 +7,27 @@
 
 ---
 
+## 0. Live status correction (verified at HEAD `6e955a4`)
+
+The audit sections below were written before two follow-up commits landed. They are
+retained as evidence, but the following items are **superseded by current code**:
+
+| Earlier finding | Current state | Evidence |
+|---|---|---|
+| `protect-pdf` has no queued engine | **Fixed.** The dispatcher calls `qpdf.processProtectPdf`, which uses `execFile` with an argument array, temp files and `finally` cleanup. It is no longer a P0 blocker. | `backend/g2p/workers/bullmq-mock.js:102-105`; `backend/g2p/workers/engines/qpdf.js:31-74`; commit `8ddeb6f`. |
+| `compare-pdf` hides errors in an empty `catch` and cannot render standard-font PDFs | **Fixed.** `ComparePdfUI` logs the real error and distinguishes encrypted PDFs from generic failures; `pdfRender.ts` configures `cMapUrl`, `cMapPacked` and `standardFontDataUrl`. The exact API/worker mismatch was fixed in `417a3fa` by deriving the worker/cMap/font version from the loaded `pdfjs-dist` version. | `ComparePdfUI.tsx:125-132`; `pdfRender.ts:20-26,44-50`; commits `8ddeb6f`, `417a3fa`. |
+| PDF.js API/worker version mismatch (`API 6.5.438` vs `Worker 6.2.108`) | **Fixed as a version-drift bug.** `frontend/package.json:36` now pins `pdfjs-dist` to exact `6.2.108`, and worker/cMap/font URLs are built from `pdfjsLib.version`. A stale `frontend/public/pdf.worker.min.mjs` still exists but is no longer referenced by the renderer; delete it or regenerate it in the same build step to avoid a future “two workers” trap. | `frontend/package.json:36`; `pdfRender.ts:22-24,44-49`; `useToolProcessor.ts:426-433`; `textExtractor.ts:9`. |
+| Gemini model hard-coded to `gemini-3-flash-preview` | **Partially fixed.** It is now `process.env.GEMINI_MODEL`, but the fallback is still `gemini-2.0-flash`. Set a supported stable default in `.env.example` and deployment env; do not silently downgrade. | `backend/g2p/workers/engines/ai.js:25`; commit `8ddeb6f`. |
+| Capability health checks are complete | **Not complete.** `/g2p/health` only reports `gemini` and `r2` booleans. There is no Chromium/qpdf/mutool/LibreOffice probe and no per-slug availability list. | `backend/g2p/routes/health.js:54-58`. |
+
+Everything else in the audit remains valid unless explicitly superseded here. In
+particular, the in-memory queue, missing R2 TTL, missing magic-byte validation for
+tool uploads, missing test harness and process-local ownership still apply. Phase 2
+items 1–2 and Phase 3 in §7 are therefore already delivered; treat them as regression
+tests rather than new work.
+
+---
+
 ## 1. Executive summary
 
 The tools catalogue currently advertises **32 tools**, all marked `phase: "ready"` in `frontend/src/lib/pdfTools.ts:62-108`. The audit found that this label is not reliable:
@@ -185,8 +206,8 @@ Any local manual verification of server tools must account for this difference.
 
 | Slug | Tier | Status | Root cause | Evidence |
 |---|---|---|---|---|
-| `protect-pdf` | server | **BROKEN** | Frontend sends it through the async queue; backend whitelist accepts it; queue dispatcher has no `protect-pdf` branch and throws `Engine for slug protect-pdf is not implemented yet.` The only real implementation is the synchronous `/process` endpoint, which the frontend never calls. | `pdfTools.ts:94`; `page.tsx:25`; `useToolProcessor.ts:150-195`; `tools.js:47-53,85-126,156-195`; `bullmq-mock.js:64-104` |
-| `compare-pdf` | client | **BROKEN** | Shared PDF renderer loads `/pdf.worker.min.mjs` but does not configure `cMapUrl` or `standardFontDataUrl`. PDFs using standard/non-embedded fonts can fail during `getDocument`/page rendering. `ComparePdfUI` then swallows the real exception in an empty `catch` and shows a misleading “valid, non-encrypted PDFs” message. | `pdfRender.ts:19-25,43`; `ComparePdfUI.tsx:97-121`; `pdfTools.ts:91` |
+| `protect-pdf` | server | **BROKEN (historical; fixed in `8ddeb6f`)** | Frontend sent it through the async queue and the whitelist accepted it, but the dispatcher had no branch. The queued engine now exists. | `pdfTools.ts:94`; `page.tsx:25`; `useToolProcessor.ts:150-195`; `tools.js:47-53,85-126,156-195`; `bullmq-mock.js:102-105`; `engines/qpdf.js:31-74` |
+| `compare-pdf` | client | **BROKEN (historical; fixed in `8ddeb6f` / `417a3fa`)** | The shared renderer used a stale local worker, omitted cMap/standard-font URLs and hid the exception. Current code derives all asset URLs from the installed `pdfjs-dist` version and surfaces real errors. | `pdfRender.ts:20-26,44-50`; `ComparePdfUI.tsx:125-132`; `pdfTools.ts:91` |
 
 The frontend handles SSE `error` events at `useToolProcessor.ts:243-252`, so the user sees a server error rather than an indefinite spinner. The job still cannot complete.
 
@@ -217,25 +238,42 @@ These tools are wired correctly in code but can fail in production if their depe
 | `pdf-to-pdfa` | LibreOffice | Requires LibreOffice PDF/A export support. | `bullmq-mock.js:87-89`; `engines/libreoffice.js:44-70` |
 | `repair-pdf` | mutool | Requires mutool plus fallback chain. Local machine has mutool; production Docker installs `mupdf-tools`. | `bullmq-mock.js:83-85`; `engines/mutool.js:40-89` |
 
-### 4.4 Shared renderer risk
+### 4.4 Shared renderer — current state and remaining risk
 
 `frontend/src/lib/pdfRender.ts` is a single point of failure for several interactive tools:
 
-- `compare-pdf` — confirmed broken by user reproduction.
-- `edit-pdf` — same renderer, no cMap/standard-font assets configured.
-- `redact-pdf` — same renderer.
-- `sign-pdf` — same renderer.
-- `ActionPanel` preview path — same renderer.
+- `compare-pdf`
+- `edit-pdf`
+- `redact-pdf`
+- `sign-pdf`
+- `ActionPanel` preview path
 
-Evidence: `pdfRender.ts:19-25,34-68`; `ComparePdfUI.tsx:97-121`; `SignPdfUI.tsx:327`; `RedactPdfUI.tsx:46`; `PdfEditorUI.tsx:190`; `ActionPanel.tsx:127`.
+**Historical defect (fixed):** the renderer imported `pdfjs-dist` from npm but loaded a
+hand-maintained `/pdf.worker.min.mjs` from `public/` containing
+`pdfjsVersion = 6.2.108`. When npm resolved a newer API (`6.5.438`), PDF.js threw
+`The API version "6.5.438" does not match the Worker version "6.2.108"`. The renderer
+also omitted `cMapUrl` and `standardFontDataUrl`, so standard-font PDFs could fail even
+with a matching worker. `ComparePdfUI` hid the real exception behind an empty `catch`.
 
-Verified environment facts:
+**Current code (verified):** `pdfRender.ts:22-24,44-49` derives `v` from
+`pdfjsLib.version` and builds the worker, cMap and standard-font URLs as
+`https://unpkg.com/pdfjs-dist@${v}/...`. The same pattern is used in
+`useToolProcessor.ts:426-433` and `textExtractor.ts:9`. `frontend/package.json:36` pins
+`pdfjs-dist` to the exact `6.2.108`, so caret-driven drift is gone.
+`ComparePdfUI.tsx:125-132` logs the real error and maps password/encryption failures
+separately.
 
-- `frontend/node_modules/pdfjs-dist/cmaps/` and `frontend/node_modules/pdfjs-dist/standard_fonts/` exist.
-- `frontend/public/` contains `pdf.worker.min.mjs` but **no** `cmaps/` or `standard_fonts/` directories.
-- The renderer never sets `cMapUrl`, `cMapPacked` or `standardFontDataUrl`.
+**Remaining production risk:** all three assets are fetched from a third-party CDN at
+runtime. A blocked CDN, offline viewer or CSP `connect-src` change breaks every
+renderer consumer. A stale `frontend/public/pdf.worker.min.mjs` still exists but is no
+longer imported. The hardening target remains: self-host `build/pdf.worker.min.mjs`,
+`cmaps/` and `standard_fonts/` under `frontend/public/pdfjs/`, copy all three from the
+*same* installed `pdfjs-dist` version in one build step, and point every call site at
+those local URLs. Never hand-maintain a worker file in `public/`.
 
-The production fix should self-host those assets under `frontend/public/pdfjs/` and point PDF.js at them. Using a CDN would work only if CSP `connect-src` allows it; self-hosting is preferred because it removes a third-party runtime dependency.
+Evidence: `pdfRender.ts:20-26,35-50`; `useToolProcessor.ts:426-433`;
+`textExtractor.ts:9`; `ComparePdfUI.tsx:125-132`; `frontend/package.json:36`;
+`frontend/public/pdf.worker.min.mjs`.
 
 ### 4.5 In-scope tools with no known functional defect
 
@@ -259,8 +297,8 @@ These tools have matching UI, handler and output behaviour and do not depend on 
 - `getSessionToken` and `requireAuth` in `backend/g2p/routes/tools.js:31-42` are unused.
 - The local Tesseract engine at `backend/g2p/workers/engines/tesseract.js` is not dispatched anywhere.
 - Stale comment says the processing engine “will slot into `onProcess`” at `page.tsx:35-38`, although `useToolProcessor` is already wired.
-- `frontend/src/lib/pdfRender.ts` omits cMap and standard-font asset URLs while using a locally served v6 worker; this is the confirmed `compare-pdf` failure mode.
-- `ComparePdfUI.tsx:119-121` uses an empty `catch`, hiding the real exception and producing a misleading user message.
+- RESOLVED: `frontend/src/lib/pdfRender.ts` now derives cMap/standard-font URLs from the installed `pdfjs-dist` version; remaining risk is CDN dependence, not a missing URL.
+- RESOLVED: `ComparePdfUI.tsx:125-132` logs the real exception and classifies password/encryption errors.
 - `backend/g2p/workers/engines/ai.js:45,73,113` hard-codes `gemini-3-flash-preview`. This is a **valid preview model**, not a nonexistent one, but it is still fragile because a preview model can be retired or routed. It should be configurable and default to a supported stable model.
 
 ---
@@ -806,3 +844,279 @@ The external review was checked against the repository and current vendor docume
 | GitHub Actions `Verify` failure | **Accepted as already resolved.** Current `verify.yml` uses `npm install --prefix frontend` and no push trigger. | Recorded as resolved; no work item. |
 
 Sources checked: `frontend/src/lib/pdfRender.ts`, `frontend/src/components/tools/ComparePdfUI.tsx`, `frontend/node_modules/pdfjs-dist/`, `backend/g2p/workers/engines/ai.js`, `frontend/src/auth.ts`, `docker-compose.frontend.yml`, `.github/workflows/verify.yml`, and Google AI model documentation for `gemini-3-flash-preview`, `gemini-3.5-flash` and `gemini-3.6-flash`.
+
+---
+
+## 14. Markdown → PDF tool — production-grade plan
+
+> **Status:** Research and design only. **No application code has been changed for this tool.**
+> **Proposed slug:** `markdown-to-pdf` — the direct reverse of `pdf-to-markdown`.
+> **Goal:** deterministic, structurally accurate Markdown → PDF without any AI dependency.
+
+### 14.1 Decision summary
+
+| Decision | Recommendation | Why |
+|---|---|---|
+| Execution tier | `server` | Same as `html-to-pdf`; requires Chromium and R2, not browser WASM. |
+| Pipeline | Markdown → `marked` HTML → DOMPurify → enrichment → styled HTML → Chromium `page.pdf()` → `pdf-lib` metadata normalisation → R2 | Reuses the only installed Markdown parser and the existing Puppeteer engine; adds the missing security and determinism layers. |
+| Parser | `marked@18` (already installed) with GFM enabled | Official docs claim 100% CommonMark 0.31 and 99% GFM 0.29; already used by `ai.js`. Fallback: `markdown-it` with pinned GFM plugins if conformance fixtures fail. |
+| Sanitizer | DOMPurify on the server with a current `jsdom` (direct `dompurify + jsdom`, or `isomorphic-dompurify`) | Marked explicitly states it does **not** sanitize output and recommends DOMPurify. Backend has no sanitizer today. |
+| Renderer | Existing `puppeteer-core@^25.7.0` + Chromium from `backend/Dockerfile` | Already deployed; `page.pdf()` exposes margins, backgrounds, scale, headers/footers, `tagged` and `outline`. |
+| AI dependency | **None** | This is a deterministic conversion; no Gemini key, prompt or model routing. |
+| Output | `.pdf`, `application/pdf` | Matches dispatcher default and ActionPanel preview. |
+| Scope waves | M1: CommonMark + GFM. M2: math, diagrams, TOC page numbers. M3: PDF/UA validation, Prince decision. | Keeps the first release accurate and testable. |
+
+### 14.2 Internet research evidence
+
+Primary sources consulted on 2026-11-24:
+
+| Source | Finding that shapes the plan |
+|---|---|
+| [Marked documentation](https://marked.js.org/) | “Marked does not sanitize the output HTML”; recommends DOMPurify. Claims Markdown 1.0 100%, CommonMark 0.31 100%, GFM 0.29 99%. Warns that leading ZERO WIDTH characters (`U+FEFF`, etc.) can interfere with parsing. |
+| [GitHub Flavored Markdown spec](https://github.github.com/gfm/) | GFM is a strict superset of CommonMark; tables, task lists, strikethrough and autolinks are formal extensions. GitHub applies additional post-processing/sanitization — we must do the same. |
+| [DOMPurify README](https://github.com/cure53/DOMPurify) | Server-side use needs a DOM; `jsdom` is strongly recommended and must be current. `happy-dom` is not considered safe. Sanitizing and then modifying markup can void the sanitization — sanitize again after enrichment. |
+| [Puppeteer `PDFOptions`](https://pptr.dev/api/puppeteer.pdfoptions) / [source](https://raw.githubusercontent.com/puppeteer/puppeteer/main/docs/api/puppeteer.pdfoptions.md) | `format` overrides `width`/`height`; `margin`, `printBackground`, `scale` (0.1–2), `preferCSSPageSize`, `pageRanges`, `headerTemplate`/`footerTemplate` with `date`, `title`, `url`, `pageNumber`, `totalPages`; `outline` (experimental, default false); `tagged` (experimental, default true); `waitForFonts` (default true); `timeout` (default 30 s). |
+| [Chrome 131 release notes](https://developer.chrome.com/blog/new-in-chrome-131) | Chromium 131 added `@page` margin boxes and `counter(page)` / `counter(pages)` for headers and footers. Good for M2, but not a reason to depend on it for M1. |
+| [Puppeteer issue on `target-counter` / TOC](https://github.com/puppeteer/puppeteer/issues/12601) and [Paged.js](https://github.com/pagedjs/pagedjs) | Stock Chromium does not reliably support CSS `target-counter()` for TOC page numbers; Paged.js is the browser polyfill. Treat page-numbered TOC as an M2 feature with fixtures, not an M1 promise. |
+| [KaTeX security](https://katex.org/docs/security.html) | Generated HTML should be safe, but sanitization is still advised; keep `trust` off and bound `maxSize` / `maxExpand`. Error text may contain unescaped LaTeX. |
+| [Mermaid `securityLevel`](https://mermaid.js.org/config/schema-docs/config-properties-securitylevel.html) | `strict` is the default: HTML in text is encoded and click functionality disabled. Use `strict` for any diagram support. |
+| [Prince licensing](https://www.princexml.com/purchase/) | Commercial server licenses start around USD 2,000/yr for startups or USD 3,800 per server. Higher paged-media fidelity exists, but licensing is not justified before Chromium fixtures prove insufficient. |
+| [Pandoc](https://pandoc.org/) / [WeasyPrint](https://doc.courtbouillon.org/weasyprint/stable/) | Both are credible alternatives with stronger CSS paged-media behaviour and no browser, but add a new native/Python toolchain and (for WeasyPrint) no JavaScript. Keep as escalation options, not the M1 path. |
+| [pdf-lib `PDFDocument` API](https://pdf-lib.js.org/docs/api/classes/pdfdocument) | `setTitle`, `setAuthor`, `setLanguage`, `setCreator`, `setProducer`, `setCreationDate`, `setModificationDate` allow deterministic metadata normalisation after Chromium output. |
+| [Golden-file testing guidance](https://pdfpipe.xyz/pdf/testing/golden-file-testing) | Store readable derived artefacts (extracted text, page count, structural summary) as golden files; keep raw PDF bytes as build output, not the review artefact. |
+
+### 14.3 Live integration points
+
+Verified against the repository at HEAD `6e955a4`:
+
+| File | Required change |
+|---|---|
+| `frontend/src/lib/pdfTools.ts` | Add `markdown-to-pdf` to `PDF_TOOLS`: category `convert-to-pdf`, `phase: "ready"` only after M1 passes, `processingTier: "server"`, `tag: "MD"`, `accept: ["text/markdown", "text/plain", "text/x-markdown"]`. Include an extension fallback in DropZone because `.md` files often have `File.type === ""`. |
+| `frontend/src/app/tools/[slug]/page.tsx:51-75` | Add slug to `singleFileTools`; otherwise the shell allows multiple files while the server path uploads only `files[0]`. |
+| `frontend/src/app/tools/[slug]/page.tsx:20-33` and `configs/index.ts` | Register a new `MarkdownToPdfConfig` component using existing `ConfigProps`, `GlassSelect` and tool-page styling only. No global theme change. |
+| `backend/g2p/routes/tools.js:47-53` | Add `markdown-to-pdf` to `ALLOWED_SLUGS`. |
+| `backend/g2p/routes/tools.js:137-142` | Add `.md` and `.markdown` to `ALLOWED_EXTS`; presign currently rejects them. |
+| `backend/g2p/routes/tools.js:57-71` | Add a strict zod config schema. The current `default: z.object({}).passthrough()` retains unknown keys; do not use it for this tool. |
+| `backend/g2p/workers/engines/markdown.js` | New engine: `processMarkdownToPdf(inputBuffer, config, emitProgress) -> Buffer`. |
+| `backend/g2p/workers/engines/puppeteer.js` | Extract/harden a shared `renderHtmlToPdf(html, options, ctx)` with timeout, concurrency bound, resource policy and full PDF options; keep `processHtmlToPdf` as a compatibility wrapper. |
+| `backend/g2p/workers/bullmq-mock.js:64-108` | Add a dispatcher branch; keep default `ext = '.pdf'`. Also stop logging the whole job `config` at line 47 — it currently leaks passwords for `protect-pdf`. |
+| `backend/g2p/routes/health.js:54-58` | Add a `chromium` capability probe and per-slug availability; currently only `gemini` and `r2` booleans exist. |
+| `.env.example` | Document `CHROME_BIN`, `GEMINI_MODEL`, `TOOLS_MD_MAX_BYTES`, `TOOLS_MD_MAX_PAGES`, `TOOLS_PDF_TIMEOUT_MS`. Never commit secret values. |
+
+Sitemap and tools landing page derive from `PDF_TOOLS`, so they need no separate edit.
+R2 TTL and tool-input magic-byte validation are still missing platform-wide; they are
+GA gates (M3), not blockers for this tool's M1.
+
+### 14.4 Supported syntax and accuracy targets
+
+| Wave | Syntax / capability | Acceptance target |
+|---|---|---|
+| M1 | CommonMark 0.31 + GFM 0.29: headings, paragraphs, emphasis, lists, blockquotes, tables, fenced/indented code, links, autolinks, images (data/local only), thematic breaks, strikethrough, task lists, escapes, entities | 100% of CommonMark spec examples and ≥99% of GFM spec examples pass as HTML fixtures. |
+| M1 | Page size/orientation, margins, background graphics, scale, title/language metadata, repeating header/footer | Page count within the expected range for each fixture; no clipped text; header/footer present on every page. |
+| M2 | Heading anchors, TOC with page numbers, PDF bookmarks/outline, KaTeX math, Mermaid diagrams | Headings produce stable anchors; TOC page numbers correct in fixtures; math/diagram fixtures render with zero missing glyphs. |
+| M3 | Tagged/accessible PDF validation, optional PDF/A profile, optional Prince escalation | `tagged: true` output reviewed and validated with veraPDF; PDF/UA is **not** claimed without validation. |
+
+Measurable accuracy gates for the fixture corpus:
+
+1. **Text fidelity:** ≥99% of non-whitespace source text is present in extracted PDF
+   text (normalise whitespace; use `mutool draw -F txt` from `mupdf-tools`, with
+   `pdf-parse` as a cross-check).
+2. **Structure:** every heading, list item, table cell and link in the fixtures has a
+   corresponding HTML node before print, and every heading appears in the PDF outline
+   when `outline: true` is enabled.
+3. **Fonts:** zero tofu/missing glyphs for Latin and the CJK fixture; fonts embedded or
+   self-hosted, never fetched from Google Fonts at render time.
+4. **Pagination:** no split code blocks/tables where `break-inside: avoid` is set;
+   headings are not orphaned at page bottoms (`break-after: avoid`).
+5. **Determinism:** after metadata normalisation, three runs on the same input/config
+   and the same Chromium build produce the same derived artefacts.
+6. **Security:** all XSS/SSRF fixtures are neutralised; no script executes in the
+   renderer; no external network request succeeds when `remoteResources: false`.
+
+“Accurate” here means structural fidelity, text fidelity and predictable pagination —
+not byte-identical PDFs. Store derived artefacts as golden files and keep raw PDFs as
+build outputs.
+
+### 14.5 Rendering pipeline
+
+1. **Validate input.** Decode UTF-8, strip leading BOM/zero-width characters (per
+   Marked's documented parsing warning), reject NUL bytes, enforce
+   `TOOLS_MD_MAX_BYTES` (default 2 MB) and a text/magic-byte heuristic.
+2. **Parse.** `marked.parse(markdown, { gfm: true, breaks: false, async: false })`.
+   Use lexer/token walkers to collect headings for anchors/TOC. Treat raw HTML in the
+   source as untrusted: strip it with a renderer hook and rely on DOMPurify for what
+   remains. Do not assume a `html: false` option exists in Marked.
+3. **Sanitize.** `DOMPurify.sanitize(html, { USE_PROFILES: { html: true }, FORBID_TAGS:
+   ['script', 'style', 'iframe', 'form', 'object', 'embed'], FORBID_ATTR: ['style'] })`.
+   Use a current `jsdom`; pin versions in `backend/package-lock.json`.
+4. **Enrich (M2).** Render KaTeX with `trust: false`, `maxExpand` and `maxSize` bounded;
+   render Mermaid with `securityLevel: 'strict'`; inline trusted CSS; build heading
+   anchors; inline allowlisted images as data URIs. **Sanitize again after enrichment**
+   because post-sanitize mutation can void the first pass. The M1 profile above
+   (`USE_PROFILES: { html: true }`) strips SVG/MathML, so the M2 second pass needs a
+   separate narrow profile that allows only the SVG/MathML tags KaTeX and Mermaid emit
+   (with `FORBID_TAGS`/`SAFE_FOR_TEMPLATES` retained); reuse of the M1 profile would
+   silently drop diagrams and math.
+5. **Assemble print HTML.** Local CSS only. Use `@page { size: A4; margin: 18mm; }`,
+   `break-inside: avoid` on `pre`, `table`, `figure` and `img`, `break-after: avoid` on
+   headings, `orphans: 3`, `widows: 3`, and a self-hosted font stack
+   (`"Noto Sans", "DejaVu Sans", sans-serif`) with CJK fallbacks. No global app theme.
+6. **Render.** `page.setContent(html, { waitUntil: 'networkidle0' })` then `page.pdf({
+   format: 'A4' | 'Letter', landscape, margin, printBackground: true, scale,
+   preferCSSPageSize: true, outline: true, tagged: true, waitForFonts: true, timeout })`.
+   Keep request interception enabled: `file:`, `gopher:`, `ftp:` and private/metadata
+   hosts are already blocked in `puppeteer.js`; extend it with an explicit allowlist,
+   redirect cap and response-size cap. Default `remoteResources: false` — M1 embeds
+   data/local images only.
+7. **Post-process.** Load the PDF with `pdf-lib`, set title/author/language/creator/
+   producer and fixed creation/modification dates for deterministic tests, then save.
+   Assert page count and extract text for the derived golden artefact.
+8. **Deliver.** Upload `tools/output/{jobId}.pdf` with `application/pdf`; SSE `complete`
+   carries `output_key` and `output_bytes`. Existing frontend download/ActionPanel flow
+   works unchanged.
+
+### 14.6 Config contract
+
+| Key | Default | Validation | Consumer |
+|---|---|---|---|
+| `pageSize` | `"A4"` | enum `A4`, `Letter` | Puppeteer `format` / CSS `@page` |
+| `orientation` | `"portrait"` | enum `portrait`, `landscape` | Puppeteer `landscape` |
+| `marginMm` | `18` | integer 0–40 | Puppeteer `margin` |
+| `scale` | `1` | number 0.1–2 | Puppeteer `scale` |
+| `printBackground` | `true` | boolean | Puppeteer `printBackground` |
+| `title` | first H1 or uploaded filename | string ≤200 | PDF metadata + header template |
+| `language` | `"en"` | BCP 47-like string ≤20 | PDF `setLanguage` |
+| `header` / `footer` | `false` | boolean | Puppeteer header/footer templates |
+| `toc` | `false` in M1 | boolean | M2 only; requires fixture sign-off |
+| `remoteResources` | `false` | boolean | Request-interception policy |
+| `maxPages` | `200` | integer 1–1000 | Job-level cap before render |
+
+Use `z.object({...}).strict()` in `tools.js`. Reject unknown keys instead of silently
+passing them through, so config drift is caught at enqueue time.
+
+### 14.7 Security model
+
+- Markdown is untrusted input. No raw HTML execution, no `<script>`, no event handler
+  attributes, no `javascript:` URLs, no declarative shadow DOM, no PDF JavaScript.
+- Sanitize after parsing and again after any enrichment. Do not treat DOMPurify's
+  `removed` property as a security decision.
+- Chromium renderer has no network by default in M1. External images/CSS are inlined or
+  rejected. If enabled later, use an allowlist plus IP/DNS-rebinding checks, redirect
+  cap, response-size cap and navigation timeout.
+- No `file://` access. Existing private-host blocks in `puppeteer.js:35-62` are a floor,
+  not a complete SSRF defence.
+- Enforce input bytes, page count, output bytes, timeout and concurrency. Always close
+  the browser and delete temp files in `finally`.
+- Never log file contents, config values, tokens or passwords. Fix `bullmq-mock.js:47`
+  for all tools in the same release.
+- Tool uploads still need magic-byte/size validation after R2 download; today only G2P
+  file uploads are validated. This is a GA gate but should be designed in now.
+
+### 14.8 Fonts, pagination, TOC and accessibility
+
+- **Fonts:** self-host Noto Sans / Noto Sans CJK / DejaVu from the Docker image; no
+  Google Fonts `@import` (the `ai.js` template currently has one and must not be copied
+  verbatim). `waitForFonts: true` is the Puppeteer default and should remain explicit.
+- **Pagination:** Chromium handles fragmentation reasonably for text but not all CSS
+  Paged Media. Use explicit break-control CSS and fixture-driven page-count checks.
+- **Margins/headers:** M1 uses Puppeteer `headerTemplate` / `footerTemplate` classes
+  (`pageNumber`, `totalPages`, `title`, `date`, `url`). Chromium 131+ margin boxes with
+  `counter(page)` / `counter(pages)` are an M2 option.
+- **TOC/bookmarks:** do not rely on CSS `target-counter()` in stock Chromium. M1 TOC, if
+  enabled, has no page numbers. M2 uses Paged.js or a second-pass/post-processing
+  approach, validated by fixtures. PDF outline via `outline: true` is experimental: if
+  fixtures show no heading-derived bookmarks, add them in post-processing or declare
+  bookmarks unavailable rather than promising them.
+- **Accessibility:** `tagged: true` is experimental and on by default in current
+  Puppeteer. Tagged output is not automatically PDF/UA. M3 validates with veraPDF and
+  only then considers a PDF/UA claim.
+
+### 14.9 Test strategy
+
+| Layer | Test |
+|---|---|
+| Parser | CommonMark 0.31 and GFM 0.29 official spec examples run through `marked` and compared to expected HTML. |
+| Sanitizer | XSS corpus: `<script>`, `onerror`, `javascript:`, `data:text/html`, SVG/MathML abuse, template/shadow-DOM payloads; assert no executable attributes survive. |
+| Engine unit | Pure functions for config validation, heading extraction, sanitization and metadata normalisation run without Chromium. |
+| Fixture/runtime | Corpus: plain doc, deep headings, nested lists, wide table, long code, links, data-URI image, CJK text, math, Mermaid, 50-page document. Compare derived artefacts: extracted text, page count, outline entries, font list, sanitized HTML hash. |
+| Visual golden | Render fixture PDFs to PNG in the CI container; use a perceptual threshold for layout regressions. Keep PDFs as build outputs. |
+| Determinism | Three runs with fixed metadata produce identical derived artefacts. |
+| Security | SSRF/resource fixtures: private IP, metadata host, `file:`, redirect chain, oversized image; assert all blocked. |
+| API/integration | Presign accepts `.md`; enqueue uses strict schema; SSE completes; download ownership and rate limit work; invalid config returns 400; missing Chromium returns an unavailable state before upload. |
+| CI | Extend `.github/workflows/verify.yml` with `npm run test:md-pdf` (pure tests) and a container-only engine smoke test. Keep current `typecheck`, `node --check` and informational ESLint. |
+| Manual | Verify in the Docker Chromium build and local Edge dev fallback; check A4/Letter, CJK, header/footer, code/table breaks and a long document. |
+
+### 14.10 Rollout, rollback and definition of done
+
+Rollout:
+
+1. Land behind `TOOLS_ENABLED` / `TOOLS_BETA` with the tool hidden by default.
+2. Wave 1 / M1: enable internally, run fixture corpus, then beta for all users.
+3. Wave 2 / M2: enable TOC, math and diagrams only after their own fixtures pass.
+4. Wave 3 / M3: accessibility validation and any Prince escalation decision.
+5. Rollback is a flag flip plus redeploy; no database migration is required.
+
+Definition of done:
+
+1. `markdown-to-pdf` is in the catalogue with a truthful description and single-file set.
+2. Presign accepts `.md`/`.markdown`; strict config schema is enforced at enqueue.
+3. Dispatcher has an engine branch; output is `.pdf` / `application/pdf`.
+4. CommonMark/GFM, text-fidelity, font, pagination, determinism and security gates pass.
+5. No raw HTML executes; no external network request occurs with `remoteResources: false`.
+6. Chromium capability is reported in `/g2p/health` and missing capability blocks upload.
+7. Engine has timeout, concurrency bound, size/page caps, cleanup and no sensitive logs.
+8. Fixture and integration tests run in CI; visual goldens are reviewed.
+9. No global UI/theme changes; only the tool catalogue, tool page and config sidebar.
+10. Feature flag can disable the tool independently; rollback verified.
+
+### 14.11 Risks and decisions required
+
+| Risk / decision | Recommendation |
+|---|---|
+| Parser choice | Approve `marked` for M1 because it is installed and meets the published conformance claims. If the spec suite exposes gaps, switch to `markdown-it` with pinned GFM plugins rather than weakening the accuracy gate. |
+| Math/diagram scope | Keep KaTeX and Mermaid out of M1; add in M2 with `trust: false` and `securityLevel: 'strict'`. |
+| Remote resources | Default to blocked. Enabling remote images/CSS requires SSRF hardening, not just the current hostname checks. |
+| Chromium version drift | Docker `apk add chromium` and local Edge can render differently. Generate visual goldens in the same container used in production. |
+| TOC page numbers | Treat as M2 only. Chromium lacks reliable `target-counter()`; Paged.js or post-processing is required. |
+| Tagged PDF / PDF/UA | Do not claim PDF/UA in M1/M2; validate with veraPDF in M3. |
+| PrinceXML | Only reconsider after Chromium fixtures fail and the licensing cost is approved. |
+| Platform debt | Queue durability, R2 TTL, magic-byte validation and ownership hardening remain M3/GA gates and are not blockers for this tool's first release. |
+
+### 14.12 Scope delivered in M1
+
+Approved on 2026-11-24 and implemented immediately. M1 covers the full deterministic
+core: CommonMark + GFM parsing, strict sanitization, local CSS, self-hosted font stack,
+page size/orientation/margins/scale/backgrounds, title/language metadata, header/footer,
+table of contents (without page numbers), PDF outline tags, input/page-size limits,
+timeout, no-network-by-default, and single-file or pasted-text input. KaTeX, Mermaid,
+CSS `target-counter()` page numbers and veraPDF/PDF-UA validation remain M2/M3 as planned.
+
+---
+
+## 15. Implementation status (post-approval)
+
+Implemented files (all other application code untouched):
+
+| Layer | Files |
+|---|---|
+| Catalogue / UI shell | `frontend/src/lib/pdfTools.ts`, `frontend/src/app/tools/[slug]/page.tsx`, `frontend/src/app/tools/page.tsx`, `frontend/src/components/PdfToolShell.tsx`, `frontend/src/hooks/useToolProcessor.ts` |
+| Config component | `frontend/src/components/tools/configs/MarkdownToPdfConfig.tsx`, `configs/index.ts` |
+| Backend API | `backend/g2p/routes/tools.js`, `backend/g2p/routes/health.js` |
+| Worker / engines | `backend/g2p/workers/bullmq-mock.js`, `engines/markdown.js`, `engines/puppeteer.js` |
+| Dependencies | `backend/package.json` / `package-lock.json` (`dompurify`, `jsdom`) |
+| Tests / CI | `backend/scripts/test_markdown_to_pdf.js`, `backend/package.json`, `.github/workflows/verify.yml` |
+| Configuration | `.env.example` |
+
+Verification performed locally:
+
+- `npm run typecheck --prefix frontend` — pass.
+- `node --check` on every changed backend file — pass.
+- `npm run test:md-pdf --prefix backend` — pure tests + Chromium render smoke + determinism — pass.
+- Rich fixture rendered to A4; extracted text preserved headings, lists, GFM task lists,
+  tables, code, blockquote and TOC. Injected `<script>` and `javascript:` URLs were removed.
+  Two deterministic renders produced byte-identical PDFs.
+
+The tool is wired end to end: pasted text is synthesised into a `File` client-side, then
+follows the same presign → R2 upload → enqueue → SSE → download path as every other
+server tool. Output is `tools/output/{jobId}.pdf` with `application/pdf`.
+

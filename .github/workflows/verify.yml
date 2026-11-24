@@ -34,6 +34,17 @@ jobs:
       - name: node --check on all backend source files
         run: find backend -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
 
+  markdown-pdf-tests:
+    name: Markdown → PDF engine tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --prefix backend
+      - run: npm run test:md-pdf --prefix backend
+
   frontend-lint-report:
     name: ESLint backlog (informational)
     runs-on: ubuntu-latest

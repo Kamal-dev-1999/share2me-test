@@ -40,6 +40,10 @@ interface PdfToolShellProps {
   toolConfig?: Record<string, unknown>;
   /** Allow multiple files (defaults to true for merge-like tools) */
   multiple?: boolean;
+  /** Show a "Paste text" mode alongside file upload (e.g. Markdown → PDF). */
+  allowTextInput?: boolean;
+  /** Placeholder shown in the text editor when text mode is active. */
+  textPlaceholder?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,6 +57,27 @@ function formatSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${["B", "KB", "MB", "GB"][i]}`;
 }
 
+/** Accept rules can be MIME types, wildcards or literal extensions (".md"). */
+function matchesAccept(file: File, accept: string[] | undefined): boolean {
+  if (!accept || accept.length === 0) return true;
+  const name = file.name.toLowerCase();
+  return accept.some((rule) => {
+    const r = rule.toLowerCase();
+    if (r.startsWith(".")) return name.endsWith(r);
+    if (r.endsWith("/*")) return file.type.startsWith(r.slice(0, -1));
+    if (r.includes("/")) return file.type === r;
+    return false;
+  });
+}
+
+/** Build a sensible upload name from pasted Markdown. */
+function nameFromText(text: string): string {
+  const heading = text.split("\n").find((line) => /^#\s+\S/.test(line));
+  const raw = heading ? heading.replace(/^#+\s*/, "") : "document";
+  const safe = raw.replace(/[\\/:*?"<>|]/g, "").trim().slice(0, 60) || "document";
+  return `${safe}.md`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,10 +87,14 @@ export function PdfToolShell({
   configSidebar,
   toolConfig = {},
   multiple = true,
+  allowTextInput = false,
+  textPlaceholder = "Paste your content here…",
 }: PdfToolShellProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showChainPicker, setShowChainPicker] = useState(false);
+  const [inputMode, setInputMode] = useState<"file" | "text">("file");
+  const [textInput, setTextInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -83,14 +112,8 @@ export function PdfToolShell({
     (incoming: FileList | File[]) => {
       const list = Array.from(incoming);
 
-      // MIME type validation
-      const valid = list.filter((f) => {
-        if (!tool.accept || tool.accept.length === 0) return true;
-        return tool.accept.some((mime) => {
-          if (mime.endsWith("/*")) return f.type.startsWith(mime.slice(0, -1));
-          return f.type === mime;
-        });
-      });
+      // MIME/extension validation
+      const valid = list.filter((f) => matchesAccept(f, tool.accept));
 
       if (valid.length < list.length) {
         // Silently skip invalid files — could show a toast here
@@ -112,14 +135,23 @@ export function PdfToolShell({
 
   // ── Process ───────────────────────────────────────────────────────────────
 
+  const hasInput = inputMode === "file" ? files.length > 0 : textInput.trim().length > 0;
+
   const handleProcess = useCallback(async () => {
+    if (allowTextInput && inputMode === "text" && textInput.trim()) {
+      const source = textInput.trim();
+      const file = new File([source], nameFromText(source), { type: "text/markdown" });
+      await process([file], toolConfig);
+      return;
+    }
     await process(files, toolConfig);
-  }, [files, process, toolConfig]);
+  }, [allowTextInput, inputMode, textInput, files, process, toolConfig]);
 
   // ── Reset all ─────────────────────────────────────────────────────────────
 
   const handleReset = useCallback(() => {
     setFiles([]);
+    setTextInput("");
     reset();
   }, [reset]);
 
@@ -226,9 +258,11 @@ export function PdfToolShell({
 
             {/* Left: dropzone + file list + progress + action panel */}
             <div className="min-w-0">
-              <span className="label-caps text-on-surface-variant block mb-2">// Files</span>
+              <span className="label-caps text-on-surface-variant block mb-2">
+                {allowTextInput ? "// Source" : "// Files"}
+              </span>
 
-              {/* DropZone — hidden when processing or done */}
+              {/* DropZone / text editor — hidden when processing or done */}
               <AnimatePresence>
                 {!isDone && (
                   <motion.div
@@ -236,6 +270,27 @@ export function PdfToolShell({
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.2 }}
                   >
+                    {allowTextInput && (
+                      <div className="flex gap-2 mb-3">
+                        {(["file", "text"] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={() => { setInputMode(mode); setFiles([]); setTextInput(""); reset(); }}
+                            className={`px-4 py-2 text-[13px] font-semibold rounded-lg border-2 border-ink transition-all disabled:opacity-50 ${
+                              inputMode === mode
+                                ? "bg-signal-yellow text-ink shadow-hard-sm"
+                                : "bg-surface text-on-surface-variant hover:bg-surface-container"
+                            }`}
+                          >
+                            {mode === "file" ? "Upload .md file" : "Paste Markdown"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {inputMode === "file" && (
                     <div
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
@@ -266,13 +321,49 @@ export function PdfToolShell({
                         {isDragging ? "Drop files here" : "Click or drag files"}
                       </p>
                       <p className="label-caps text-on-surface-variant mt-2">
-                        {tool.accept ? tool.accept.map((a) => a.split("/")[1]).join(" · ").toUpperCase() : "Any file"}
+                        {tool.accept
+                          ? tool.accept.map((a) => (a.startsWith(".") ? a.slice(1) : a.split("/")[1])).join(" · ").toUpperCase()
+                          : "Any file"}
                         {tool.processingTier === "server" ? " · Cloud Processing" : " · Your files stay in your browser"}
                       </p>
                     </div>
+                    )}
+
+                    {inputMode === "text" && (
+                      <div className="border-2 border-ink rounded-xl bg-surface overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-2 border-b-2 border-ink bg-surface-container">
+                          <span className="label-caps text-ink">Markdown source</span>
+                          <span className="label-caps text-on-surface-variant">{textInput.length} characters</span>
+                        </div>
+                        <textarea
+                          value={textInput}
+                          disabled={isProcessing}
+                          onChange={(e) => { setTextInput(e.target.value); reset(); }}
+                          placeholder={textPlaceholder}
+                          spellCheck={false}
+                          rows={16}
+                          className="w-full p-4 bg-surface text-[13px] leading-relaxed text-on-surface font-mono outline-none resize-y min-h-[320px] placeholder:text-text-muted disabled:opacity-60"
+                        />
+                        <div className="flex items-center justify-between px-4 py-2 border-t border-hairline">
+                          <span className="text-[11px] text-text-muted">
+                            Supports headings, lists, tables, code blocks and images.
+                          </span>
+                          {!textInput && (
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => setTextInput(textPlaceholder)}
+                              className="text-[12px] font-semibold text-ink underline underline-offset-2 disabled:opacity-50"
+                            >
+                              Insert example
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* File list */}
-                    {files.length > 0 && (
+                    {inputMode === "file" && files.length > 0 && (
                       <div className="mt-3 space-y-2">
                         {files.map((f, i) => (
                           <div
@@ -357,7 +448,7 @@ export function PdfToolShell({
               {!isDone && !isProcessing && (
                 <button
                   onClick={handleProcess}
-                  disabled={files.length === 0 || !isReady}
+                  disabled={!hasInput || !isReady}
                   className="btn-brutalist w-full sm:w-auto mt-4 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <Sparkles className="w-4 h-4" strokeWidth={2.5} />

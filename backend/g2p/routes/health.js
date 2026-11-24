@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const { query } = require('../lib/db');
 const { JWT_SECRET } = require('../lib/auth');
 const { SignJWT, jwtVerify } = require('jose');
@@ -52,9 +53,18 @@ router.get('/', async (req, res) => {
   }
 
   // 4. Tool Engine Capabilities
+  const chromeBin = process.env.CHROME_BIN || (
+    process.env.NODE_ENV !== 'production' && !process.env.RENDER
+      ? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+      : '/usr/bin/chromium-browser'
+  );
+  let chromium = false;
+  try { chromium = fs.existsSync(chromeBin); } catch (_e) { chromium = false; }
   health.checks.capabilities = {
     gemini: !!process.env.GEMINI_API_KEY,
     r2: !!(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID),
+    chromium,
+    'markdown-to-pdf': chromium,
   };
 
   res.status(health.status === 'ok' ? 200 : 503).json(health);

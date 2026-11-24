@@ -44,7 +44,8 @@ function subscribeToJobEvents(jobId, callback) {
 }
 
 async function processJob(jobId, data) {
-  console.log(`[Worker Mock] Processing job ${jobId}`, data);
+  // Do not log the whole job payload: configs may contain passwords.
+  console.log(`[Worker Mock] Processing job ${jobId} (${data.slug})`);
   const { slug, input_r2_key, config } = data;
 
   const emitProgress = (pct, message) => {
@@ -66,6 +67,14 @@ async function processJob(jobId, data) {
   } 
   else if (slug === 'html-to-pdf') {
     outputBuffer = await puppeteer.processHtmlToPdf(inputBuffer, emitProgress);
+  }
+  else if (slug === 'markdown-to-pdf') {
+    const markdown = require('./engines/markdown');
+    outputBuffer = await markdown.processMarkdownToPdf(
+      inputBuffer,
+      { ...(config || {}), filename: data.filename },
+      emitProgress
+    );
   }
   else if (slug === 'ocr-pdf') {
     outputBuffer = await ai.processAi(inputBuffer, 'ocr', config, emitProgress);

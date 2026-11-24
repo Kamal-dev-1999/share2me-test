@@ -46,6 +46,7 @@ async function requireAuth(req, res, next) {
 
 const ALLOWED_SLUGS = new Set([
   'word-to-pdf', 'powerpoint-to-pdf', 'excel-to-pdf', 'html-to-pdf',
+  'markdown-to-pdf',
   'ocr-pdf', 'ai-summarizer', 'translate-pdf',
   'pdf-to-markdown', 'repair-pdf', 'pdf-to-pdfa',
   'pdf-to-word', 'pdf-to-excel', 'pdf-to-powerpoint',
@@ -60,6 +61,21 @@ const configSchemas = {
     userPassword:  z.string().min(1).max(128),
     ownerPassword: z.string().max(128).optional(),
   }),
+  'markdown-to-pdf': z.object({
+    pageSize:        z.enum(['A4', 'Letter']).optional(),
+    orientation:     z.enum(['portrait', 'landscape']).optional(),
+    marginMm:        z.number().int().min(0).max(40).optional(),
+    scale:           z.number().min(0.1).max(2).optional(),
+    printBackground: z.boolean().optional(),
+    title:           z.string().max(200).optional(),
+    language:        z.string().max(20).optional(),
+    header:          z.boolean().optional(),
+    footer:          z.boolean().optional(),
+    toc:             z.boolean().optional(),
+    remoteResources: z.boolean().optional(),
+    maxPages:        z.number().int().min(1).max(1000).optional(),
+    deterministic:   z.boolean().optional(),
+  }).strict(),
   'default': z.object({}).passthrough(), // unknown fields stripped by safeParse
 };
 
@@ -136,7 +152,7 @@ router.post('/presign', async (req, res) => {
 
     // Sanitize: strip path traversal, keep only extension
     const safeExt = path.extname(path.basename(filename)).toLowerCase().slice(0, 10);
-    const ALLOWED_EXTS = new Set(['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.html', '.htm', '.txt', '.jpg', '.jpeg', '.png']);
+    const ALLOWED_EXTS = new Set(['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.html', '.htm', '.txt', '.md', '.markdown', '.jpg', '.jpeg', '.png']);
     if (!ALLOWED_EXTS.has(safeExt)) {
       return res.status(400).json({ error: 'File type not allowed.' });
     }

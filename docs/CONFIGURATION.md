@@ -84,6 +84,20 @@ Planned migration: real BullMQ on the existing Redis, a `tool_jobs` table for
 durable state, Redis pub/sub for cross-process progress, and R2 output TTL
 cleanup. This is deliberately not faked in the current code.
 
+### Markdown → PDF
+
+`markdown-to-pdf` is a server tool backed by `engines/markdown.js` and the shared
+Chromium renderer. It accepts an uploaded `.md`/`.markdown` file or pasted text;
+both paths use the same presign → R2 → queue → SSE → download flow.
+
+- `/g2p/health` reports `capabilities.chromium` and `capabilities["markdown-to-pdf"]`.
+- `CHROME_BIN` selects the browser binary (the Docker image already sets it).
+- `TOOLS_MD_MAX_BYTES` (default 2 MiB) caps Markdown input.
+- `TOOLS_PDF_TIMEOUT_MS` (default 30000) caps the Chromium render.
+- Remote images/CSS are blocked by default; only `data:` images are embedded.
+- `npm run test:md-pdf --prefix backend` runs pure engine tests and, when a
+  browser is present, a render + determinism smoke test. CI runs this job.
+
 ## 5. Upload validation
 
 `POST /g2p/files/:fileId/complete` now verifies that the first 4 KB of the R2

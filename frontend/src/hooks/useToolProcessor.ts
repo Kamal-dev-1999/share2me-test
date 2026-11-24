@@ -20,6 +20,16 @@ import { getToolBySlug } from "../lib/pdfTools";
 import axios from "axios";
 import { getBackendUrl } from "@/lib/backendUrl";
 
+/** Some browsers report an empty File.type for .md/.html uploads. */
+function mimeForUpload(file: File): string {
+  if (file.type) return file.type;
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".md") || name.endsWith(".markdown")) return "text/markdown";
+  if (name.endsWith(".html") || name.endsWith(".htm")) return "text/html";
+  if (name.endsWith(".txt")) return "text/plain";
+  return "application/octet-stream";
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,6 +157,27 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
       const totalInputBytes = files.reduce((sum, f) => sum + f.size, 0);
       const toolInfo = getToolBySlug(slug);
 
+      // Do not upload a document when the renderer is known to be unavailable.
+      // The health check is advisory: a failed/503 response does not block work.
+      if (slug === "markdown-to-pdf") {
+        try {
+          const healthRes = await fetch(`${EXPRESS_BACKEND_URL}/g2p/health`);
+          if (healthRes.ok) {
+            const health = await healthRes.json();
+            if (health?.checks?.capabilities?.["markdown-to-pdf"] === false) {
+              setState({
+                status: "error", progress: 0, progressMessage: "", output: null,
+                error: {
+                  code: "CAPABILITY_UNAVAILABLE",
+                  message: "PDF rendering is temporarily unavailable on the server. Please try again later.",
+                },
+              });
+              return;
+            }
+          }
+        } catch (_e) { /* advisory check — continue */ }
+      }
+
       if (slug === "protect-pdf") {
         const pw = typeof config?.userPassword === "string" ? config.userPassword.trim() : "";
         if (!pw) {
@@ -181,7 +212,7 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
           // 2. Upload to R2 via Axios to get progress
           setState(prev => ({ ...prev, progressMessage: "Uploading to cloud…" }));
           await axios.put(upload_url, file, {
-            headers: { "Content-Type": file.type },
+            headers: { "Content-Type": mimeForUpload(file) },
             onUploadProgress: (progressEvent) => {
               const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
               // Map upload to 0-40% of total progress

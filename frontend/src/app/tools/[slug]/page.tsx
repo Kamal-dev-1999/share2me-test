@@ -29,8 +29,23 @@ const ConfigMap: Record<string, React.ComponentType<Configs.ConfigProps>> = {
   "organize-pdf": Configs.OrganizeConfig,
   "jpg-to-pdf": Configs.JpgToPdfConfig,
   "pdf-to-jpg": Configs.PdfToJpgConfig,
+  "markdown-to-pdf": Configs.MarkdownToPdfConfig,
   "translate-pdf": Configs.TranslateConfig,
 };
+
+const MARKDOWN_PLACEHOLDER = `# Project Notes
+
+Write **Markdown** here, or upload a .md file instead.
+
+## Highlights
+- CommonMark and GitHub Flavored Markdown
+- Tables, code blocks, task lists and links
+- [x] Print-ready A4 output
+
+| Item | Status |
+| --- | --- |
+| Draft | Ready |
+`;
 
 /**
  * Dynamic PDF-tool page. Looks the tool up from the registry and hands off to
@@ -69,6 +84,7 @@ export default function ToolPage({ params }: PageProps) {
     "ai-summarizer",
     "translate-pdf",
     "html-to-pdf",
+    "markdown-to-pdf",
     "edit-pdf",
     "pdf-forms",
     "redact-pdf",
@@ -103,6 +119,8 @@ export default function ToolPage({ params }: PageProps) {
       tool={tool}
       multiple={!singleFileTools.has(tool.slug)}
       toolConfig={config}
+      allowTextInput={tool.slug === "markdown-to-pdf"}
+      textPlaceholder={MARKDOWN_PLACEHOLDER}
       configSidebar={
         ConfigComponent ? <ConfigComponent config={config} onChange={setConfig} /> : undefined
       }
