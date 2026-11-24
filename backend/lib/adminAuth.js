@@ -15,14 +15,9 @@ function getAuthorizedAdminEmails() {
 }
 
 function getExpectedAdminSecret() {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('[FATAL] AUTH_SECRET environment variable is missing.');
-    }
-    return 'placeholder_jwt_secret_local_dev_only';
-  }
-  return secret;
+  // Prefer the admin-specific name, but accept the canonical shared secret so a
+  // single deployment secret can serve both admin and vendor JWT paths.
+  return require('./config').getAdminSecret();
 }
 
 function adminAuthMiddleware(req, res, next) {

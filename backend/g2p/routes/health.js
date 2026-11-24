@@ -2,11 +2,23 @@ const express = require('express');
 const { query } = require('../lib/db');
 const { JWT_SECRET } = require('../lib/auth');
 const { SignJWT, jwtVerify } = require('jose');
+const { inspectSharedSecrets } = require('../../lib/config');
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-  const health = { status: 'ok', checks: {}, ts: Date.now() };
+  const secrets = inspectSharedSecrets();
+  const health = {
+    status: 'ok',
+    checks: {},
+    config: {
+      // Names only — never expose secret values on an unauthenticated endpoint.
+      sharedSecretSource: secrets.source,
+      sharedSecretConflict: secrets.conflicting,
+      toolQueueMode: 'in-memory-mock',
+    },
+    ts: Date.now(),
+  };
   
   // 1. DB Check
   try {

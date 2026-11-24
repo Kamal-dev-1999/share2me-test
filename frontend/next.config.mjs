@@ -7,10 +7,14 @@ const nextConfig = {
   // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
   output: process.env.DOCKER_BUILD === "1" ? "standalone" : undefined,
   eslint: {
+    // Kept only until the existing lint backlog is cleared. CI runs
+    // `npm run lint:report` so the count stays visible instead of silently
+    // growing. TypeScript is enforced at build time below.
     ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // `npx tsc --noEmit` is clean; type errors must fail the build again.
+    ignoreBuildErrors: false,
   },
   outputFileTracingRoot: process.cwd(),
   images: {

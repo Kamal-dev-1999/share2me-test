@@ -1,0 +1,57 @@
+name: Verify
+
+# Non-deploying quality gate. Does not build, push, or deploy anything.
+on:
+  push:
+    branches:
+      - oracle-cloud
+      - v3.5
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/verify.yml'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-typecheck:
+    name: TypeScript (frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - run: npm run typecheck --prefix frontend
+
+  backend-syntax:
+    name: JavaScript syntax (backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: node --check on all backend source files
+        run: find backend -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
+
+  frontend-lint-report:
+    name: ESLint backlog (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - run: npm run lint:report --prefix frontend

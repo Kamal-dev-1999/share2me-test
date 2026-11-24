@@ -11,6 +11,15 @@ const puppeteer = require('./engines/puppeteer');
 const ai = require('./engines/ai');
 const office = require('./engines/office');
 
+// ─── Operational warning ───────────────────────────────────────────────────────
+// This is intentionally NOT a durable queue. Jobs and their SSE subscribers
+// live only in this process. A restart, deploy, or second backend instance
+// loses in-flight jobs. See docs/CONFIGURATION.md for the migration plan.
+console.warn(
+  '[Tools] WARNING: using the in-memory tool queue (bullmq-mock). ' +
+  'Tool jobs are not durable and will be lost on backend restart.'
+);
+
 // In-memory job event bus
 const jobEvents = new EventEmitter();
 

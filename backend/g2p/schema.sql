@@ -1,5 +1,13 @@
 -- Phase 0: G2P Schema Definitions (PostgreSQL)
 
+-- Nearby print-shop search uses ST_DWithin. Wrapped so bootstrap still works on
+-- managed Postgres instances where extension creation is restricted.
+DO $$ BEGIN
+  CREATE EXTENSION IF NOT EXISTS postgis;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'postgis extension could not be created: %', SQLERRM;
+END $$;
+
 -- Enums (Safe creation)
 DO $$ BEGIN
   CREATE TYPE request_status AS ENUM ('pending', 'processing', 'completed', 'expired');
@@ -204,6 +212,16 @@ ALTER TABLE vendors ADD COLUMN IF NOT EXISTS subscription_starts_at TIMESTAMPTZ;
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS vendor_setup_completed BOOLEAN DEFAULT false;
 
 -- OTP Brute-force protection
+-- Defined inline so a fresh database can bootstrap from this file alone.
+CREATE TABLE IF NOT EXISTS vendor_otps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+  otp_hash VARCHAR(255) NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_vendor_otps_vendor_id ON vendor_otps(vendor_id);
 ALTER TABLE vendor_otps ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0;
 
 -- Custom QR Branding

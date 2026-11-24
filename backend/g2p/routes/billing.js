@@ -8,15 +8,12 @@ const Razorpay = require('razorpay');
 const nodemailer = require('nodemailer');
 const { SignJWT, jwtVerify } = require('jose');
 const RateLimiter = require('../../lib/RateLimiter');
+const { getSharedJwtSecret } = require('../../lib/config');
 
 const otpVerifyLimiter = new RateLimiter(5 * 60 * 1000, 5); // 5 attempts per 5 mins
 
 function getJwtSecret() {
-  const secretStr = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET;
-  if (!secretStr) {
-    throw new Error('JWT_SECRET environment variable is not configured');
-  }
-  return new TextEncoder().encode(secretStr);
+  return new TextEncoder().encode(getSharedJwtSecret());
 }
 
 let razorpayInstance = null;

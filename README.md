@@ -24,6 +24,12 @@ Your data travels directly between devices — it never touches a server.
 
 ---
 
+> **Configuration & current state:** For the authoritative environment-variable
+> contract, active OCI topology, and known implementation limits (single backend
+> instance, in-memory tool queue, upload validation), see
+> [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md). Older `knowledge/` and
+> cloud-provider READMEs describe earlier deployment generations.
+
 ## ✦ What is Share2Me?
 
 Share2Me is a **browser-native, high-performance transfer and digital document platform** operating across two primary modes:

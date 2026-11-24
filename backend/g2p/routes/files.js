@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { getTransactionClient, query } = require('../lib/db');
-const { isMimeAllowed } = require('../lib/validate');
+const { isMimeAllowed, verifyMagicBytesFromR2 } = require('../lib/validate');
 const { generatePresignedPutUrl, verifyObjectExistsAndSize } = require('../lib/storage');
 const RateLimiter = require('../../lib/RateLimiter');
 
@@ -151,6 +151,14 @@ router.post('/:fileId/complete', async (req, res) => {
     if (objectCheck.size !== parseInt(fileRow.size_bytes, 10)) {
       console.warn(`[G2P] Size mismatch for ${fileId}: declared ${fileRow.size_bytes}, actual ${objectCheck.size}. Rejecting.`);
       return res.status(400).json({ error: 'upload_size_mismatch' });
+    }
+
+    // 2.5 Layer 2 Validation: verify the uploaded bytes match the declared MIME
+    // type. Presigned URLs trust the client's content type, so without this a
+    // renamed executable could reach a print shop.
+    const magicOk = await verifyMagicBytesFromR2(fileRow.r2_key, fileRow.mime_type);
+    if (!magicOk) {
+      return res.status(400).json({ error: 'invalid_file_content' });
     }
 
     // 3. Mark as received

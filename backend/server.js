@@ -3,6 +3,10 @@
 require('dotenv').config({ path: __dirname + '/.env' });
 require('dotenv').config({ path: __dirname + '/g2p/.env' });
 
+// Fail fast on missing critical config in production; warn otherwise.
+const { validateRuntimeConfig, isProduction } = require('./lib/config');
+const runtimeConfig = validateRuntimeConfig('backend');
+
 // ─── Process stability (before any require) ───────────────────────────────────
 process.on('unhandledRejection', (reason) => {
   console.error('[FATAL:unhandledRejection]', reason);
@@ -242,11 +246,21 @@ app.get('/health', (_req, res) => {
     rooms:       otcToRoom.size,
     connections: metrics.connectionsActive,
     memory:      { heapUsedMB, rssMB: Math.round(mem.rss / 1024 / 1024) },
+    config:      {
+      environment: runtimeConfig.environment,
+      sharedSecretSource: runtimeConfig.sharedSecretSource,
+      warnings: runtimeConfig.warnings,
+    },
     ts:          Date.now(),
   });
 });
 
 app.get('/metrics', (req, res) => {
+  // Metrics expose operational detail about the signaling service. Keep them
+  // closed in production unless an explicit token is configured.
+  if (isProduction() && !process.env.METRICS_TOKEN) {
+    return res.status(404).json({ error: 'not_found' });
+  }
   if (process.env.METRICS_TOKEN && req.headers['x-metrics-token'] !== process.env.METRICS_TOKEN) {
     return res.status(401).json({ error: 'unauthorized' });
   }

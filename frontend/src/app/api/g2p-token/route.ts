@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { SignJWT } from "jose";
 import { NextResponse } from "next/server";
+import { getSharedJwtSecret } from "@/lib/sharedJwtSecret";
 
 export async function GET() {
   const session = await auth();
@@ -8,9 +9,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Use the same secret shared with the Express backend
-  const secret = process.env.AUTH_SECRET || "placeholder_jwt_secret";
-  const secretKey = new TextEncoder().encode(secret);
+  // Must resolve to the same value the Express backend verifies with.
+  const secretKey = new TextEncoder().encode(getSharedJwtSecret());
 
   try {
     const token = await new SignJWT({ 

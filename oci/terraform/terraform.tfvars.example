@@ -32,8 +32,8 @@ acme_email         = "admin@share2.me"
 
 # ─── Compute Specs (Always Free Ampere A1 Caps) ───────────────────────────────
 instance_shape          = "VM.Standard.A1.Flex"
-instance_ocpus          = 2    # 2 OCPUs is the 2026 Always Free Limit
-instance_memory_in_gbs  = 12   # 12 GB RAM is the 2026 Always Free Limit
+instance_ocpus          = 1    # 1 OCPU per VM (2 OCPUs total across 2 VMs is the Always Free limit)
+instance_memory_in_gbs  = 6    # 6 GB RAM per VM (12 GB RAM total across 2 VMs is the Always Free limit)
 boot_volume_size_in_gbs = 100  # Up to 200 GB across all volumes is Always Free
 
 # ─── Application Secrets (Injected to .env on the server with chmod 600) ──────

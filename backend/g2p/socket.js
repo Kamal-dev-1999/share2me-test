@@ -4,6 +4,10 @@ const RateLimiter = require('../lib/RateLimiter');
 
 const vendorJoinLimiter = new RateLimiter(60_000, 30); // 30 joins/min per IP
 const agentJoinLimiter = new RateLimiter(60_000, 10); // 10 connects/min per IP
+const jobJoinLimiter = new RateLimiter(60_000, 30); // 30 job-room joins/min per IP
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_JOB_ROOMS_PER_SOCKET = 20;
 
 let ioInstance = null;
 const connectedAgents = new Map(); // vendorId -> { socketId, printers: [] }
@@ -41,10 +45,36 @@ function attachG2PSockets(io, metrics, bannedIPs) {
     });
 
     // ── join_job_room ─────────────────────────────────────────────────────────
-    // Allows a student to join a specific job's room to receive payment updates
-    socket.on('g2p:join_job_room', ({ jobId } = {}) => {
-      if (jobId) {
+    // Allows a student to join a specific job's room to receive payment updates.
+    // The job ID is only handed out in the job-creation response, but it is not
+    // a secret credential: bound the surface with format, existence, count and
+    // rate checks so arbitrary room names cannot be joined or flooded.
+    socket.on('g2p:join_job_room', async ({ jobId } = {}, cb) => {
+      try {
+        if (typeof jobId !== 'string' || !UUID_RE.test(jobId)) {
+          return cb?.({ error: 'invalid_job' });
+        }
+
+        if (jobJoinLimiter.isRateLimited(ip)) {
+          metrics.rateLimitHits++;
+          return cb?.({ error: 'rate_limited' });
+        }
+
+        const joinedRooms = [...socket.rooms].filter((room) => room.startsWith('job:'));
+        if (!joinedRooms.includes(`job:${jobId}`) && joinedRooms.length >= MAX_JOB_ROOMS_PER_SOCKET) {
+          return cb?.({ error: 'too_many_rooms' });
+        }
+
+        const result = await query('SELECT 1 FROM printshop_jobs WHERE id = $1 LIMIT 1', [jobId]);
+        if (result.rowCount === 0) {
+          return cb?.({ error: 'not_found' });
+        }
+
         socket.join(`job:${jobId}`);
+        cb?.({ ok: true });
+      } catch (err) {
+        console.error('[G2P Sockets] join_job_room error:', err.message);
+        cb?.({ error: 'internal_error' });
       }
     });
 

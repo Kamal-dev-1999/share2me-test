@@ -6,7 +6,9 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "lint:report": "next lint --dir src",
+    "typecheck": "tsc --noEmit"
   },
   "browser": {
     "string_decoder": false,

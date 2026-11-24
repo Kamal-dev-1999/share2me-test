@@ -1,14 +1,10 @@
 const { jwtVerify } = require('jose');
+const { getSharedJwtSecret } = require('../../lib/config');
 
-// This secret MUST match the NextAuth AUTH_SECRET in the frontend exactly!
-const JWT_SECRET = process.env.AUTH_JWT_SECRET;
-if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('[FATAL] AUTH_JWT_SECRET environment variable is not set.');
-  }
-  console.warn('[Auth] WARNING: AUTH_JWT_SECRET not set. Using insecure placeholder for local dev only.');
-}
-const _JWT_SECRET = JWT_SECRET || 'placeholder_jwt_secret_local_dev_only';
+// Canonical name is AUTH_JWT_SECRET; JWT_SECRET / AUTH_SECRET are accepted
+// aliases so older deployments keep working. See backend/lib/config.js.
+const _JWT_SECRET = getSharedJwtSecret();
+const JWT_SECRET = _JWT_SECRET;
 const secretKey = new TextEncoder().encode(_JWT_SECRET);
 
 /**

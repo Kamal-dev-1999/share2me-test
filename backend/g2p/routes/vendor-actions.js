@@ -353,7 +353,12 @@ router.delete('/requests/:requestId', async (req, res) => {
 });
 // Get analytics data for the dashboard);
 
+// Debug-only endpoint. It deliberately queries the first vendor rather than
+// req.vendorId, so it must never be reachable in production.
 router.get('/analytics/test', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'not_found' });
+  }
   try {
     const filter = req.query.filter || '7d';
     let dateCondition = '';

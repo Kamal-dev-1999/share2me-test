@@ -55,6 +55,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: _AUTH_SECRET,
   session: { strategy: "jwt" },
   callbacks: {
+    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
+      // Allows relative callback URLs: e.g. /admin/login -> https://share2me.in/admin/login
+      if (url.startsWith("/")) {
+        const cleanBase =
+          baseUrl.includes("130.210.22.28") || baseUrl.includes("localhost")
+            ? "https://share2me.in"
+            : baseUrl;
+        return `${cleanBase}${url}`;
+      }
+      try {
+        const parsedUrl = new URL(url);
+        // Prevent redirects to raw host IP
+        if (parsedUrl.hostname === "130.210.22.28") {
+          return `https://share2me.in${parsedUrl.pathname}${parsedUrl.search}`;
+        }
+        if (
+          parsedUrl.origin === baseUrl ||
+          parsedUrl.hostname === "share2me.in" ||
+          parsedUrl.hostname.endsWith(".share2me.in") ||
+          parsedUrl.hostname === "share2.me" ||
+          parsedUrl.hostname.endsWith(".share2.me")
+        ) {
+          return url;
+        }
+      } catch {
+        // Fallback to safe base
+      }
+      return baseUrl.includes("130.210.22.28") ? "https://share2me.in" : baseUrl;
+    },
     async jwt({ token, account, profile, trigger, session }: any) {
       const email = profile?.email || token.email;
       token.adminAuthorized = isEmailAdminAuthorized(email);
