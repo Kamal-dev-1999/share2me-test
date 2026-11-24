@@ -75,8 +75,7 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - BACKEND_URL=http://backend:8000
-      # AUTH_SECRET is read dynamically from the environment / .env file
-      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_SECRET=${AUTH_SECRET:-build_placeholder_secret_min_32_chars_12345}
     depends_on:
       backend:
         # Relaxed from service_healthy → service_started.

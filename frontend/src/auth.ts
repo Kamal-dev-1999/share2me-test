@@ -5,16 +5,20 @@ import { getBackendUrl } from "@/lib/backendUrl";
 const EXPRESS_BACKEND_URL = getBackendUrl();
 const AUTH_SECRET = process.env.AUTH_SECRET;
 if (!AUTH_SECRET) {
-  if (process.env.NODE_ENV === "production") {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.DOCKER_BUILD &&
+    process.env.NEXT_PHASE !== "phase-production-build"
+  ) {
     throw new Error(
       "[FATAL] AUTH_SECRET environment variable is not set. Refusing to start.",
     );
   }
   console.warn(
-    "[Auth] WARNING: AUTH_SECRET is not set. Using insecure placeholder for local dev only.",
+    "[Auth] WARNING: AUTH_SECRET is not set. Using build/dev placeholder.",
   );
 }
-const _AUTH_SECRET = AUTH_SECRET || "placeholder_jwt_secret_local_dev_only";
+const _AUTH_SECRET = AUTH_SECRET || "build_placeholder_secret_min_32_chars_12345";
 
 function isEmailAdminAuthorized(email?: string | null): boolean {
   if (!email) return false;

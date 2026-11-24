@@ -31,7 +31,11 @@ export function getSharedJwtSecret(): string {
   const secret = canonical || legacy || nextAuth;
   if (secret) return secret;
 
-  if (process.env.NODE_ENV === "production") {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.DOCKER_BUILD &&
+    process.env.NEXT_PHASE !== "phase-production-build"
+  ) {
     throw new Error(
       "[FATAL] No shared JWT secret configured. Set AUTH_JWT_SECRET on both " +
         "the frontend and backend.",

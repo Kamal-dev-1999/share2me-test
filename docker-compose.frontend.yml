@@ -26,7 +26,6 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - BACKEND_URL=http://10.0.1.218:8000
-      - AUTH_SECRET=${AUTH_SECRET}
       - AUTH_TRUST_HOST=true
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
