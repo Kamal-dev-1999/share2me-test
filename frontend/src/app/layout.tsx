@@ -26,7 +26,7 @@ import { GA_MEASUREMENT_ID } from "@/lib/analytics";
 export const revalidate = 0;
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.share2me.in'),
+  metadataBase: new URL('https://share2me.in'),
   title: {
     default: "Share2Me — Secure P2P File Transfer & Send Large Files Free",
     template: "%s | Share2Me"
@@ -155,7 +155,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Share2Me — Secure P2P File Transfer & Send Large Files Free",
     description: "Send large files and text clipboard data instantly between any device using Share2Me (also known as Share 2 Me, Share To, or Share2) secure, end-to-end encrypted (AES-GCM-256) P2P WebRTC.",
-    url: 'https://www.share2me.in',
+    url: 'https://share2me.in',
     siteName: 'Share2Me',
     locale: 'en_US',
     type: 'website',
@@ -207,25 +207,25 @@ export default function RootLayout({
       "@graph": [
         {
           "@type": "WebSite",
-          "@id": "https://www.share2me.in/#website",
-          "url": "https://www.share2me.in",
+          "@id": "https://share2me.in/#website",
+          "url": "https://share2me.in",
           "name": "Share2Me",
           "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
           "potentialAction": {
             "@type": "SearchAction",
             "target": {
               "@type": "EntryPoint",
-              "urlTemplate": "https://www.share2me.in/?q={search_term_string}"
+              "urlTemplate": "https://share2me.in/?q={search_term_string}"
             },
             "query-input": "required name=search_term_string"
           }
         },
         {
           "@type": "Organization",
-          "@id": "https://www.share2me.in/#organization",
+          "@id": "https://share2me.in/#organization",
           "name": "Share2Me",
-          "url": "https://www.share2me.in",
-          "logo": "https://www.share2me.in/logo.png",
+          "url": "https://share2me.in",
+          "logo": "https://share2me.in/logo.png",
           "brand": {
             "@type": "Brand",
             "name": "Share2Me",
@@ -238,10 +238,10 @@ export default function RootLayout({
         },
         {
           "@type": "WebApplication",
-          "@id": "https://www.share2me.in/#webapp",
+          "@id": "https://share2me.in/#webapp",
           "name": "Share2Me",
           "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
-          "url": "https://www.share2me.in",
+          "url": "https://share2me.in",
           "description": "Secure, unlimited P2P file sharing and text sharing directly in your browser. No cloud storage, no sign-ups required.",
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "All",
@@ -253,10 +253,10 @@ export default function RootLayout({
         },
         {
           "@type": "SoftwareApplication",
-          "@id": "https://www.share2me.in/#softwareapp",
+          "@id": "https://share2me.in/#softwareapp",
           "name": "Share2Me",
           "alternateName": ["Share 2 Me", "Share To", "Share2", "ShareToMe", "Share-To-Me"],
-          "url": "https://www.share2me.in",
+          "url": "https://share2me.in",
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "All",
           "offers": {
@@ -275,7 +275,7 @@ export default function RootLayout({
         },
         {
           "@type": "FAQPage",
-          "@id": "https://www.share2me.in/#faq",
+          "@id": "https://share2me.in/#faq",
           "mainEntity": [
             {
               "@type": "Question",

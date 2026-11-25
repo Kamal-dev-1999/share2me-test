@@ -180,7 +180,7 @@ function G2PContent() {
                   files.
                 </p>
                 <button
-                  onClick={() => signIn("google")}
+                  onClick={() => signIn("google", { callbackUrl: "/g2p" })}
                   className="btn-brutalist mt-auto"
                 >
                   <UserCheck className="w-5 h-5" strokeWidth={2.5} />

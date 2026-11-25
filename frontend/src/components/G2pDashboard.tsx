@@ -1105,7 +1105,7 @@ export default function G2pDashboard({
   const shareLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/g2p/${activeShareCode}`
-      : `https://www.share2me.in/g2p/${activeShareCode}`;
+      : `https://share2me.in/g2p/${activeShareCode}`;
 
   const cleanFg = qrFgColor.replace("#", "");
   const cleanBg = qrBgColor.replace("#", "");

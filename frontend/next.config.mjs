@@ -163,6 +163,39 @@ const nextConfig = {
         destination: "/pricing",
         permanent: true,
       },
+      // UX aliases for routes users commonly type or follow from old links.
+      // Keep these temporary (307) until we are sure they should be cached.
+      {
+        source: "/login",
+        destination: "/g2p",
+        permanent: false,
+      },
+      {
+        source: "/signup",
+        destination: "/g2p",
+        permanent: false,
+      },
+      {
+        source: "/dashboard",
+        destination: "/g2p",
+        permanent: false,
+      },
+      {
+        // Must be declared before the /g2p/[code] dynamic page can match it.
+        source: "/g2p/dashboard",
+        destination: "/g2p",
+        permanent: false,
+      },
+      {
+        source: "/printshop",
+        destination: "/g2p/nearby",
+        permanent: false,
+      },
+      {
+        source: "/send",
+        destination: "/p2p?mode=send",
+        permanent: false,
+      },
     ];
   },
 

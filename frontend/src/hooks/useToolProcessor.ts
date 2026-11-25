@@ -99,8 +99,13 @@ export function useToolProcessor(slug: string): UseToolProcessorReturn {
   const workerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef<string>("");
 
-  // Detect Worker support once on mount
-  const isWorkerSupported = typeof Worker !== "undefined";
+  // Detect Worker support after mount. Initialising with `true` on both server
+  // and client keeps SSR markup identical (no hydration mismatch); the real
+  // capability is checked in the effect and the warning appears only if needed.
+  const [isWorkerSupported, setIsWorkerSupported] = useState(true);
+  useEffect(() => {
+    setIsWorkerSupported(typeof Worker !== "undefined");
+  }, []);
 
   // Lazily initialize the worker on first process() call
   const getWorker = useCallback((): Worker => {

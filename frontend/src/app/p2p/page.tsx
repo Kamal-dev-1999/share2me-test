@@ -1,6 +1,6 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SendFlow } from "@/components/SendFlow";
 import { ReceiveFlow } from "@/components/ReceiveFlow";
 import { SeoContent } from "@/components/SeoContent";
@@ -14,6 +14,7 @@ function P2PContent() {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"send" | "receive">("send");
   const [initialCode, setInitialCode] = useState<string>("");
+  const router = useRouter();
 
   useEffect(() => {
     const m = searchParams.get("mode");
@@ -22,6 +23,13 @@ function P2PContent() {
     const c = searchParams.get("code");
     if (c) setInitialCode(c);
   }, [searchParams]);
+
+  const changeMode = (nextMode: "send" | "receive") => {
+    setMode(nextMode);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("mode", nextMode);
+    router.replace(`/p2p?${params.toString()}`, { scroll: false });
+  };
 
   const socket = useSocket();
   const {
@@ -57,7 +65,7 @@ function P2PContent() {
           {/* Mode toggle pills */}
           <div className="inline-flex bg-black/[0.04] p-1 rounded-full border border-black/[0.06] backdrop-blur-md shadow-inner">
             <button
-              onClick={() => setMode("send")}
+              onClick={() => changeMode("send")}
               className={`py-1.5 px-6 rounded-full text-[13px] font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
                 mode === "send"
                   ? "bg-black text-white shadow-[0_2px_10px_rgba(0,0,0,0.15)]"
@@ -68,7 +76,7 @@ function P2PContent() {
               <span>Send</span>
             </button>
             <button
-              onClick={() => setMode("receive")}
+              onClick={() => changeMode("receive")}
               className={`py-1.5 px-6 rounded-full text-[13px] font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
                 mode === "receive"
                   ? "bg-black text-white shadow-[0_2px_10px_rgba(0,0,0,0.15)]"

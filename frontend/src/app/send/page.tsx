@@ -3,5 +3,5 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default function SendPage() {
-  redirect("/?mode=send#transfer");
+  redirect("/p2p?mode=send");
 }

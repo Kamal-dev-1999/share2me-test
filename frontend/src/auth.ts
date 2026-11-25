@@ -20,6 +20,17 @@ if (!AUTH_SECRET) {
 }
 const _AUTH_SECRET = AUTH_SECRET || "build_placeholder_secret_min_32_chars_12345";
 
+const SAFE_ROOT_DOMAINS = ["share2me.in", "share2.me"];
+const DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
+
+function isSafeHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/\.$/, "");
+  if (DEV_HOSTNAMES.has(normalized)) return true;
+  return SAFE_ROOT_DOMAINS.some(
+    (domain) => normalized === domain || normalized.endsWith(`.${domain}`),
+  );
+}
+
 function isEmailAdminAuthorized(email?: string | null): boolean {
   if (!email) return false;
   const rawEnv = process.env.AUTHORIZED_ADMIN_EMAILS || "";
@@ -60,33 +71,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },
   callbacks: {
     async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
-      // Allows relative callback URLs: e.g. /admin/login -> https://share2me.in/admin/login
-      if (url.startsWith("/")) {
-        const cleanBase =
-          baseUrl.includes("130.210.22.28") || baseUrl.includes("localhost")
-            ? "https://share2me.in"
-            : baseUrl;
-        return `${cleanBase}${url}`;
-      }
+      let origin: string;
       try {
-        const parsedUrl = new URL(url);
-        // Prevent redirects to raw host IP
-        if (parsedUrl.hostname === "130.210.22.28") {
-          return `https://share2me.in${parsedUrl.pathname}${parsedUrl.search}`;
-        }
+        origin = new URL(baseUrl).origin;
+      } catch {
+        origin = "https://share2me.in";
+      }
+
+      // Relative callbacks must stay on the host the visitor actually used.
+      // Protocol-relative URLs ("//evil.example") are NOT relative paths.
+      if (url.startsWith("/") && !url.startsWith("//")) {
+        return `${origin}${url}`;
+      }
+
+      try {
+        const target = new URL(url);
         if (
-          parsedUrl.origin === baseUrl ||
-          parsedUrl.hostname === "share2me.in" ||
-          parsedUrl.hostname.endsWith(".share2me.in") ||
-          parsedUrl.hostname === "share2.me" ||
-          parsedUrl.hostname.endsWith(".share2.me")
+          target.origin === origin ||
+          (target.protocol === "https:" && isSafeHostname(target.hostname))
         ) {
           return url;
         }
       } catch {
-        // Fallback to safe base
+        // Fall through to the safe origin below.
       }
-      return baseUrl.includes("130.210.22.28") ? "https://share2me.in" : baseUrl;
+
+      return origin;
     },
     async jwt({ token, account, profile, trigger, session }: any) {
       const email = profile?.email || token.email;
