@@ -1,6 +1,102 @@
 const { randomInt } = require('crypto');
 const RateLimiter = require('../lib/RateLimiter');
 
+let db;
+try {
+  db = require('../g2p/lib/db');
+} catch (_) {
+  db = null;
+}
+
+function categorizeFileType(filename, isTextMode) {
+  if (isTextMode) return 'text';
+  if (!filename || typeof filename !== 'string') return 'other';
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return 'pdf';
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'webp':
+    case 'gif':
+    case 'svg':
+    case 'bmp':
+      return 'image';
+    case 'doc':
+    case 'docx':
+    case 'odt':
+    case 'rtf':
+    case 'txt':
+    case 'md':
+      return 'document';
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
+    case 'ods':
+      return 'spreadsheet';
+    case 'ppt':
+    case 'pptx':
+    case 'odp':
+      return 'presentation';
+    case 'zip':
+    case 'rar':
+    case '7z':
+    case 'tar':
+    case 'gz':
+      return 'archive';
+    case 'mp4':
+    case 'mkv':
+    case 'avi':
+    case 'mov':
+    case 'webm':
+      return 'video';
+    case 'mp3':
+    case 'wav':
+    case 'ogg':
+    case 'flac':
+    case 'm4a':
+      return 'audio';
+    default:
+      return 'other';
+  }
+}
+
+async function recordP2PTransfer(metadata, metrics) {
+  if (!metadata || !metadata.s || typeof metadata.s !== 'number' || metadata.s <= 0) return;
+  const sizeBytes = Math.round(metadata.s);
+  const category = categorizeFileType(metadata.f, !!metadata.textMode);
+  const chunks = metadata.total && Number.isInteger(metadata.total) ? metadata.total : 1;
+  const isText = !!metadata.textMode;
+
+  if (metrics) {
+    if (typeof metrics.p2pTransfersCompleted === 'number') metrics.p2pTransfersCompleted++;
+    if (typeof metrics.p2pBytesTransferred === 'number') metrics.p2pBytesTransferred += sizeBytes;
+  }
+
+  if (db && typeof db.query === 'function') {
+    try {
+      await Promise.all([
+        db.query(
+          `INSERT INTO p2p_transfer_events (file_size_bytes, file_type_category, chunks_count, is_text_mode)
+           VALUES ($1, $2, $3, $4)`,
+          [sizeBytes, category, chunks, isText]
+        ),
+        db.query(
+          `UPDATE p2p_telemetry_totals 
+           SET total_transfers = total_transfers + 1, 
+               total_bytes = total_bytes + $1, 
+               last_updated = NOW() 
+           WHERE id = 1`,
+          [sizeBytes]
+        )
+      ]);
+    } catch (err) {
+      console.warn('[P2P Telemetry] Notice: Failed to persist transfer record:', err.message);
+    }
+  }
+}
+
 // ─── P2P specific rate limiters ─────────────────────────────────────────────
 const createRoomLimiter = new RateLimiter(60_000, 3);
 const joinRoomLimiter   = new RateLimiter(60_000, 10);
@@ -114,9 +210,16 @@ function attachP2PSockets(io, metrics, bannedIPs) {
       handleRelay('nack', msg);
     });
 
-    // ── transfer_complete: notify peers + schedule room cleanup ───────────────
+    // ── transfer_complete: notify peers + record telemetry + schedule room cleanup ─────────
     socket.on('transfer_complete', (msg) => {
       if (!msg?.otc || socket.roomOTC !== msg.otc) return;
+
+      const room = otcToRoom.get(msg.otc);
+      if (room && !room.recorded && room.metadata) {
+        room.recorded = true;
+        recordP2PTransfer(room.metadata, metrics);
+      }
+
       handleRelay('transfer_complete', msg);
       io.to(msg.otc).emit('room_closing', { otc: msg.otc, reason: 'transfer_complete' });
       setTimeout(() => {

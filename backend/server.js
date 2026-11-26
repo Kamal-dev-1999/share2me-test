@@ -98,14 +98,16 @@ connectRedisAdapter();
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
 const metrics = {
-  roomsCreated:       0,
-  roomsDestroyed:     0,
-  connectionsTotal:   0,
-  connectionsActive:  0,
-  signalsRelayed:     0,
-  rateLimitHits:      0,
-  oversizedPayloads:  0,
-  nackFloodsBlocked:  0,
+  roomsCreated:          0,
+  roomsDestroyed:        0,
+  connectionsTotal:      0,
+  connectionsActive:     0,
+  signalsRelayed:        0,
+  rateLimitHits:         0,
+  oversizedPayloads:     0,
+  nackFloodsBlocked:     0,
+  p2pTransfersCompleted: 0,
+  p2pBytesTransferred:   0,
 };
 
 // ─── TURN / ICE config (Metered — supports TCP + TLS/443 for corporate networks) ──
